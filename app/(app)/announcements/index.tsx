@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -44,7 +45,12 @@ export default function AnnouncementsScreen() {
 
   const renderItem = ({ item }: { item: Announcement }) => (
     <Card style={styles.card}>
-      {item.pinned && <Text style={styles.pinnedLabel}>📌 PINNED</Text>}
+      {item.pinned && (
+        <View style={styles.pinnedRow}>
+          <Ionicons name="pin" size={11} color={Colors.p600} />
+          <Text style={styles.pinnedLabel}>PINNED</Text>
+        </View>
+      )}
       <Text style={styles.cardTitle}>{item.title}</Text>
       <Text style={styles.cardBody}>{item.body}</Text>
       <View style={styles.cardMeta}>
@@ -72,7 +78,7 @@ export default function AnnouncementsScreen() {
 
       {announcements.length === 0 ? (
         <EmptyState
-          icon="📢"
+          iconName="megaphone-outline"
           title="No announcements"
           description={isAdmin ? 'Post an announcement to keep your team informed.' : 'No announcements from your director yet.'}
           actionLabel={isAdmin ? 'Post Announcement' : undefined}
@@ -95,6 +101,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.surfaceBg },
   list: { padding: Spacing.lg, gap: Spacing.sm, paddingBottom: 24 },
   card: { gap: Spacing.sm },
+  pinnedRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   pinnedLabel: { ...Typography.micro, color: Colors.p600, letterSpacing: 1 },
   cardTitle: { ...Typography.h3, color: Colors.ink },
   cardBody: { ...Typography.body, color: Colors.ink70, lineHeight: 22 },

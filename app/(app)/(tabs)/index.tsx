@@ -5,15 +5,22 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../store/authStore';
 import { useChoirStore } from '../../../store/choirStore';
 import { useSetListStore } from '../../../store/setListStore';
 import { subscribeChoir } from '../../../services/choirService';
 import { subscribeSetLists } from '../../../services/setListService';
-import { EmptyState, ErrorState, Pill, SkeletonCard } from '../../../components/ui';
+import { EmptyState, ErrorState, SkeletonCard } from '../../../components/ui';
 import { Colors, Gradients } from '../../../constants/colors';
 import { Spacing, Radius } from '../../../constants/spacing';
 import { formatDate } from '../../../lib/utils';
+
+type QuickAction = {
+  iconName: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+};
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -51,18 +58,18 @@ export default function DashboardScreen() {
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const nextService = setLists.filter(sl => sl.status === 'published')[0] ?? null;
 
-  const quickActions = [
-    { icon: '🎵', label: 'Add Song',      onPress: () => router.push('/(app)/songs/add') },
-    { icon: '👤', label: 'Invite Member', onPress: () => router.push('/(app)/invite')    },
-    { icon: '📋', label: 'New Set List',  onPress: () => router.push('/(app)/setlists/create') },
-    { icon: '📢', label: 'Announce',      onPress: () => router.push('/(app)/announcements/create') },
+  const quickActions: QuickAction[] = [
+    { iconName: 'musical-notes-outline', label: 'Add Song',      onPress: () => router.push('/(app)/songs/add') },
+    { iconName: 'person-add-outline',    label: 'Invite Member', onPress: () => router.push('/(app)/invite')    },
+    { iconName: 'list-outline',          label: 'New Set List',  onPress: () => router.push('/(app)/setlists/create') },
+    { iconName: 'megaphone-outline',     label: 'Announce',      onPress: () => router.push('/(app)/announcements/create') },
   ];
 
   if (!choirId) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <EmptyState
-          icon="🎼"
+          iconName="musical-notes-outline"
           title="No choir yet"
           description="Create or join a choir to get started."
           actionLabel="Get Started"
@@ -77,11 +84,11 @@ export default function DashboardScreen() {
       {/* Top nav bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/choir-settings')}>
-          <Text style={styles.navIcon}>☰</Text>
+          <Ionicons name="menu" size={22} color={Colors.p900} />
         </TouchableOpacity>
         <Text style={styles.navLogo}>Harmoniq</Text>
         <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/announcements')}>
-          <Text style={styles.navIcon}>🔔</Text>
+          <Ionicons name="notifications-outline" size={22} color={Colors.p900} />
         </TouchableOpacity>
       </View>
 
@@ -130,7 +137,10 @@ export default function DashboardScreen() {
                     </View>
                   </View>
                   <Text style={styles.heroTitle}>{nextService.title}</Text>
-                  <Text style={styles.heroDate}>📅  {formatDate(nextService.serviceDate)}</Text>
+                  <View style={styles.heroDateRow}>
+                    <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.85)" />
+                    <Text style={styles.heroDate}>{formatDate(nextService.serviceDate)}</Text>
+                  </View>
                   <View style={styles.heroDivider} />
                   <View style={styles.heroStats}>
                     <View style={styles.heroStat}>
@@ -154,7 +164,7 @@ export default function DashboardScreen() {
                 onPress={() => router.push('/(app)/setlists/create')}
                 activeOpacity={0.8}
               >
-                <Text style={styles.heroEmptyIcon}>🎼</Text>
+                <Ionicons name="musical-notes-outline" size={40} color={Colors.ink30} />
                 <Text style={styles.heroEmptyTitle}>No upcoming service</Text>
                 <Text style={styles.heroEmptySub}>Create a set list to plan your next worship service</Text>
               </TouchableOpacity>
@@ -167,10 +177,10 @@ export default function DashboardScreen() {
                 <React.Fragment key={a.label}>
                   <TouchableOpacity style={styles.actionRow} onPress={a.onPress} activeOpacity={0.7}>
                     <View style={styles.actionIconWrap}>
-                      <Text style={styles.actionIcon}>{a.icon}</Text>
+                      <Ionicons name={a.iconName} size={18} color={Colors.p700} />
                     </View>
                     <Text style={styles.actionLabel}>{a.label}</Text>
-                    <Text style={styles.actionChevron}>›</Text>
+                    <Ionicons name="chevron-forward" size={18} color={Colors.ink30} />
                   </TouchableOpacity>
                   {i < quickActions.length - 1 && <View style={styles.rowDivider} />}
                 </React.Fragment>
@@ -182,11 +192,11 @@ export default function DashboardScreen() {
               <View style={styles.cardTitleRow}>
                 <Text style={styles.cardTitle}>Your Availability</Text>
                 <TouchableOpacity onPress={() => router.push('/(app)/(tabs)/availability')}>
-                  <Text style={styles.editIcon}>📅</Text>
+                  <Ionicons name="calendar-outline" size={20} color={Colors.p500} />
                 </TouchableOpacity>
               </View>
               <View style={styles.availBody}>
-                <Text style={styles.availCheck}>✅</Text>
+                <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
                 <Text style={styles.availTitle}>You are confirmed</Text>
                 <Text style={styles.availSub}>for all services this month.</Text>
               </View>
@@ -212,7 +222,6 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(94,82,166,0.08)',
   },
   navBtn:  { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  navIcon: { fontSize: 20, color: Colors.p900 },
   navLogo: {
     fontFamily: 'Inter_900Black',
     fontSize: 20,
@@ -252,7 +261,8 @@ const styles = StyleSheet.create({
   heroBadge:     { borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: Radius.full, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: 'rgba(255,255,255,0.1)' },
   heroBadgeText: { fontFamily: 'Inter_600SemiBold', fontSize: 11, letterSpacing: 1, color: Colors.white },
   heroTitle:     { fontFamily: 'Inter_700Bold', fontSize: 26, color: Colors.white, lineHeight: 32, marginBottom: Spacing.sm },
-  heroDate:      { fontFamily: 'Inter_400Regular', fontSize: 15, color: 'rgba(255,255,255,0.85)', marginBottom: Spacing.lg },
+  heroDateRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.lg },
+  heroDate:      { fontFamily: 'Inter_400Regular', fontSize: 15, color: 'rgba(255,255,255,0.85)' },
   heroDivider:   { height: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginBottom: Spacing.base },
   heroStats:     { flexDirection: 'row', gap: Spacing.xl },
   heroStat:      { gap: 2 },
@@ -268,7 +278,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  heroEmptyIcon:  { fontSize: 40 },
   heroEmptyTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 17, color: Colors.ink },
   heroEmptySub:   { fontFamily: 'Inter_400Regular', fontSize: 14, color: Colors.ink50, textAlign: 'center', lineHeight: 20 },
 
@@ -287,7 +296,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   cardTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  editIcon: { fontSize: 18 },
 
   actionRow: {
     flexDirection: 'row',
@@ -303,13 +311,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceMid,
     alignItems: 'center', justifyContent: 'center',
   },
-  actionIcon:    { fontSize: 16 },
   actionLabel:   { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 16, color: Colors.ink },
-  actionChevron: { fontSize: 20, color: Colors.ink30 },
   rowDivider:    { height: 0 },
 
   availBody:  { alignItems: 'center', paddingVertical: Spacing.base, gap: Spacing.xs },
-  availCheck: { fontSize: 32 },
   availTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 16, color: Colors.ink },
   availSub:   { fontFamily: 'Inter_400Regular', fontSize: 14, color: Colors.ink70 },
 });

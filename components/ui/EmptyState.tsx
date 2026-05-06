@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { Button } from './Button';
 
 interface EmptyStateProps {
-  icon?: string;
+  iconName?: keyof typeof Ionicons.glyphMap;
   title: string;
   description?: string;
   actionLabel?: string;
@@ -14,14 +15,14 @@ interface EmptyStateProps {
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
-  icon = '♪',
+  iconName = 'musical-notes-outline',
   title,
   description,
   actionLabel,
   onAction,
 }) => (
   <View style={styles.container}>
-    <Text style={styles.icon}>{icon}</Text>
+    <Ionicons name={iconName} size={48} color={Colors.ink30} />
     <Text style={styles.title}>{title}</Text>
     {description && <Text style={styles.description}>{description}</Text>}
     {actionLabel && onAction && (
@@ -45,7 +46,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xxl,
     gap: Spacing.md,
   },
-  icon: { fontSize: 48, marginBottom: Spacing.sm },
   title: {
     ...Typography.h2,
     color: Colors.ink,

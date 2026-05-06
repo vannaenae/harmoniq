@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { useAuthStore } from '../../../store/authStore';
@@ -13,10 +14,10 @@ import { Typography } from '../../../constants/typography';
 import { Spacing, Radius } from '../../../constants/spacing';
 import { EventType } from '../../../types';
 
-const EVENT_TYPES: Array<{ value: EventType; label: string; emoji: string }> = [
-  { value: 'service',   label: 'Service',   emoji: '⛪' },
-  { value: 'rehearsal', label: 'Rehearsal', emoji: '🎵' },
-  { value: 'other',     label: 'Other',     emoji: '📌' },
+const EVENT_TYPES: Array<{ value: EventType; label: string; iconName: keyof typeof Ionicons.glyphMap }> = [
+  { value: 'service',   label: 'Service',   iconName: 'business-outline' },
+  { value: 'rehearsal', label: 'Rehearsal', iconName: 'musical-notes-outline' },
+  { value: 'other',     label: 'Other',     iconName: 'pin-outline' },
 ];
 
 export default function CreateRehearsalScreen() {
@@ -84,7 +85,11 @@ export default function CreateRehearsalScreen() {
                 style={[styles.typeBtn, type === et.value && styles.typeBtnActive]}
                 onPress={() => setType(et.value)}
               >
-                <Text style={styles.typeEmoji}>{et.emoji}</Text>
+                <Ionicons
+                  name={et.iconName}
+                  size={20}
+                  color={type === et.value ? Colors.p800 : Colors.ink50}
+                />
                 <Text style={[styles.typeLabel, type === et.value && styles.typeLabelActive]}>
                   {et.label}
                 </Text>
@@ -127,7 +132,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface, gap: 4,
   },
   typeBtnActive: { borderColor: Colors.p800, backgroundColor: Colors.p50 },
-  typeEmoji: { fontSize: 20 },
   typeLabel: { ...Typography.label, color: Colors.ink50 },
   typeLabelActive: { color: Colors.p800, fontWeight: '600' },
   group: {

@@ -1,37 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 
-// Maps symbol names to emoji equivalents for cross-platform support
-const symbolMap: Record<string, string> = {
-  home:            '⌂',
-  queue_music:     '♫',
-  event_available: '◻',
-  group:           '◎',
-};
-
-// Better emoji set
-const emojiMap: Record<string, { inactive: string; active: string }> = {
-  home:            { inactive: '🏠', active: '🏠' },
-  queue_music:     { inactive: '📋', active: '📋' },
-  event_available: { inactive: '📅', active: '📅' },
-  group:           { inactive: '👥', active: '👥' },
-};
-
 interface TabBarIconProps {
-  symbol: keyof typeof emojiMap;
+  iconName: keyof typeof Ionicons.glyphMap;
   focused: boolean;
 }
 
-export const TabBarIcon: React.FC<TabBarIconProps> = ({ symbol, focused }) => {
-  const emoji = emojiMap[symbol] ?? { inactive: '●', active: '●' };
-
-  return (
-    <View style={[styles.wrapper, focused && styles.wrapperActive]}>
-      <Text style={styles.emoji}>{emoji.inactive}</Text>
-    </View>
-  );
-};
+export const TabBarIcon: React.FC<TabBarIconProps> = ({ iconName, focused }) => (
+  <View style={[styles.wrapper, focused && styles.wrapperActive]}>
+    <Ionicons name={iconName} size={22} color={focused ? Colors.p900 : '#9e9aa7'} />
+  </View>
+);
 
 const styles = StyleSheet.create({
   wrapper: {
@@ -43,8 +24,5 @@ const styles = StyleSheet.create({
   },
   wrapperActive: {
     backgroundColor: Colors.p50,
-  },
-  emoji: {
-    fontSize: 22,
   },
 });

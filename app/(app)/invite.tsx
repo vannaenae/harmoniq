@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Share, TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useChoirStore } from '../../store/choirStore';
 import { useAuthStore } from '../../store/authStore';
@@ -55,7 +56,7 @@ export default function InviteScreen() {
         {/* Actions */}
         <View style={styles.actions}>
           <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
-            <Text style={styles.actionIcon}>📤</Text>
+            <Ionicons name="share-outline" size={20} color={Colors.white} />
             <Text style={styles.actionLabel}>Share Code</Text>
           </TouchableOpacity>
 
@@ -65,7 +66,7 @@ export default function InviteScreen() {
               onPress={handleRegenerate}
               disabled={regenerating}
             >
-              <Text style={styles.actionIcon}>🔄</Text>
+              <Ionicons name="refresh-outline" size={20} color={Colors.ink50} />
               <Text style={[styles.actionLabel, styles.actionLabelSecondary]}>
                 {regenerating ? 'Generating...' : 'Regenerate Code'}
               </Text>
@@ -133,7 +134,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: Colors.ink10,
   },
-  actionIcon: { fontSize: 18 },
   actionLabel: { ...Typography.bodyMed, color: Colors.white, fontWeight: '600' },
   actionLabelSecondary: { color: Colors.ink50 },
   howCard: { gap: Spacing.base },

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { createSetList } from '../../../services/setListService';
@@ -87,7 +88,7 @@ export default function CreateSetListScreen() {
                 onPress={() => setStatus(s)}
               >
                 <Text style={[styles.statusLabel, status === s && styles.statusLabelActive]}>
-                  {s === 'draft' ? '📝 Draft' : '✅ Published'}
+                  {s === 'draft' ? 'Draft' : 'Published'}
                 </Text>
               </TouchableOpacity>
             ))}

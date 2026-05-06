@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../../store/authStore';
 import { useSongStore } from '../../../store/songStore';
@@ -54,7 +55,7 @@ export default function SongLibraryScreen() {
       onPress={() => router.push(`/(app)/songs/${item.id}`)}
     >
       <View style={styles.songIcon}>
-        <Text style={styles.songIconText}>♪</Text>
+        <Ionicons name="musical-notes-outline" size={18} color={Colors.p700} />
       </View>
       <View style={styles.songInfo}>
         <Text style={styles.songTitle} numberOfLines={1}>{item.title}</Text>
@@ -68,7 +69,7 @@ export default function SongLibraryScreen() {
             <Text style={styles.keyText}>{item.key}</Text>
           </View>
         )}
-        <Text style={styles.chevron}>›</Text>
+        <Ionicons name="chevron-forward" size={18} color={Colors.ink30} />
       </View>
     </TouchableOpacity>
   );
@@ -96,7 +97,7 @@ export default function SongLibraryScreen() {
 
       {/* Search */}
       <View style={styles.searchWrap}>
-        <Text style={styles.searchIcon}>🔍</Text>
+        <Ionicons name="search-outline" size={16} color={Colors.ink50} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search songs or artists..."
@@ -106,7 +107,7 @@ export default function SongLibraryScreen() {
         />
         {search.length > 0 && (
           <TouchableOpacity onPress={() => setSearch('')}>
-            <Text style={styles.clearBtn}>✕</Text>
+            <Ionicons name="close" size={16} color={Colors.ink30} />
           </TouchableOpacity>
         )}
       </View>
@@ -126,7 +127,7 @@ export default function SongLibraryScreen() {
 
       {!isLoading && !hasError && songs.length === 0 && (
         <EmptyState
-          icon="🎵"
+          iconName="musical-notes-outline"
           title="No songs in library"
           description={
             isAdmin
@@ -140,7 +141,7 @@ export default function SongLibraryScreen() {
 
       {!isLoading && !hasError && songs.length > 0 && filtered.length === 0 && (
         <EmptyState
-          icon="🔍"
+          iconName="search-outline"
           title="No results"
           description={`No songs found matching "${search}".`}
         />
@@ -174,9 +175,7 @@ const styles = StyleSheet.create({
     height: 48,
     gap: Spacing.sm,
   },
-  searchIcon: { fontSize: 16 },
   searchInput: { flex: 1, ...Typography.body, color: Colors.ink },
-  clearBtn: { fontSize: 14, color: Colors.ink30, padding: 4 },
   list: { padding: Spacing.lg, gap: Spacing.sm, paddingTop: Spacing.sm, paddingBottom: 24 },
   songRow: {
     flexDirection: 'row',
@@ -193,7 +192,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.p50,
     alignItems: 'center', justifyContent: 'center',
   },
-  songIconText: { fontSize: 18, color: Colors.p700 },
   songInfo: { flex: 1 },
   songTitle: { ...Typography.bodyMed, color: Colors.ink },
   songArtist: { ...Typography.label, color: Colors.ink50 },
@@ -203,5 +201,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 2,
   },
   keyText: { ...Typography.micro, color: Colors.p700, letterSpacing: 0.5 },
-  chevron: { fontSize: 20, color: Colors.ink30 },
 });

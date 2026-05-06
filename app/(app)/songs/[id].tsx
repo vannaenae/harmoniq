@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -103,9 +104,9 @@ export default function SongDetailScreen() {
                 style={styles.linkRow}
                 onPress={() => Linking.openURL(song.youtubeUrl!)}
               >
-                <Text style={styles.linkIcon}>▶️</Text>
+                <Ionicons name="logo-youtube" size={20} color="#FF0000" />
                 <Text style={styles.linkText}>Open on YouTube</Text>
-                <Text style={styles.linkArrow}>↗</Text>
+                <Ionicons name="open-outline" size={16} color={Colors.ink30} />
               </TouchableOpacity>
             )}
             {song.spotifyUrl && (
@@ -113,9 +114,9 @@ export default function SongDetailScreen() {
                 style={styles.linkRow}
                 onPress={() => Linking.openURL(song.spotifyUrl!)}
               >
-                <Text style={styles.linkIcon}>🎧</Text>
+                <Ionicons name="musical-note-outline" size={20} color="#1DB954" />
                 <Text style={styles.linkText}>Open on Spotify</Text>
-                <Text style={styles.linkArrow}>↗</Text>
+                <Ionicons name="open-outline" size={16} color={Colors.ink30} />
               </TouchableOpacity>
             )}
           </Card>
@@ -177,9 +178,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.ink05,
   },
-  linkIcon: { fontSize: 18 },
   linkText: { ...Typography.bodyMed, color: Colors.p800, flex: 1 },
-  linkArrow: { fontSize: 16, color: Colors.ink30 },
   bodyText: { ...Typography.body, color: Colors.ink, lineHeight: 24 },
   lyrics: { fontFamily: 'Inter_400Regular', lineHeight: 28 },
   deleteBtn: { paddingHorizontal: Spacing.sm, paddingVertical: 4 },

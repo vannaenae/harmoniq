@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -71,7 +72,8 @@ export default function OnboardingScreen() {
         <Text style={styles.logo}>Harmoniq</Text>
         {step !== 'choose' && (
           <TouchableOpacity onPress={() => { setStep('choose'); setError(''); }} style={styles.backBtn}>
-            <Text style={styles.backText}>← Back</Text>
+            <Ionicons name="arrow-back" size={18} color="rgba(255,255,255,0.8)" />
+            <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
         )}
       </LinearGradient>
@@ -82,28 +84,32 @@ export default function OnboardingScreen() {
           {step === 'choose' && (
             <View style={styles.section}>
               <Text style={styles.greeting}>
-                Welcome, {user?.displayName?.split(' ')[0] ?? 'there'} 👋
+                Welcome, {user?.displayName?.split(' ')[0] ?? 'there'}
               </Text>
               <Text style={styles.sub}>
                 Get started by creating a new choir or joining an existing one.
               </Text>
 
               <TouchableOpacity style={styles.optionCard} onPress={() => setStep('create')}>
-                <Text style={styles.optionIcon}>🎼</Text>
+                <View style={styles.optionIconWrap}>
+                  <Ionicons name="musical-notes-outline" size={26} color={Colors.p700} />
+                </View>
                 <View style={styles.optionText}>
                   <Text style={styles.optionTitle}>Create a choir</Text>
                   <Text style={styles.optionDesc}>Set up your worship team workspace</Text>
                 </View>
-                <Text style={styles.optionArrow}>→</Text>
+                <Ionicons name="chevron-forward" size={20} color={Colors.ink30} />
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.optionCard} onPress={() => setStep('join')}>
-                <Text style={styles.optionIcon}>🔑</Text>
+                <View style={styles.optionIconWrap}>
+                  <Ionicons name="key-outline" size={26} color={Colors.p700} />
+                </View>
                 <View style={styles.optionText}>
                   <Text style={styles.optionTitle}>Join a choir</Text>
                   <Text style={styles.optionDesc}>Enter an invite code from your director</Text>
                 </View>
-                <Text style={styles.optionArrow}>→</Text>
+                <Ionicons name="chevron-forward" size={20} color={Colors.ink30} />
               </TouchableOpacity>
             </View>
           )}
@@ -187,7 +193,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logo: { ...Typography.h2, color: Colors.white, fontStyle: 'italic' },
-  backBtn: { position: 'absolute', left: Spacing.lg },
+  backBtn: { position: 'absolute', left: Spacing.lg, flexDirection: 'row', alignItems: 'center', gap: 4 },
   backText: { ...Typography.bodyMed, color: 'rgba(255,255,255,0.8)' },
   scroll: { flexGrow: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl },
   section: { gap: Spacing.xl, paddingBottom: Spacing.xxl },
@@ -204,11 +210,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.ink10,
     gap: Spacing.base,
   },
-  optionIcon: { fontSize: 32 },
+  optionIconWrap: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: Colors.p50,
+    alignItems: 'center', justifyContent: 'center',
+  },
   optionText: { flex: 1 },
   optionTitle: { ...Typography.h3, color: Colors.ink },
   optionDesc: { ...Typography.body, color: Colors.ink50 },
-  optionArrow: { fontSize: 20, color: Colors.ink30 },
   fields: { gap: Spacing.base },
   error: {
     ...Typography.bodyMed,

@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../store/authStore';
 import { useSetListStore } from '../../../store/setListStore';
 import { subscribeSetLists } from '../../../services/setListService';
@@ -69,7 +70,7 @@ export default function SetListsScreen() {
             </View>
             <Text style={styles.rowDate}>{formatDate(item.serviceDate)}</Text>
           </View>
-          <Text style={styles.rowChevron}>›</Text>
+          <Ionicons name="chevron-forward" size={20} color={Colors.ink30} />
         </View>
         <View style={styles.rowDivider} />
       </TouchableOpacity>
@@ -85,11 +86,11 @@ export default function SetListsScreen() {
       {/* Top nav */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/choir-settings')}>
-          <Text style={styles.navIcon}>☰</Text>
+          <Ionicons name="menu" size={22} color={Colors.p900} />
         </TouchableOpacity>
         <Text style={styles.navLogo}>Harmoniq</Text>
         <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/announcements')}>
-          <Text style={styles.navIcon}>🔔</Text>
+          <Ionicons name="notifications-outline" size={22} color={Colors.p900} />
         </TouchableOpacity>
       </View>
 
@@ -118,7 +119,7 @@ export default function SetListsScreen() {
 
       {!isLoading && !hasError && setLists.length === 0 && (
         <EmptyState
-          icon="📋"
+          iconName="list-outline"
           title="No set lists yet"
           description={isAdmin ? 'Create your first set list to plan your next service.' : 'Your director has not created any set lists yet.'}
           actionLabel={isAdmin ? 'Create Set List' : undefined}
@@ -155,7 +156,6 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(94,82,166,0.08)',
   },
   navBtn:  { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  navIcon: { fontSize: 20, color: Colors.p900 },
   navLogo: {
     fontFamily: 'Inter_900Black',
     fontSize: 20,
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   rowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexWrap: 'wrap' },
   rowTitle:    { fontFamily: 'Inter_600SemiBold', fontSize: 16, color: Colors.ink },
   rowDate:     { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.ink50 },
-  rowChevron:  { fontSize: 22, color: Colors.ink30, paddingLeft: Spacing.sm },
+  rowChevron:  { paddingLeft: Spacing.sm },
 
   pillPublished: {
     backgroundColor: '#e9f5e9',

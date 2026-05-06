@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { resetPassword } from '../../services/authService';
@@ -38,7 +39,7 @@ export default function ForgotPasswordScreen() {
         <ScrollView contentContainerStyle={styles.scroll}>
           {sent ? (
             <View style={styles.successBlock}>
-              <Text style={styles.successIcon}>📧</Text>
+              <Ionicons name="mail-outline" size={56} color={Colors.p700} />
               <Text style={styles.successTitle}>Check your email</Text>
               <Text style={styles.successSub}>
                 We've sent a password reset link to{' '}
@@ -95,7 +96,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xxl,
     gap: Spacing.base,
   },
-  successIcon: { fontSize: 56 },
   successTitle: { ...Typography.h1, color: Colors.ink },
   successSub: { ...Typography.bodyMD, color: Colors.ink50, textAlign: 'center', lineHeight: 24 },
 });

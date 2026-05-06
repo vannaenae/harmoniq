@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
@@ -19,7 +20,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   fullScreen = false,
 }) => (
   <View style={[styles.container, fullScreen && styles.fullScreen]}>
-    <Text style={styles.icon}>⚠️</Text>
+    <Ionicons name="warning-outline" size={48} color={Colors.error} />
     <Text style={styles.title}>{title}</Text>
     <Text style={styles.message}>{message}</Text>
     {onRetry && (
@@ -39,7 +40,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.surfaceBg,
   },
-  icon: { fontSize: 48 },
   title: { ...Typography.h2, color: Colors.ink, textAlign: 'center' },
   message: {
     ...Typography.body,

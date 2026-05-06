@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, FlatList,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -129,7 +130,7 @@ export default function SetListDetailScreen() {
         {/* Status toggle */}
         {isAdmin && (
           <Button
-            label={setList.status === 'draft' ? '✅ Publish Set List' : '📝 Move to Draft'}
+            label={setList.status === 'draft' ? 'Publish Set List' : 'Move to Draft'}
             onPress={toggleStatus}
             variant={setList.status === 'draft' ? 'primary' : 'secondary'}
             fullWidth
@@ -171,7 +172,7 @@ export default function SetListDetailScreen() {
                     <Text style={styles.songTitle}>{song.title}</Text>
                     {song.artist && <Text style={styles.songArtist}>{song.artist}</Text>}
                   </View>
-                  <Text style={styles.addIcon}>＋</Text>
+                  <Ionicons name="add" size={20} color={Colors.p600} />
                 </TouchableOpacity>
               ))
             )}
@@ -204,7 +205,7 @@ export default function SetListDetailScreen() {
                 </TouchableOpacity>
                 {isAdmin && (
                   <TouchableOpacity onPress={() => removeSong(sl.songId)} hitSlop={8}>
-                    <Text style={styles.removeIcon}>✕</Text>
+                    <Ionicons name="close" size={16} color={Colors.ink30} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -256,7 +257,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.p50, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start', marginTop: 2,
   },
   keyText: { ...Typography.micro, color: Colors.p700, letterSpacing: 0.5 },
-  removeIcon: { fontSize: 14, color: Colors.ink30, padding: 4 },
   emptySongs: { alignItems: 'center', paddingVertical: Spacing.xl },
   emptyText: { ...Typography.body, color: Colors.ink50, textAlign: 'center' },
   songPickerRow: {
@@ -267,7 +267,6 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.ink05,
     gap: Spacing.sm,
   },
-  addIcon: { fontSize: 20, color: Colors.p600 },
   deleteBtn: { paddingHorizontal: Spacing.sm, paddingVertical: 4 },
   deleteText: { ...Typography.bodyMed, color: Colors.error },
   notFound: { ...Typography.body, color: Colors.ink50, textAlign: 'center', marginTop: Spacing.xl },

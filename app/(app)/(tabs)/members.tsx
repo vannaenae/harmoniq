@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../store/authStore';
 import { subscribeMembers } from '../../../services/choirService';
 import { EmptyState, ErrorState, SkeletonCard } from '../../../components/ui';
@@ -98,11 +99,11 @@ export default function MembersScreen() {
       {/* Top nav */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/choir-settings')}>
-          <Text style={styles.navIcon}>☰</Text>
+          <Ionicons name="menu" size={22} color={Colors.p900} />
         </TouchableOpacity>
         <Text style={styles.navLogo}>Harmoniq</Text>
         <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/announcements')}>
-          <Text style={styles.navIcon}>🔔</Text>
+          <Ionicons name="notifications-outline" size={22} color={Colors.p900} />
         </TouchableOpacity>
       </View>
 
@@ -119,7 +120,7 @@ export default function MembersScreen() {
 
         {/* Search */}
         <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Ionicons name="search-outline" size={16} color={Colors.ink50} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search members, roles..."
@@ -129,7 +130,7 @@ export default function MembersScreen() {
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')}>
-              <Text style={styles.clearBtn}>✕</Text>
+              <Ionicons name="close" size={16} color={Colors.ink30} />
             </TouchableOpacity>
           )}
         </View>
@@ -145,7 +146,7 @@ export default function MembersScreen() {
 
       {!isLoading && !hasError && members.length === 0 && (
         <EmptyState
-          icon="👥"
+          iconName="people-outline"
           title="No members yet"
           description={isAdmin ? 'Invite your first member to get started.' : 'No members have joined yet.'}
           actionLabel={isAdmin ? 'Invite Member' : undefined}
@@ -154,7 +155,7 @@ export default function MembersScreen() {
       )}
 
       {!isLoading && !hasError && members.length > 0 && filtered.length === 0 && (
-        <EmptyState icon="🔍" title="No results" description={`No members found matching "${search}".`} />
+        <EmptyState iconName="search-outline" title="No results" description={`No members found matching "${search}".`} />
       )}
 
       {!isLoading && !hasError && filtered.length > 0 && (
@@ -184,7 +185,6 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(94,82,166,0.08)',
   },
   navBtn:  { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  navIcon: { fontSize: 20, color: Colors.p900 },
   navLogo: {
     fontFamily: 'Inter_900Black',
     fontSize: 20,
@@ -225,9 +225,7 @@ const styles = StyleSheet.create({
     height: 48,
     gap: Spacing.sm,
   },
-  searchIcon:  { fontSize: 16 },
   searchInput: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 15, color: Colors.ink },
-  clearBtn:    { fontSize: 14, color: Colors.ink30, padding: 4 },
 
   list: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
 

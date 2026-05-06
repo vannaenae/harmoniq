@@ -1,15 +1,21 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/colors';
 
-type TabIconProps = { focused: boolean; icon: string; label: string };
+type TabIconProps = {
+  focused: boolean;
+  iconName: keyof typeof Ionicons.glyphMap;
+  label: string;
+};
 
-function TabIcon({ focused, icon, label }: TabIconProps) {
+function TabIcon({ focused, iconName, label }: TabIconProps) {
+  const color = focused ? Colors.p900 : '#9e9aa7';
   return (
     <View style={styles.tabItem}>
-      <Text style={[styles.tabIconText, focused && styles.tabIconActive]}>{icon}</Text>
+      <Ionicons name={iconName} size={22} color={color} />
       <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>{label}</Text>
     </View>
   );
@@ -45,25 +51,33 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="⊙" label="HOME" />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} iconName="home-outline" label="HOME" />
+          ),
         }}
       />
       <Tabs.Screen
         name="setlists"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="♪" label="SET LISTS" />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} iconName="musical-notes-outline" label="SET LISTS" />
+          ),
         }}
       />
       <Tabs.Screen
         name="availability"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="📅" label="AVAILABILITY" />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} iconName="calendar-outline" label="AVAILABILITY" />
+          ),
         }}
       />
       <Tabs.Screen
         name="members"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="👥" label="MEMBERS" />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} iconName="people-outline" label="MEMBERS" />
+          ),
         }}
       />
     </Tabs>
@@ -76,13 +90,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 3,
     paddingHorizontal: 4,
-  },
-  tabIconText: {
-    fontSize: 20,
-    color: '#9e9aa7',
-  },
-  tabIconActive: {
-    color: Colors.p900,
   },
   tabLabel: {
     fontFamily: 'Inter_700Bold',

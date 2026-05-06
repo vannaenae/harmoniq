@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   KeyboardAvoidingView, Platform, TextInput,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { loginUser, fetchUserDoc } from '../../services/authService';
@@ -48,7 +49,7 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <TouchableOpacity style={styles.back} onPress={() => router.replace('/(auth)/welcome')}>
-          <Text style={styles.backIcon}>←</Text>
+          <Ionicons name="arrow-back" size={24} color={Colors.p900} />
         </TouchableOpacity>
 
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -111,7 +112,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safe:       { flex: 1, backgroundColor: Colors.surfaceBg },
   back:       { paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm },
-  backIcon:   { fontSize: 24, color: Colors.ink },
 
   scroll: {
     flexGrow: 1,

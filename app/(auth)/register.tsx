@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { registerUser } from '../../services/authService';
 import { useAuthStore } from '../../store/authStore';
 import { Button } from '../../components/ui';
@@ -13,10 +14,10 @@ import { Spacing, Radius } from '../../constants/spacing';
 
 type Role = 'owner' | 'member';
 
-const ROLES: { key: Role; icon: string; label: string }[] = [
-  { key: 'owner',          icon: '♩', label: 'Worship Leader'  },
-  { key: 'member',         icon: '👥', label: 'Choir Member'    },
-  { key: 'member' as Role, icon: '🎹', label: 'Instrumentalist' },
+const ROLES: { key: Role; iconName: keyof typeof Ionicons.glyphMap; label: string }[] = [
+  { key: 'owner',          iconName: 'mic-outline',    label: 'Worship Leader'  },
+  { key: 'member',         iconName: 'people-outline', label: 'Choir Member'    },
+  { key: 'member' as Role, iconName: 'musical-note-outline', label: 'Instrumentalist' },
 ];
 
 export default function RegisterScreen() {
@@ -76,12 +77,18 @@ export default function RegisterScreen() {
             <View style={styles.roleGrid}>
               {ROLES.map(r => (
                 <TouchableOpacity
-                  key={r.key}
+                  key={r.key + r.label}
                   style={[styles.roleCard, role === r.key && styles.roleCardActive]}
                   onPress={() => setRole(r.key)}
                   activeOpacity={0.75}
                 >
-                  <Text style={styles.roleIcon}>{r.icon}</Text>
+                  <View style={styles.roleIconWrap}>
+                    <Ionicons
+                      name={r.iconName}
+                      size={20}
+                      color={role === r.key ? Colors.p900 : Colors.ink50}
+                    />
+                  </View>
                   <Text style={[styles.roleText, role === r.key && styles.roleTextActive]}>{r.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -90,7 +97,7 @@ export default function RegisterScreen() {
             {/* Fields */}
             <View style={styles.fields}>
               <View style={styles.inputRow}>
-                <Text style={styles.inputIcon}>👤</Text>
+                <Ionicons name="person-outline" size={18} color={Colors.ink50} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Full Name"
@@ -103,7 +110,7 @@ export default function RegisterScreen() {
               <View style={styles.divider} />
 
               <View style={styles.inputRow}>
-                <Text style={styles.inputIcon}>✉️</Text>
+                <Ionicons name="mail-outline" size={18} color={Colors.ink50} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Email Address"
@@ -118,7 +125,7 @@ export default function RegisterScreen() {
               <View style={styles.divider} />
 
               <View style={styles.inputRow}>
-                <Text style={styles.inputIcon}>🔒</Text>
+                <Ionicons name="lock-closed-outline" size={18} color={Colors.ink50} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Password"
@@ -131,7 +138,7 @@ export default function RegisterScreen() {
             </View>
 
             <Button
-              label="Create Account →"
+              label="Create Account"
               onPress={handleRegister}
               isLoading={isLoading}
               fullWidth
@@ -237,7 +244,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: Colors.p50,
   },
-  roleIcon: { fontSize: 20, width: 28, textAlign: 'center' },
+  roleIconWrap: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: 'transparent',
+    alignItems: 'center', justifyContent: 'center',
+  },
   roleText: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 15,
@@ -252,7 +263,7 @@ const styles = StyleSheet.create({
     gap: Spacing.base,
     paddingVertical: Spacing.sm,
   },
-  inputIcon: { fontSize: 18, width: 24, textAlign: 'center' },
+  inputIcon: { width: 24, textAlign: 'center' },
   input: {
     flex: 1,
     fontFamily: 'Inter_400Regular',

@@ -5,6 +5,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../store/authStore';
 import { useSetListStore } from '../../../store/setListStore';
 import { subscribeSetLists } from '../../../services/setListService';
@@ -77,11 +78,11 @@ export default function AvailabilityScreen() {
       {/* Top nav */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/choir-settings')}>
-          <Text style={styles.navIcon}>☰</Text>
+          <Ionicons name="menu" size={22} color={Colors.p900} />
         </TouchableOpacity>
         <Text style={styles.navLogo}>Harmoniq</Text>
         <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/announcements')}>
-          <Text style={styles.navIcon}>🔔</Text>
+          <Ionicons name="notifications-outline" size={22} color={Colors.p900} />
         </TouchableOpacity>
       </View>
 
@@ -104,7 +105,7 @@ export default function AvailabilityScreen() {
 
         {!isLoading && !hasError && setLists.length === 0 && (
           <EmptyState
-            icon="📅"
+            iconName="calendar-outline"
             title="No services scheduled"
             description="Your director has not scheduled any upcoming services yet."
           />
@@ -119,9 +120,12 @@ export default function AvailabilityScreen() {
               end={{ x: 1, y: 1 }}
               style={styles.nextCard}
             >
-              <Text style={styles.nextEyebrow}>✦ NEXT SERVICE</Text>
+              <Text style={styles.nextEyebrow}>NEXT SERVICE</Text>
               <Text style={styles.nextTitle}>{next.title}</Text>
-              <Text style={styles.nextDate}>📅  {formatDate(next.serviceDate)}</Text>
+              <View style={styles.nextDateRow}>
+                <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.8)" />
+                <Text style={styles.nextDate}>{formatDate(next.serviceDate)}</Text>
+              </View>
 
               <TouchableOpacity
                 style={[
@@ -131,9 +135,14 @@ export default function AvailabilityScreen() {
                 onPress={() => handleRespond(next.id, 'available')}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.markBtnText, responses[next.id] === 'available' && { color: Colors.p900 }]}>
-                  {responses[next.id] === 'available' ? '✓ Marked Available' : 'Mark Available'}
-                </Text>
+                <View style={styles.btnRow}>
+                  {responses[next.id] === 'available' && (
+                    <Ionicons name="checkmark" size={16} color={Colors.p900} />
+                  )}
+                  <Text style={[styles.markBtnText, responses[next.id] === 'available' && { color: Colors.p900 }]}>
+                    {responses[next.id] === 'available' ? 'Marked Available' : 'Mark Available'}
+                  </Text>
+                </View>
               </TouchableOpacity>
 
               <View style={styles.altBtns}>
@@ -142,14 +151,20 @@ export default function AvailabilityScreen() {
                   onPress={() => handleRespond(next.id, 'maybe')}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.altBtnText}>⚠ Not Sure</Text>
+                  <View style={styles.btnRow}>
+                    <Ionicons name="alert-outline" size={14} color={Colors.white} />
+                    <Text style={styles.altBtnText}>Not Sure</Text>
+                  </View>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.altBtn, responses[next.id] === 'unavailable' && styles.altBtnUnavail]}
                   onPress={() => handleRespond(next.id, 'unavailable')}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.altBtnText}>✕ Unavailable</Text>
+                  <View style={styles.btnRow}>
+                    <Ionicons name="close" size={14} color={Colors.white} />
+                    <Text style={styles.altBtnText}>Unavailable</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
             </LinearGradient>
@@ -164,7 +179,7 @@ export default function AvailabilityScreen() {
                   return (
                     <View key={sl.id} style={styles.scheduleCard}>
                       <View style={styles.scheduleLeft}>
-                        <Text style={styles.scheduleIcon}>📅</Text>
+                        <Ionicons name="calendar-outline" size={18} color={Colors.p700} />
                       </View>
                       <View style={styles.scheduleInfo}>
                         <Text style={styles.scheduleTitle}>{sl.title}</Text>
@@ -206,7 +221,6 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(94,82,166,0.08)',
   },
   navBtn:  { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  navIcon: { fontSize: 20, color: Colors.p900 },
   navLogo: {
     fontFamily: 'Inter_900Black',
     fontSize: 20,
@@ -255,12 +269,19 @@ const styles = StyleSheet.create({
     color: Colors.white,
     lineHeight: 30,
   },
+  nextDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: Spacing.xs,
+  },
   nextDate: {
     fontFamily: 'Inter_400Regular',
     fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
-    marginBottom: Spacing.xs,
   },
+
+  btnRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 
   markBtn: {
     backgroundColor: 'rgba(255,255,255,0.15)',
@@ -315,7 +336,6 @@ const styles = StyleSheet.create({
     gap: Spacing.base,
   },
   scheduleLeft:   { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surfaceMid, alignItems: 'center', justifyContent: 'center' },
-  scheduleIcon:   { fontSize: 18 },
   scheduleInfo:   { flex: 1, gap: 2 },
   scheduleTitle:  { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: Colors.ink },
   scheduleDate:   { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.ink50 },
