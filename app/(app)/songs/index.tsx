@@ -85,8 +85,8 @@ export default function SongLibraryScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScreenHeader
-        title="Song Library"
-        subtitle={isLoading ? '' : `${songs.length} song${songs.length !== 1 ? 's' : ''}`}
+        title="Music Library"
+        subtitle={isLoading ? 'Curated repertoire for worship and choral excellence.' : `${songs.length} song${songs.length !== 1 ? 's' : ''} in repertoire`}
         showBack
         rightElement={
           isAdmin ? (

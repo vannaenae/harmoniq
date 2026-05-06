@@ -13,7 +13,7 @@ import { Spacing, Radius } from '../../../constants/spacing';
 import { ChoirMember } from '../../../types';
 import { getInitials } from '../../../lib/utils';
 
-const AVATAR_COLORS = ['#18005F', '#560056', '#3D0080', '#1a0360', '#5e52a6', '#913d8c'];
+const AVATAR_COLORS = ['#1a0360', '#913d8c', '#3D0080', '#5e52a6', '#7c2b79', '#463a8c'];
 
 export default function MembersScreen() {
   const router = useRouter();
@@ -52,8 +52,8 @@ export default function MembersScreen() {
     AVATAR_COLORS[(name?.charCodeAt(0) ?? 0) % AVATAR_COLORS.length];
 
   const roleLabel = (role: string) => {
-    if (role === 'owner' || role === 'leader') return 'COORDINATOR';
-    return 'MEMBER';
+    if (role === 'owner' || role === 'leader') return 'Coordinator';
+    return 'Member';
   };
 
   const vocalLabel = (part?: string) => {

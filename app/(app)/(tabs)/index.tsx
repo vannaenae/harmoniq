@@ -61,8 +61,6 @@ export default function DashboardScreen() {
   const quickActions: QuickAction[] = [
     { iconName: 'musical-notes-outline', label: 'Add Song',      onPress: () => router.push('/(app)/songs/add') },
     { iconName: 'person-add-outline',    label: 'Invite Member', onPress: () => router.push('/(app)/invite')    },
-    { iconName: 'list-outline',          label: 'New Set List',  onPress: () => router.push('/(app)/setlists/create') },
-    { iconName: 'megaphone-outline',     label: 'Announce',      onPress: () => router.push('/(app)/announcements/create') },
   ];
 
   if (!choirId) {
@@ -125,7 +123,7 @@ export default function DashboardScreen() {
             {nextService ? (
               <TouchableOpacity onPress={() => router.push(`/(app)/setlists/${nextService.id}`)} activeOpacity={0.9}>
                 <LinearGradient
-                  colors={['#18005F', '#560056']}
+                  colors={Gradients.hero}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.hero}
@@ -152,8 +150,8 @@ export default function DashboardScreen() {
                       <Text style={styles.heroStatLabel}>CONFIRMED</Text>
                     </View>
                     <View style={styles.heroStat}>
-                      <Text style={styles.heroStatNum}>{setLists.filter(s => s.status === 'draft').length}</Text>
-                      <Text style={styles.heroStatLabel}>DRAFTS</Text>
+                      <Text style={styles.heroStatNum}>3</Text>
+                      <Text style={styles.heroStatLabel}>MAYBE</Text>
                     </View>
                   </View>
                 </LinearGradient>

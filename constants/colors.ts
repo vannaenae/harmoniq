@@ -44,6 +44,6 @@ export const Colors = {
 
 export const Gradients = {
   button:  ['#1a0360', '#913d8c'] as const,   // primary CTA gradient
-  hero:    ['#18005F', '#560056'] as const,
-  splash:  ['#18005F', '#560056', '#7B1FA2'] as const,
+  hero:    ['#1a0360', '#913d8c'] as const,   // hero cards
+  splash:  ['#1a0360', '#913d8c', '#7B1FA2'] as const,
 } as const;

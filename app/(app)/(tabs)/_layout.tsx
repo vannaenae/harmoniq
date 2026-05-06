@@ -52,7 +52,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName="home-outline" label="HOME" />
+            <TabIcon focused={focused} iconName="home-outline" label="Home" />
           ),
         }}
       />
@@ -60,7 +60,7 @@ export default function TabsLayout() {
         name="setlists"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName="musical-notes-outline" label="SET LISTS" />
+            <TabIcon focused={focused} iconName="musical-notes-outline" label="Set Lists" />
           ),
         }}
       />
@@ -68,7 +68,7 @@ export default function TabsLayout() {
         name="availability"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName="calendar-outline" label="AVAILABILITY" />
+            <TabIcon focused={focused} iconName="calendar-outline" label="Availability" />
           ),
         }}
       />
@@ -76,7 +76,7 @@ export default function TabsLayout() {
         name="members"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName="people-outline" label="MEMBERS" />
+            <TabIcon focused={focused} iconName="people-outline" label="Members" />
           ),
         }}
       />

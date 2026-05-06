@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { EmptyState, ErrorState, SkeletonCard } from '../../../components/ui';
-import { Colors } from '../../../constants/colors';
+import { Colors, Gradients } from '../../../constants/colors';
 import { Spacing, Radius } from '../../../constants/spacing';
 import { SetList } from '../../../types';
 import { formatDate } from '../../../lib/utils';
@@ -115,7 +115,7 @@ export default function AvailabilityScreen() {
           <>
             {/* Next service card */}
             <LinearGradient
-              colors={['#18005F', '#560056']}
+              colors={Gradients.hero}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.nextCard}

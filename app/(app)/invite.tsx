@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Share, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, Share, TouchableOpacity, Clipboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useChoirStore } from '../../store/choirStore';
 import { useAuthStore } from '../../store/authStore';
 import { regenerateInviteCode } from '../../services/choirService';
-import { Card, ScreenHeader } from '../../components/ui';
+import { ScreenHeader } from '../../components/ui';
 import { Colors } from '../../constants/colors';
-import { Typography } from '../../constants/typography';
-import { Spacing, Radius, Shadow } from '../../constants/spacing';
+import { Spacing, Radius } from '../../constants/spacing';
 
 export default function InviteScreen() {
   const { choir, setChoir } = useChoirStore();
@@ -19,6 +18,13 @@ export default function InviteScreen() {
   const [copied, setCopied] = useState(false);
 
   const isOwner = user?.role === 'owner';
+
+  const handleCopy = () => {
+    if (!choir?.inviteCode) return;
+    Clipboard.setString(choir.inviteCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleShare = async () => {
     if (!choir) return;
@@ -39,112 +45,233 @@ export default function InviteScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScreenHeader title="Invite Members" showBack />
+      <ScreenHeader title="Grow the Choir" showBack />
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.sub}>
-          Share this code with your choir members so they can join your workspace.
+          Invite vocalists and musicians to sync up with your upcoming worship sets.
         </Text>
 
         {/* Code card */}
-        <View style={[styles.codeCard, Shadow.purple]}>
-          <Text style={styles.codeLabel}>INVITE CODE</Text>
+        <View style={styles.codeCard}>
+          <Text style={styles.codeEyebrow}>YOUR UNIQUE ACCESS CODE</Text>
           <Text style={styles.code}>{choir.inviteCode}</Text>
-          <Text style={styles.codeSub}>{choir.name}</Text>
-        </View>
 
-        {/* Actions */}
-        <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
-            <Ionicons name="share-outline" size={20} color={Colors.white} />
-            <Text style={styles.actionLabel}>Share Code</Text>
+          {/* Copy button */}
+          <TouchableOpacity style={styles.copyBtn} onPress={handleCopy} activeOpacity={0.8}>
+            <Ionicons
+              name={copied ? 'checkmark-circle-outline' : 'copy-outline'}
+              size={18}
+              color={Colors.p800}
+            />
+            <Text style={styles.copyBtnText}>
+              {copied ? 'Copied!' : 'Copy to Clipboard'}
+            </Text>
           </TouchableOpacity>
-
-          {isOwner && (
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnSecondary]}
-              onPress={handleRegenerate}
-              disabled={regenerating}
-            >
-              <Ionicons name="refresh-outline" size={20} color={Colors.ink50} />
-              <Text style={[styles.actionLabel, styles.actionLabelSecondary]}>
-                {regenerating ? 'Generating...' : 'Regenerate Code'}
-              </Text>
-            </TouchableOpacity>
-          )}
         </View>
 
-        {/* How it works */}
-        <Card style={styles.howCard}>
-          <Text style={styles.howTitle}>How it works</Text>
+        {/* Share action */}
+        <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.8}>
+          <Ionicons name="share-outline" size={20} color={Colors.white} />
+          <Text style={styles.shareBtnText}>Share Invite Link</Text>
+        </TouchableOpacity>
+
+        {/* Recently Joined */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recently Joined</Text>
+            <View style={styles.countBadge}>
+              <Text style={styles.countText}>12 Total</Text>
+            </View>
+          </View>
+
+          {/* Mock recently joined — in production, load from Firestore members */}
           {[
-            'Share the invite code with your choir member',
-            'They download Harmoniq and create an account',
-            'They enter the code to join your choir',
-            'You can assign vocal parts and roles from the Members tab',
-          ].map((step, i) => (
-            <View key={i} style={styles.howStep}>
-              <View style={styles.howNum}>
-                <Text style={styles.howNumText}>{i + 1}</Text>
+            { initials: 'ER', name: 'Elena Rodriguez', sub: 'Alto Section Leader', status: 'Accepted',  statusColor: Colors.success  },
+            { initials: 'MC', name: 'Marcus Chen',     sub: 'Acoustic Guitar',      status: 'New',       statusColor: Colors.p700     },
+            { initials: 'SJ', name: 'Sarah Jenkins',   sub: '',                     status: 'Pending',   statusColor: Colors.warning  },
+          ].map((m, i) => (
+            <View key={i} style={styles.memberRow}>
+              <View style={[styles.avatar, { backgroundColor: i % 2 === 0 ? Colors.p800 : Colors.secondary }]}>
+                <Text style={styles.avatarText}>{m.initials}</Text>
               </View>
-              <Text style={styles.howText}>{step}</Text>
+              <View style={styles.memberInfo}>
+                <Text style={styles.memberName}>{m.name}</Text>
+                {m.sub ? <Text style={styles.memberSub}>{m.sub}</Text> : null}
+              </View>
+              <View style={[styles.statusPill, { backgroundColor: m.statusColor + '20' }]}>
+                <Text style={[styles.statusText, { color: m.statusColor }]}>{m.status}</Text>
+              </View>
             </View>
           ))}
-        </Card>
+        </View>
+
+        {isOwner && (
+          <TouchableOpacity
+            style={styles.regenBtn}
+            onPress={handleRegenerate}
+            disabled={regenerating}
+          >
+            <Ionicons name="refresh-outline" size={18} color={Colors.ink50} />
+            <Text style={styles.regenText}>
+              {regenerating ? 'Generating…' : 'Regenerate Code'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.surfaceBg },
-  scroll: { padding: Spacing.lg, gap: Spacing.xl, paddingBottom: 32 },
-  sub: { ...Typography.bodyMD, color: Colors.ink50, textAlign: 'center' },
+  safe:   { flex: 1, backgroundColor: Colors.surfaceBg },
+  scroll: { padding: Spacing.lg, gap: Spacing.xl, paddingBottom: 40 },
+
+  sub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+    color: Colors.ink70,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginTop: -Spacing.base,
+  },
+
   codeCard: {
-    backgroundColor: Colors.p900,
+    backgroundColor: Colors.surface,
     borderRadius: Radius.xl,
     padding: Spacing.xl,
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.base,
+    borderWidth: 1,
+    borderColor: Colors.ink10,
+    shadowColor: Colors.p900,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    elevation: 3,
   },
-  codeLabel: {
-    ...Typography.caption,
-    color: 'rgba(255,255,255,0.6)',
+  codeEyebrow: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
     letterSpacing: 2,
+    color: Colors.ink50,
+    textTransform: 'uppercase',
   },
   code: {
     fontFamily: 'Inter_700Bold',
     fontSize: 44,
-    color: Colors.white,
-    letterSpacing: 8,
+    color: Colors.p900,
+    letterSpacing: 10,
   },
-  codeSub: { ...Typography.body, color: 'rgba(255,255,255,0.6)' },
-  actions: { gap: Spacing.sm },
-  actionBtn: {
+  copyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: Colors.p800,
+    borderRadius: 30,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginTop: Spacing.xs,
+  },
+  copyBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
+    color: Colors.p800,
+  },
+
+  shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
     backgroundColor: Colors.p800,
     borderRadius: Radius.full,
-    padding: Spacing.base,
+    paddingVertical: Spacing.base,
+    marginTop: -Spacing.base,
   },
-  actionBtnSecondary: {
-    backgroundColor: 'transparent',
+  shareBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 16,
+    color: Colors.white,
+  },
+
+  section: { gap: Spacing.base },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 20,
+    color: Colors.ink,
+  },
+  countBadge: {
+    backgroundColor: Colors.surfaceMid,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  countText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: Colors.ink70,
+  },
+
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: Spacing.base,
+    borderWidth: 1,
+    borderColor: Colors.ink10,
+    gap: Spacing.base,
+  },
+  avatar: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 15,
+    color: Colors.white,
+  },
+  memberInfo: { flex: 1, gap: 2 },
+  memberName: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
+    color: Colors.ink,
+  },
+  memberSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.ink50,
+  },
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  statusText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+  },
+
+  regenBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: Spacing.base,
+    borderRadius: Radius.full,
     borderWidth: 1.5,
     borderColor: Colors.ink10,
   },
-  actionLabel: { ...Typography.bodyMed, color: Colors.white, fontWeight: '600' },
-  actionLabelSecondary: { color: Colors.ink50 },
-  howCard: { gap: Spacing.base },
-  howTitle: { ...Typography.h3, color: Colors.ink },
-  howStep: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
-  howNum: {
-    width: 24, height: 24, borderRadius: 12,
-    backgroundColor: Colors.p50,
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
+  regenText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+    color: Colors.ink50,
   },
-  howNumText: { ...Typography.label, color: Colors.p800, fontWeight: '700' },
-  howText: { ...Typography.body, color: Colors.ink70, flex: 1, lineHeight: 22 },
 });

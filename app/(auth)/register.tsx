@@ -12,11 +12,32 @@ import { Button } from '../../components/ui';
 import { Colors } from '../../constants/colors';
 import { Spacing, Radius } from '../../constants/spacing';
 
-type Role = 'owner' | 'member';
+type Role = 'owner' | 'member' | 'instrumentalist';
 
-const ROLES: { key: Role; iconName: keyof typeof Ionicons.glyphMap; label: string; description: string }[] = [
-  { key: 'owner',  iconName: 'musical-notes',   label: 'Musical Director', description: 'Lead and manage the choir'  },
-  { key: 'member', iconName: 'person-outline',   label: 'Choir Member',     description: 'Singer or instrumentalist' },
+const ROLES: {
+  key: Role;
+  iconName: keyof typeof Ionicons.glyphMap;
+  label: string;
+  description: string;
+}[] = [
+  {
+    key: 'owner',
+    iconName: 'musical-notes',
+    label: 'Worship Leader',
+    description: 'Lead and manage',
+  },
+  {
+    key: 'member',
+    iconName: 'people-outline',
+    label: 'Choir Member',
+    description: 'Singer',
+  },
+  {
+    key: 'instrumentalist',
+    iconName: 'musical-note-outline',
+    label: 'Instrumentalist',
+    description: 'Musician',
+  },
 ];
 
 export default function RegisterScreen() {
@@ -42,7 +63,9 @@ export default function RegisterScreen() {
     setIsLoading(true);
     setError('');
     try {
-      const user = await registerUser(email.trim(), password, name.trim(), role);
+      // Map instrumentalist → member role for Firebase
+      const firebaseRole = role === 'instrumentalist' ? 'member' : role;
+      const user = await registerUser(email.trim(), password, name.trim(), firebaseRole);
       setUser(user);
       router.replace('/(app)/onboarding');
     } catch (e: any) {
@@ -71,7 +94,7 @@ export default function RegisterScreen() {
           <View style={styles.card}>
             {error ? <Text style={styles.errorBanner}>{error}</Text> : null}
 
-            {/* Role selector */}
+            {/* Role selector — 3-column grid */}
             <Text style={styles.roleLabel}>I am joining as a</Text>
             <View style={styles.roleGrid}>
               {ROLES.map(r => {
@@ -86,14 +109,12 @@ export default function RegisterScreen() {
                     <View style={[styles.roleIconWrap, active && styles.roleIconWrapActive]}>
                       <Ionicons
                         name={r.iconName}
-                        size={22}
+                        size={20}
                         color={active ? Colors.p900 : Colors.ink50}
                       />
                     </View>
-                    <View style={styles.roleTextGroup}>
-                      <Text style={[styles.roleText, active && styles.roleTextActive]}>{r.label}</Text>
-                      <Text style={styles.roleDesc}>{r.description}</Text>
-                    </View>
+                    <Text style={[styles.roleText, active && styles.roleTextActive]}>{r.label}</Text>
+                    <Text style={styles.roleDesc}>{r.description}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -233,16 +254,21 @@ const styles = StyleSheet.create({
     color: Colors.ink70,
     marginBottom: Spacing.xs,
   },
-  roleGrid: { gap: Spacing.sm },
-  roleCard: {
+
+  // 3-column grid
+  roleGrid: {
     flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  roleCard: {
+    flex: 1,
     alignItems: 'center',
-    gap: Spacing.base,
     padding: Spacing.base,
     borderRadius: Radius.md,
     borderWidth: 1.5,
     borderColor: Colors.ink10,
     backgroundColor: Colors.surface,
+    gap: 6,
   },
   roleCardActive: {
     borderColor: Colors.p800,
@@ -250,25 +276,25 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.p50,
   },
   roleIconWrap: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 40, height: 40, borderRadius: 20,
     backgroundColor: Colors.surfaceMid,
     alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
   },
   roleIconWrapActive: {
     backgroundColor: 'rgba(26,3,96,0.1)',
   },
-  roleTextGroup: { flex: 1, gap: 2 },
   roleText: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 15,
+    fontSize: 11,
     color: Colors.ink70,
+    textAlign: 'center',
   },
   roleTextActive: { color: Colors.p900 },
   roleDesc: {
     fontFamily: 'Inter_400Regular',
-    fontSize: 12,
+    fontSize: 10,
     color: Colors.ink50,
+    textAlign: 'center',
   },
 
   fields: { gap: 0 },

@@ -1,22 +1,22 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView,
+  View, Text, StyleSheet, KeyboardAvoidingView, Platform,
+  ScrollView, TouchableOpacity, TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { resetPassword } from '../../services/authService';
-import { Button, Input, ScreenHeader } from '../../components/ui';
+import { Button } from '../../components/ui';
 import { Colors } from '../../constants/colors';
-import { Typography } from '../../constants/typography';
-import { Spacing } from '../../constants/spacing';
+import { Spacing, Radius } from '../../constants/spacing';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [email, setEmail]     = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [sent, setSent] = useState(false);
+  const [error, setError]     = useState('');
+  const [sent, setSent]       = useState(false);
 
   const handleReset = async () => {
     if (!email.trim()) { setError('Please enter your email.'); return; }
@@ -34,42 +34,75 @@ export default function ForgotPasswordScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="Reset password" showBack />
+      {/* Header with close X */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Harmoniq</Text>
+        <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
+          <Ionicons name="close" size={22} color={Colors.ink} />
+        </TouchableOpacity>
+      </View>
+
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+
           {sent ? (
             <View style={styles.successBlock}>
-              <Ionicons name="mail-outline" size={56} color={Colors.p700} />
-              <Text style={styles.successTitle}>Check your email</Text>
-              <Text style={styles.successSub}>
-                We've sent a password reset link to{' '}
-                <Text style={{ fontWeight: '600', color: Colors.p800 }}>{email}</Text>.
+              <View style={styles.iconWrap}>
+                <Ionicons name="mail-outline" size={40} color={Colors.p800} />
+              </View>
+              <Text style={styles.title}>Check your email</Text>
+              <Text style={styles.sub}>
+                {"We've sent a password reset link to "}
+                <Text style={{ fontWeight: '600', color: Colors.p800 }}>{email}</Text>
+                {'.'}
               </Text>
-              <Button label="Back to sign in" onPress={() => router.replace('/(auth)/login')} fullWidth />
+              <Button label="Back to Sign In" onPress={() => router.replace('/(auth)/login')} fullWidth size="lg" />
             </View>
           ) : (
             <View style={styles.form}>
+              {/* Lock icon */}
+              <View style={styles.iconWrap}>
+                <Ionicons name="lock-open-outline" size={40} color={Colors.p800} />
+              </View>
+
+              <Text style={styles.title}>Reset Password</Text>
               <Text style={styles.sub}>
-                Enter your registered email and we'll send you a link to reset your password.
+                Enter your email address and we'll send you instructions to reset your password.
               </Text>
 
-              {error ? <Text style={styles.error}>{error}</Text> : null}
+              {error ? (
+                <View style={styles.errorBanner}>
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              ) : null}
 
-              <Input
-                label="Email address"
-                placeholder="you@example.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-              />
+              {/* Email field */}
+              <View style={styles.fieldWrap}>
+                <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="you@example.com"
+                  placeholderTextColor={Colors.ink30}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  value={email}
+                  onChangeText={setEmail}
+                />
+              </View>
 
               <Button
-                label="Send reset link"
+                label="Send Reset Link"
                 onPress={handleReset}
                 isLoading={isLoading}
                 fullWidth
+                size="lg"
               />
+
+              <TouchableOpacity style={styles.backRow} onPress={() => router.back()}>
+                <Ionicons name="arrow-back" size={16} color={Colors.p500} />
+                <Text style={styles.backText}>Back to Login</Text>
+              </TouchableOpacity>
             </View>
           )}
         </ScrollView>
@@ -80,22 +113,104 @@ export default function ForgotPasswordScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.surfaceBg },
-  scroll: { flexGrow: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.xl },
-  form: { gap: Spacing.xl },
-  sub: { ...Typography.bodyMD, color: Colors.ink50 },
-  error: {
-    ...Typography.bodyMed,
-    color: Colors.error,
-    backgroundColor: Colors.errorBg,
-    padding: Spacing.md,
-    borderRadius: 12,
-  },
-  successBlock: {
-    flex: 1,
+
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: Spacing.xxl,
-    gap: Spacing.base,
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.base,
   },
-  successTitle: { ...Typography.h1, color: Colors.ink },
-  successSub: { ...Typography.bodyMD, color: Colors.ink50, textAlign: 'center', lineHeight: 24 },
+  headerTitle: {
+    fontFamily: 'Inter_900Black',
+    fontSize: 20,
+    fontStyle: 'italic',
+    letterSpacing: -0.8,
+    color: Colors.p900,
+  },
+  closeBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: Colors.surfaceMid,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
+    paddingBottom: 40,
+  },
+
+  form: { gap: Spacing.xl },
+
+  iconWrap: {
+    width: 72, height: 72, borderRadius: 20,
+    backgroundColor: Colors.p50,
+    alignItems: 'center', justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
+
+  title: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 32,
+    letterSpacing: -0.8,
+    color: Colors.ink,
+    lineHeight: 38,
+    marginTop: -Spacing.sm,
+  },
+  sub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+    color: Colors.ink70,
+    lineHeight: 22,
+    marginTop: -Spacing.base,
+  },
+
+  errorBanner: {
+    backgroundColor: Colors.errorBg,
+    borderRadius: 12,
+    padding: Spacing.base,
+  },
+  errorText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+    color: Colors.error,
+  },
+
+  fieldWrap: { gap: 8 },
+  fieldLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: Colors.ink50,
+  },
+  input: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 17,
+    color: Colors.ink,
+    borderBottomWidth: 1.5,
+    borderBottomColor: Colors.ink10,
+    paddingVertical: Spacing.sm,
+    backgroundColor: 'transparent',
+  },
+
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingTop: Spacing.sm,
+  },
+  backText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
+    color: Colors.p500,
+  },
+
+  successBlock: {
+    gap: Spacing.xl,
+    paddingTop: Spacing.xl,
+    alignItems: 'flex-start',
+  },
 });
