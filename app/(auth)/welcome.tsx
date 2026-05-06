@@ -5,50 +5,94 @@ import {
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { Colors } from '../../constants/colors';
 import { Spacing, Radius } from '../../constants/spacing';
 
+/** H-with-waveform logo built from SVG paths */
+function HarmoniqIcon() {
+  return (
+    <Svg width={130} height={88} viewBox="0 0 130 88">
+      <Defs>
+        <SvgGradient id="g" x1="0" y1="0" x2="0.5" y2="1">
+          <Stop offset="0" stopColor="#D8B4FE" />
+          <Stop offset="1" stopColor="#7C3AED" />
+        </SvgGradient>
+      </Defs>
+
+      {/* Left waveform bars — shorter, taller */}
+      <Path d="M6 30 L6 58"  stroke="url(#g)" strokeWidth="5.5" strokeLinecap="round" />
+      <Path d="M17 18 L17 70" stroke="url(#g)" strokeWidth="5.5" strokeLinecap="round" />
+
+      {/* H left pillar */}
+      <Path d="M31 8 L31 80" stroke="url(#g)" strokeWidth="9" strokeLinecap="round" />
+
+      {/* H crossbar — sine-wave curve dipping down */}
+      <Path
+        d="M31 44 Q44 62 65 44 Q86 26 99 44"
+        stroke="url(#g)"
+        strokeWidth="8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+
+      {/* H right pillar */}
+      <Path d="M99 8 L99 80" stroke="url(#g)" strokeWidth="9" strokeLinecap="round" />
+
+      {/* Right waveform bars — taller, shorter */}
+      <Path d="M113 18 L113 70" stroke="url(#g)" strokeWidth="5.5" strokeLinecap="round" />
+      <Path d="M124 30 L124 58" stroke="url(#g)" strokeWidth="5.5" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 export default function WelcomeScreen() {
   const router = useRouter();
-
-  const fadeAnim   = useRef(new Animated.Value(0)).current;
-  const slideAnim  = useRef(new Animated.Value(30)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim,  { toValue: 1, duration: 700, delay: 100, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 600, delay: 100, useNativeDriver: true }),
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 800, delay: 150, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 700, delay: 150, useNativeDriver: true }),
     ]).start();
   }, []);
 
   return (
-    <LinearGradient
-      colors={['#18005F', '#3D0080', '#560056']}
-      start={{ x: 0.2, y: 0 }}
-      end={{ x: 0.8, y: 1 }}
-      style={styles.container}
-    >
+    <View style={styles.bg}>
+      {/* Purple radial glow behind logo */}
+      <View style={styles.glowTop} />
+
+      {/* Flowing wave shape in the middle */}
+      <View style={styles.waveWrap}>
+        <LinearGradient
+          colors={['transparent', 'rgba(120,50,230,0.18)', 'rgba(160,80,255,0.12)', 'transparent']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={styles.wave1}
+        />
+        <LinearGradient
+          colors={['transparent', 'rgba(140,60,240,0.10)', 'rgba(100,40,200,0.08)', 'transparent']}
+          start={{ x: 0.1, y: 0.5 }}
+          end={{ x: 0.9, y: 0.5 }}
+          style={styles.wave2}
+        />
+      </View>
+
       <SafeAreaView style={styles.inner}>
-        {/* Logo */}
-        <Animated.View style={[styles.logoArea, { opacity: fadeAnim }]}>
-          <Text style={styles.logoSymbol}>♪</Text>
-          <Text style={styles.logoText}>Harmoniq</Text>
+        {/* Logo + name + tagline */}
+        <Animated.View style={[styles.logoArea, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <HarmoniqIcon />
+          <Text style={styles.wordmark}>Harmoniq</Text>
+          <Text style={styles.tagline}>Sacred Coordination.</Text>
         </Animated.View>
 
-        {/* Hero content */}
-        <Animated.View style={[styles.heroArea, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <View style={styles.tagWrap}>
-            <Text style={styles.tag}>WORSHIP. COORDINATED.</Text>
-          </View>
-          <Text style={styles.headline}>Sacred{'\n'}Coordination.</Text>
-          <Text style={styles.sub}>
-            Elevate your ministry with a platform designed for the reverence of worship and the precision of professional music leadership.
-          </Text>
-        </Animated.View>
+        <View style={{ flex: 1 }} />
 
-        {/* CTAs */}
+        {/* Buttons */}
         <Animated.View style={[styles.actions, { opacity: fadeAnim }]}>
-          {/* Sign In — outlined */}
+          {/* Sign In — glass/outlined */}
           <TouchableOpacity
             style={styles.signInBtn}
             onPress={() => router.push('/(auth)/login')}
@@ -57,7 +101,7 @@ export default function WelcomeScreen() {
             <Text style={styles.signInText}>Sign In</Text>
           </TouchableOpacity>
 
-          {/* Create Account — solid white */}
+          {/* Create Account — WHITE (style guide) */}
           <TouchableOpacity
             style={styles.createBtn}
             onPress={() => router.push('/(auth)/register')}
@@ -66,91 +110,111 @@ export default function WelcomeScreen() {
             <Text style={styles.createText}>Create Account  →</Text>
           </TouchableOpacity>
 
-          <Text style={styles.brand}>A SOULSPCE PRODUCT</Text>
+          {/* Footer */}
+          <Text style={styles.footerBrand}>A SOULSPCE PRODUCT</Text>
         </Animated.View>
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  bg: {
+    flex: 1,
+    backgroundColor: '#0A0520',
+  },
+
+  glowTop: {
+    position: 'absolute',
+    top: -80,
+    left: '50%',
+    marginLeft: -160,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: 'rgba(110,40,220,0.35)',
+    // Soft blur effect via shadow
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 120,
+    elevation: 0,
+  },
+
+  waveWrap: {
+    position: 'absolute',
+    top: '42%',
+    left: 0,
+    right: 0,
+    height: 180,
+    overflow: 'hidden',
+  },
+  wave1: {
+    position: 'absolute',
+    top: 20,
+    left: -40,
+    right: -40,
+    height: 60,
+    borderRadius: 30,
+    transform: [{ rotate: '-8deg' }, { scaleX: 1.3 }],
+  },
+  wave2: {
+    position: 'absolute',
+    top: 70,
+    left: -20,
+    right: -20,
+    height: 50,
+    borderRadius: 25,
+    transform: [{ rotate: '6deg' }, { scaleX: 1.2 }],
+  },
+
   inner: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl,
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   logoArea: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  logoSymbol: {
-    fontSize: 22,
-    color: Colors.white,
-  },
-  logoText: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 22,
-    fontStyle: 'italic',
-    letterSpacing: -0.5,
-    color: Colors.white,
+    gap: 14,
+    marginTop: 40,
   },
 
-  heroArea: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingVertical: Spacing.xxl,
-    gap: Spacing.lg,
-  },
-  tagWrap: {
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-    borderRadius: Radius.full,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  tag: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 10,
-    letterSpacing: 2,
-    color: 'rgba(255,255,255,0.8)',
-    textTransform: 'uppercase',
-  },
-  headline: {
+  wordmark: {
     fontFamily: 'Inter_700Bold',
     fontSize: 48,
-    lineHeight: 52,
     letterSpacing: -1.5,
     color: Colors.white,
+    marginTop: -4,
   },
-  sub: {
+
+  tagline: {
     fontFamily: 'Inter_400Regular',
-    fontSize: 15,
-    lineHeight: 24,
-    color: 'rgba(255,255,255,0.65)',
-    maxWidth: 320,
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.5)',
+    fontStyle: 'italic',
+    letterSpacing: 0.2,
   },
 
   actions: {
+    width: '100%',
     gap: Spacing.sm,
     alignItems: 'center',
   },
 
   signInBtn: {
     width: '100%',
-    height: 54,
+    height: 56,
     borderRadius: Radius.full,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.4)',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 10,
   },
   signInText: {
     fontFamily: 'Inter_600SemiBold',
@@ -158,13 +222,16 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
 
+  // WHITE — matches style guide primary button
   createBtn: {
     width: '100%',
-    height: 54,
+    height: 56,
     borderRadius: Radius.full,
     backgroundColor: Colors.white,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 10,
   },
   createText: {
     fontFamily: 'Inter_700Bold',
@@ -172,11 +239,11 @@ const styles = StyleSheet.create({
     color: Colors.p900,
   },
 
-  brand: {
+  footerBrand: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 10,
     letterSpacing: 2.5,
-    color: 'rgba(255,255,255,0.3)',
+    color: 'rgba(255,255,255,0.25)',
     textTransform: 'uppercase',
     marginTop: Spacing.sm,
   },
