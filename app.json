@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "Harmoniq",
+    "slug": "harmoniq",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#18005F"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.soulspce.harmoniq"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#18005F"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.soulspce.harmoniq"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#18005F",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 150
+        }
+      ]
+    ],
+    "scheme": "harmoniq",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
