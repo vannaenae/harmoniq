@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    function getUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isMemberOf(choirId) {
+      return isSignedIn() && getUser().choirId == choirId;
+    }
+
+    function isLeaderOf(choirId) {
+      return isMemberOf(choirId) &&
+        (getUser().role == 'owner' || getUser().role == 'leader');
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read:   if isSignedIn() && isOwner(uid);
+      allow create: if isSignedIn() && isOwner(uid);
+      allow update: if isSignedIn() && isOwner(uid);
+    }
+
+    // ── Choirs ────────────────────────────────────────────────────────────────
+    match /choirs/{choirId} {
+      allow read:   if isMemberOf(choirId);
+      allow create: if isSignedIn();
+      allow update: if isLeaderOf(choirId);
+      allow delete: if isLeaderOf(choirId);
+
+      // Set Lists
+      match /setlists/{setListId} {
+        allow read:   if isMemberOf(choirId);
+        allow write:  if isLeaderOf(choirId);
+      }
+
+      // Songs
+      match /songs/{songId} {
+        allow read:   if isMemberOf(choirId);
+        allow write:  if isLeaderOf(choirId);
+      }
+
+      // Announcements
+      match /announcements/{announcementId} {
+        allow read:   if isMemberOf(choirId);
+        allow write:  if isLeaderOf(choirId);
+      }
+
+      // Events / Rehearsals
+      match /events/{eventId} {
+        allow read:   if isMemberOf(choirId);
+        allow write:  if isLeaderOf(choirId);
+      }
+
+      // Availability — members write their own, leaders read all
+      match /availability/{docId} {
+        allow read:   if isMemberOf(choirId);
+        allow create: if isMemberOf(choirId);
+        allow update: if isMemberOf(choirId) &&
+                         resource.data.userId == request.auth.uid;
+      }
+
+      // Members sub-collection
+      match /members/{memberId} {
+        allow read:   if isMemberOf(choirId);
+        allow write:  if isLeaderOf(choirId);
+      }
+    }
+  }
+}
