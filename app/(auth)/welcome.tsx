@@ -12,37 +12,37 @@ import { Spacing, Radius } from '../../constants/spacing';
 /** H-with-waveform logo built from SVG paths */
 function HarmoniqIcon() {
   return (
-    <Svg width={130} height={88} viewBox="0 0 130 88">
+    <Svg width={140} height={100} viewBox="0 0 140 100">
       <Defs>
-        <SvgGradient id="g" x1="0" y1="0" x2="0.5" y2="1">
-          <Stop offset="0" stopColor="#D8B4FE" />
-          <Stop offset="1" stopColor="#7C3AED" />
+        <SvgGradient id="logoGrad" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#D8B4FE" stopOpacity="1" />
+          <Stop offset="1" stopColor="#7C3AED" stopOpacity="1" />
         </SvgGradient>
       </Defs>
 
-      {/* Left waveform bars — shorter, taller */}
-      <Path d="M6 30 L6 58"  stroke="url(#g)" strokeWidth="5.5" strokeLinecap="round" />
-      <Path d="M17 18 L17 70" stroke="url(#g)" strokeWidth="5.5" strokeLinecap="round" />
+      {/* Left waveform bars */}
+      <Path d="M8 34 L8 66"   stroke="#C084FC" strokeWidth="6" strokeLinecap="round" />
+      <Path d="M20 20 L20 80" stroke="#A855F7" strokeWidth="6" strokeLinecap="round" />
 
       {/* H left pillar */}
-      <Path d="M31 8 L31 80" stroke="url(#g)" strokeWidth="9" strokeLinecap="round" />
+      <Path d="M34 10 L34 90" stroke="#9333EA" strokeWidth="10" strokeLinecap="round" />
 
-      {/* H crossbar — sine-wave curve dipping down */}
+      {/* H crossbar — wave dips down then up */}
       <Path
-        d="M31 44 Q44 62 65 44 Q86 26 99 44"
-        stroke="url(#g)"
-        strokeWidth="8"
+        d="M34 50 Q52 72 70 50 Q88 28 106 50"
+        stroke="#9333EA"
+        strokeWidth="9"
         strokeLinecap="round"
         strokeLinejoin="round"
         fill="none"
       />
 
       {/* H right pillar */}
-      <Path d="M99 8 L99 80" stroke="url(#g)" strokeWidth="9" strokeLinecap="round" />
+      <Path d="M106 10 L106 90" stroke="#9333EA" strokeWidth="10" strokeLinecap="round" />
 
-      {/* Right waveform bars — taller, shorter */}
-      <Path d="M113 18 L113 70" stroke="url(#g)" strokeWidth="5.5" strokeLinecap="round" />
-      <Path d="M124 30 L124 58" stroke="url(#g)" strokeWidth="5.5" strokeLinecap="round" />
+      {/* Right waveform bars */}
+      <Path d="M120 20 L120 80" stroke="#A855F7" strokeWidth="6" strokeLinecap="round" />
+      <Path d="M132 34 L132 66" stroke="#C084FC" strokeWidth="6" strokeLinecap="round" />
     </Svg>
   );
 }
