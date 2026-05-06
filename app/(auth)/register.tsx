@@ -14,10 +14,9 @@ import { Spacing, Radius } from '../../constants/spacing';
 
 type Role = 'owner' | 'member';
 
-const ROLES: { key: Role; iconName: keyof typeof Ionicons.glyphMap; label: string }[] = [
-  { key: 'owner',          iconName: 'mic-outline',    label: 'Worship Leader'  },
-  { key: 'member',         iconName: 'people-outline', label: 'Choir Member'    },
-  { key: 'member' as Role, iconName: 'musical-note-outline', label: 'Instrumentalist' },
+const ROLES: { key: Role; iconName: keyof typeof Ionicons.glyphMap; label: string; description: string }[] = [
+  { key: 'owner',  iconName: 'musical-notes',   label: 'Musical Director', description: 'Lead and manage the choir'  },
+  { key: 'member', iconName: 'person-outline',   label: 'Choir Member',     description: 'Singer or instrumentalist' },
 ];
 
 export default function RegisterScreen() {
@@ -75,23 +74,29 @@ export default function RegisterScreen() {
             {/* Role selector */}
             <Text style={styles.roleLabel}>I am joining as a</Text>
             <View style={styles.roleGrid}>
-              {ROLES.map(r => (
-                <TouchableOpacity
-                  key={r.key + r.label}
-                  style={[styles.roleCard, role === r.key && styles.roleCardActive]}
-                  onPress={() => setRole(r.key)}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.roleIconWrap}>
-                    <Ionicons
-                      name={r.iconName}
-                      size={20}
-                      color={role === r.key ? Colors.p900 : Colors.ink50}
-                    />
-                  </View>
-                  <Text style={[styles.roleText, role === r.key && styles.roleTextActive]}>{r.label}</Text>
-                </TouchableOpacity>
-              ))}
+              {ROLES.map(r => {
+                const active = role === r.key;
+                return (
+                  <TouchableOpacity
+                    key={r.key}
+                    style={[styles.roleCard, active && styles.roleCardActive]}
+                    onPress={() => setRole(r.key)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[styles.roleIconWrap, active && styles.roleIconWrapActive]}>
+                      <Ionicons
+                        name={r.iconName}
+                        size={22}
+                        color={active ? Colors.p900 : Colors.ink50}
+                      />
+                    </View>
+                    <View style={styles.roleTextGroup}>
+                      <Text style={[styles.roleText, active && styles.roleTextActive]}>{r.label}</Text>
+                      <Text style={styles.roleDesc}>{r.description}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             {/* Fields */}
@@ -235,26 +240,36 @@ const styles = StyleSheet.create({
     gap: Spacing.base,
     padding: Spacing.base,
     borderRadius: Radius.md,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.ink10,
     backgroundColor: Colors.surface,
   },
   roleCardActive: {
-    borderColor: Colors.p900,
+    borderColor: Colors.p800,
     borderWidth: 2,
     backgroundColor: Colors.p50,
   },
   roleIconWrap: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: 'transparent',
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: Colors.surfaceMid,
     alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
   },
+  roleIconWrapActive: {
+    backgroundColor: 'rgba(26,3,96,0.1)',
+  },
+  roleTextGroup: { flex: 1, gap: 2 },
   roleText: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 15,
     color: Colors.ink70,
   },
   roleTextActive: { color: Colors.p900 },
+  roleDesc: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.ink50,
+  },
 
   fields: { gap: 0 },
   inputRow: {
