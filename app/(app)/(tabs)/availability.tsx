@@ -2,84 +2,43 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
 } from 'react-native';
-import {
-  collection, query, where, onSnapshot, doc, setDoc, serverTimestamp,
-} from 'firebase/firestore';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../../store/authStore';
+import { useSetListStore } from '../../../store/setListStore';
+import { subscribeSetLists } from '../../../services/setListService';
+import {
+  doc, setDoc, getDoc, collection,
+} from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
-import { Card, EmptyState, ErrorState, SkeletonCard } from '../../../components/ui';
+import { EmptyState, ErrorState, SkeletonCard } from '../../../components/ui';
 import { Colors } from '../../../constants/colors';
-import { Typography } from '../../../constants/typography';
 import { Spacing, Radius } from '../../../constants/spacing';
-import { AvailabilityStatus, SetList } from '../../../types';
+import { SetList } from '../../../types';
 import { formatDate } from '../../../lib/utils';
 
-const STATUS_OPTIONS: Array<{
-  value: AvailabilityStatus;
-  emoji: string;
-  label: string;
-  activeBg: string;
-  activeBorder: string;
-  activeText: string;
-}> = [
-  {
-    value: 'available',
-    emoji: '✓',
-    label: 'Available',
-    activeBg: '#DCFCE7',
-    activeBorder: '#16A34A',
-    activeText: '#16A34A',
-  },
-  {
-    value: 'unavailable',
-    emoji: '✕',
-    label: 'Unavailable',
-    activeBg: '#FFF1F2',
-    activeBorder: '#E11D48',
-    activeText: '#E11D48',
-  },
-  {
-    value: 'maybe',
-    emoji: '?',
-    label: 'Not sure',
-    activeBg: '#FEF3C7',
-    activeBorder: '#D97706',
-    activeText: '#D97706',
-  },
-];
+type Status = 'available' | 'unavailable' | 'maybe';
 
 export default function AvailabilityScreen() {
+  const router = useRouter();
   const { user } = useAuthStore();
-  const choirId = user?.choirId;
-  const userId  = user?.uid;
+  const { setLists, setSetLists } = useSetListStore();
 
-  const [setLists, setSetLists]       = useState<SetList[]>([]);
-  const [myAvailability, setMyAvail]  = useState<Record<string, AvailabilityStatus>>({});
-  const [saving, setSaving]           = useState<string | null>(null);
-  const [isLoading, setIsLoading]     = useState(true);
-  const [hasError, setHasError]       = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError]   = useState(false);
+  const [responses, setResponses] = useState<Record<string, Status>>({});
+  const [saving, setSaving]       = useState<string | null>(null);
+
+  const choirId = user?.choirId;
 
   useEffect(() => {
     if (!choirId) return;
     try {
-      const q = query(
-        collection(db, 'choirs', choirId, 'setlists'),
-        where('status', '==', 'published')
-      );
-      const unsub = onSnapshot(q, (snap) => {
-        const lists = snap.docs.map((d) => {
-          const data = d.data();
-          return {
-            ...data, id: d.id,
-            serviceDate: data.serviceDate?.toDate?.() ?? new Date(),
-            createdAt:   data.createdAt?.toDate?.()   ?? new Date(),
-            updatedAt:   data.updatedAt?.toDate?.()   ?? new Date(),
-          } as SetList;
-        });
-        setSetLists(lists.sort((a, b) => +a.serviceDate - +b.serviceDate));
+      const unsub = subscribeSetLists(choirId, (data) => {
+        setSetLists(data);
         setIsLoading(false);
-      }, () => { setHasError(true); setIsLoading(false); });
+      });
       return unsub;
     } catch {
       setHasError(true);
@@ -87,124 +46,148 @@ export default function AvailabilityScreen() {
     }
   }, [choirId]);
 
-  useEffect(() => {
-    if (!choirId || !userId) return;
-    const q = query(
-      collection(db, 'choirs', choirId, 'availability'),
-      where('userId', '==', userId)
-    );
-    return onSnapshot(q, (snap) => {
-      const map: Record<string, AvailabilityStatus> = {};
-      snap.docs.forEach((d) => { const data = d.data(); map[data.eventId] = data.status; });
-      setMyAvail(map);
-    });
-  }, [choirId, userId]);
-
-  const setStatus = async (setListId: string, status: AvailabilityStatus) => {
-    if (!choirId || !userId || saving) return;
+  const handleRespond = async (setListId: string, status: Status) => {
+    if (!user?.uid || !choirId) return;
+    setResponses(prev => ({ ...prev, [setListId]: status }));
     setSaving(setListId);
-    const id = `${userId}_${setListId}`;
-    await setDoc(doc(db, 'choirs', choirId, 'availability', id), {
-      choirId, eventId: setListId, userId, status,
-      updatedAt: serverTimestamp(),
-    });
-    setSaving(null);
+    try {
+      await setDoc(
+        doc(db, 'choirs', choirId, 'availability', `${setListId}_${user.uid}`),
+        { setListId, userId: user.uid, status, updatedAt: new Date().toISOString() },
+        { merge: true },
+      );
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const now     = new Date();
+  const upcoming = setLists.filter(sl => new Date(sl.serviceDate) >= now);
+  const next     = upcoming[0] ?? null;
+  const rest     = upcoming.slice(1);
+
+  const statusConfig = {
+    available:   { label: 'Available',   color: Colors.success,  bg: Colors.successBg  },
+    unavailable: { label: 'Unavailable', color: Colors.error,    bg: Colors.errorBg    },
+    maybe:       { label: 'Pending',     color: Colors.warning,  bg: Colors.warningBg  },
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Top bar */}
+      {/* Top nav */}
       <View style={styles.topBar}>
-        <Text style={styles.logo}>Harmoniq</Text>
+        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/choir-settings')}>
+          <Text style={styles.navIcon}>☰</Text>
+        </TouchableOpacity>
+        <Text style={styles.navLogo}>Harmoniq</Text>
+        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/announcements')}>
+          <Text style={styles.navIcon}>🔔</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Page heading */}
-      <View style={styles.pageHead}>
-        <Text style={styles.pageTitle}>Availability</Text>
-        <Text style={styles.pageSub}>Let your director know when you're free.</Text>
-      </View>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* Page heading */}
+        <Text style={styles.pageTitle}>Your Availability</Text>
+        <Text style={styles.pageSub}>
+          Confirm your attendance for upcoming services to help the team coordinate vocals and scheduling.
+        </Text>
 
-      {isLoading && (
-        <View style={styles.skeleton}>
-          <SkeletonCard height={160} />
-          <SkeletonCard height={160} />
-        </View>
-      )}
+        {isLoading && (
+          <View style={{ gap: Spacing.base }}>
+            <SkeletonCard height={200} />
+            <SkeletonCard height={100} lines={2} />
+            <SkeletonCard height={100} lines={2} />
+          </View>
+        )}
 
-      {!isLoading && hasError && <ErrorState fullScreen />}
+        {!isLoading && hasError && <ErrorState fullScreen />}
 
-      {!isLoading && !hasError && setLists.length === 0 && (
-        <EmptyState
-          icon="📅"
-          title="No upcoming services"
-          description="When your director publishes a set list, you'll be able to mark your availability here."
-        />
-      )}
+        {!isLoading && !hasError && setLists.length === 0 && (
+          <EmptyState
+            icon="📅"
+            title="No services scheduled"
+            description="Your director has not scheduled any upcoming services yet."
+          />
+        )}
 
-      {!isLoading && !hasError && setLists.length > 0 && (
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {setLists.map((sl) => {
-            const current = myAvailability[sl.id] ?? 'no_response';
-            const isSaving = saving === sl.id;
+        {!isLoading && !hasError && next && (
+          <>
+            {/* Next service card */}
+            <LinearGradient
+              colors={['#18005F', '#560056']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.nextCard}
+            >
+              <Text style={styles.nextEyebrow}>✦ NEXT SERVICE</Text>
+              <Text style={styles.nextTitle}>{next.title}</Text>
+              <Text style={styles.nextDate}>📅  {formatDate(next.serviceDate)}</Text>
 
-            return (
-              <View key={sl.id} style={styles.card}>
-                {/* Service info */}
-                <Text style={styles.cardEyebrow}>UPCOMING SERVICE</Text>
-                <Text style={styles.cardTitle}>{sl.title}</Text>
-                <Text style={styles.cardDate}>{formatDate(sl.serviceDate)}</Text>
+              <TouchableOpacity
+                style={[
+                  styles.markBtn,
+                  responses[next.id] === 'available' && styles.markBtnActive,
+                ]}
+                onPress={() => handleRespond(next.id, 'available')}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.markBtnText, responses[next.id] === 'available' && { color: Colors.p900 }]}>
+                  {responses[next.id] === 'available' ? '✓ Marked Available' : 'Mark Available'}
+                </Text>
+              </TouchableOpacity>
 
-                {/* 3-column status buttons */}
-                <View style={styles.btnGrid}>
-                  {STATUS_OPTIONS.map((opt) => {
-                    const isActive = current === opt.value;
-                    return (
-                      <TouchableOpacity
-                        key={opt.value}
-                        style={[
-                          styles.statusBtn,
-                          isActive && {
-                            backgroundColor: opt.activeBg,
-                            borderColor: opt.activeBorder,
-                            borderWidth: 2,
-                          },
-                        ]}
-                        onPress={() => !isSaving && setStatus(sl.id, opt.value)}
-                        disabled={isSaving}
-                        activeOpacity={0.75}
-                      >
-                        <Text style={[
-                          styles.statusEmoji,
-                          isActive && { color: opt.activeText },
-                        ]}>
-                          {opt.emoji}
-                        </Text>
-                        <Text style={[
-                          styles.statusLabel,
-                          isActive && { color: opt.activeText, fontFamily: 'Inter_600SemiBold' },
-                        ]}>
-                          {opt.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                {/* Note about current status */}
-                {current !== 'no_response' && (
-                  <View style={styles.currentStatus}>
-                    <Text style={styles.currentStatusText}>
-                      {current === 'available' ? '✓ You marked yourself as available' :
-                       current === 'unavailable' ? '✕ You marked yourself as unavailable' :
-                       '? You are not sure yet'}
-                    </Text>
-                  </View>
-                )}
+              <View style={styles.altBtns}>
+                <TouchableOpacity
+                  style={[styles.altBtn, responses[next.id] === 'maybe' && styles.altBtnMaybe]}
+                  onPress={() => handleRespond(next.id, 'maybe')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.altBtnText}>⚠ Not Sure</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.altBtn, responses[next.id] === 'unavailable' && styles.altBtnUnavail]}
+                  onPress={() => handleRespond(next.id, 'unavailable')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.altBtnText}>✕ Unavailable</Text>
+                </TouchableOpacity>
               </View>
-            );
-          })}
-        </ScrollView>
-      )}
+            </LinearGradient>
+
+            {/* Upcoming schedule */}
+            {rest.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Upcoming Schedule</Text>
+                {rest.map(sl => {
+                  const resp = responses[sl.id];
+                  const cfg  = resp ? statusConfig[resp] : null;
+                  return (
+                    <View key={sl.id} style={styles.scheduleCard}>
+                      <View style={styles.scheduleLeft}>
+                        <Text style={styles.scheduleIcon}>📅</Text>
+                      </View>
+                      <View style={styles.scheduleInfo}>
+                        <Text style={styles.scheduleTitle}>{sl.title}</Text>
+                        <Text style={styles.scheduleDate}>{formatDate(sl.serviceDate)}</Text>
+                        <TouchableOpacity onPress={() => handleRespond(sl.id, resp === 'available' ? 'maybe' : 'available')}>
+                          <Text style={styles.scheduleAction}>
+                            {resp === 'available' ? 'Edit Response' : 'Respond Now'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      {cfg && (
+                        <View style={[styles.statusPill, { backgroundColor: cfg.bg }]}>
+                          <Text style={[styles.statusPillText, { color: cfg.color }]}>{cfg.label}</Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </>
+            )}
+          </>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -213,14 +196,18 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.surfaceBg },
 
   topBar: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.base,
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(24,0,95,0.05)',
+    borderBottomColor: 'rgba(94,82,166,0.08)',
   },
-  logo: {
+  navBtn:  { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  navIcon: { fontSize: 20, color: Colors.p900 },
+  navLogo: {
     fontFamily: 'Inter_900Black',
     fontSize: 20,
     fontStyle: 'italic',
@@ -228,73 +215,112 @@ const styles = StyleSheet.create({
     color: Colors.p900,
   },
 
-  pageHead: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.base,
-    gap: Spacing.xs,
+  scroll: { padding: Spacing.lg, gap: Spacing.lg, paddingBottom: 100 },
+
+  pageTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 32,
+    letterSpacing: -0.8,
+    color: Colors.ink,
+    lineHeight: 38,
   },
-  pageTitle: { ...Typography.headlineXL, color: Colors.ink },
-  pageSub: { ...Typography.bodyMD, color: Colors.ink50 },
+  pageSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: Colors.ink70,
+    lineHeight: 22,
+    marginTop: -Spacing.sm,
+  },
 
-  skeleton: { padding: Spacing.lg, gap: Spacing.base },
-
-  scroll: { padding: Spacing.lg, gap: Spacing.base, paddingBottom: 100 },
-
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.ink10,
+  nextCard: {
+    borderRadius: 24,
     padding: Spacing.lg,
-    gap: Spacing.sm,
-    // Ambient shadow
-    shadowColor: '#18005F',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 2,
+    gap: Spacing.base,
+    shadowColor: Colors.p900,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 10,
   },
-  cardEyebrow: {
-    ...Typography.caption,
-    color: Colors.p600,
-    letterSpacing: 1.5,
+  nextEyebrow: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    letterSpacing: 2,
+    color: 'rgba(255,255,255,0.65)',
+    textTransform: 'uppercase',
   },
-  cardTitle: { ...Typography.headlineLG, color: Colors.ink },
-  cardDate: { ...Typography.body, color: Colors.ink50 },
+  nextTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 24,
+    color: Colors.white,
+    lineHeight: 30,
+  },
+  nextDate: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: Spacing.xs,
+  },
 
-  btnGrid: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
+  markBtn: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  markBtnActive: {
+    backgroundColor: Colors.white,
+  },
+  markBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
+    color: Colors.white,
+  },
+
+  altBtns: { flexDirection: 'row', gap: Spacing.sm },
+  altBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  altBtnMaybe:   { backgroundColor: 'rgba(217,119,6,0.3)',  borderColor: Colors.warning },
+  altBtnUnavail: { backgroundColor: 'rgba(186,26,26,0.3)',  borderColor: Colors.error   },
+  altBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: Colors.white,
+  },
+
+  sectionTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 20,
+    color: Colors.ink,
     marginTop: Spacing.sm,
   },
-  statusBtn: {
-    flex: 1,
+
+  scheduleCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.base,
-    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: Spacing.base,
     borderWidth: 1,
     borderColor: Colors.ink10,
-    backgroundColor: Colors.surfaceLow,
-    gap: 4,
+    gap: Spacing.base,
   },
-  statusEmoji: {
-    fontSize: 22,
-    color: Colors.ink50,
-    fontFamily: 'Inter_700Bold',
-  },
-  statusLabel: {
-    ...Typography.labelMD,
-    color: Colors.ink50,
-    fontSize: 12,
-    letterSpacing: 0.3,
-  },
-  currentStatus: {
-    backgroundColor: Colors.surfaceMid,
-    borderRadius: Radius.sm,
-    padding: Spacing.sm,
-    marginTop: Spacing.xs,
-  },
-  currentStatusText: { ...Typography.label, color: Colors.ink70, textAlign: 'center' },
+  scheduleLeft:   { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surfaceMid, alignItems: 'center', justifyContent: 'center' },
+  scheduleIcon:   { fontSize: 18 },
+  scheduleInfo:   { flex: 1, gap: 2 },
+  scheduleTitle:  { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: Colors.ink },
+  scheduleDate:   { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.ink50 },
+  scheduleAction: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: Colors.p500, marginTop: 4 },
+
+  statusPill:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  statusPillText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
 });

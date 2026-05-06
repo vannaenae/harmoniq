@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   lines: { gap: 10 },
   line: {
     height: 12,
-    backgroundColor: Colors.surfaceHighest,
+    backgroundColor: Colors.ink10,
     borderRadius: Radius.sm,
   },
 });

@@ -1,20 +1,20 @@
 import React from 'react';
 import {
   TouchableOpacity, Text, StyleSheet, ActivityIndicator,
-  ViewStyle, TextStyle, View,
+  ViewStyle, View,
 } from 'react-native';
-import { Colors } from '../../constants/colors';
-import { Typography } from '../../constants/typography';
-import { Radius } from '../../constants/spacing';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Gradients } from '../../constants/colors';
+import { Spacing, Radius } from '../../constants/spacing';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
-type ButtonSize = 'sm' | 'md' | 'lg';
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type Size    = 'sm' | 'md' | 'lg';
 
 interface ButtonProps {
   label: string;
   onPress: () => void;
-  variant?: ButtonVariant;
-  size?: ButtonSize;
+  variant?: Variant;
+  size?: Size;
   isLoading?: boolean;
   disabled?: boolean;
   fullWidth?: boolean;
@@ -23,87 +23,89 @@ interface ButtonProps {
   style?: ViewStyle;
 }
 
-const variantStyles: Record<ButtonVariant, { container: ViewStyle; text: TextStyle }> = {
-  primary: {
-    container: { backgroundColor: Colors.p800, borderWidth: 0 },
-    text: { color: Colors.white },
-  },
-  secondary: {
-    container: {
-      backgroundColor: 'transparent',
-      borderWidth: 1.5,
-      borderColor: Colors.p800,
-    },
-    text: { color: Colors.p800 },
-  },
-  ghost: {
-    container: { backgroundColor: 'transparent', borderWidth: 0 },
-    text: { color: Colors.p800 },
-  },
-  danger: {
-    container: { backgroundColor: Colors.error, borderWidth: 0 },
-    text: { color: Colors.white },
-  },
-};
-
-const sizeStyles: Record<ButtonSize, { container: ViewStyle; text: TextStyle }> = {
-  sm: { container: { paddingVertical: 8, paddingHorizontal: 16 }, text: { fontSize: 13 } },
-  md: { container: { paddingVertical: 14, paddingHorizontal: 24 }, text: { fontSize: 15 } },
-  lg: { container: { paddingVertical: 18, paddingHorizontal: 32 }, text: { fontSize: 16 } },
+const sizeMap: Record<Size, { height: number; fontSize: number; px: number }> = {
+  sm: { height: 36, fontSize: 13, px: Spacing.base },
+  md: { height: 44, fontSize: 14, px: Spacing.lg   },
+  lg: { height: 54, fontSize: 15, px: Spacing.xl   },
 };
 
 export const Button: React.FC<ButtonProps> = ({
-  label,
-  onPress,
-  variant = 'primary',
-  size = 'md',
-  isLoading = false,
-  disabled = false,
-  fullWidth = false,
-  leftIcon,
-  rightIcon,
-  style,
+  label, onPress, variant = 'primary', size = 'md',
+  isLoading, disabled, fullWidth, leftIcon, rightIcon, style,
 }) => {
-  const vs = variantStyles[variant];
-  const ss = sizeStyles[size];
-  const opacity = disabled || isLoading ? 0.5 : 1;
+  const sz  = sizeMap[size];
+  const off = disabled || isLoading;
+
+  const labelColor =
+    variant === 'primary'   ? Colors.white :
+    variant === 'secondary' ? Colors.p800  :
+    variant === 'ghost'     ? Colors.p500  :
+    Colors.error;
+
+  const content = (
+    <View style={[styles.inner, { paddingHorizontal: sz.px }]}>
+      {isLoading
+        ? <ActivityIndicator color={labelColor} size="small" />
+        : <>
+            {leftIcon}
+            <Text style={[styles.label, { fontSize: sz.fontSize, color: labelColor }]}>
+              {label}
+            </Text>
+            {rightIcon}
+          </>
+      }
+    </View>
+  );
+
+  if (variant === 'primary') {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={off}
+        activeOpacity={0.85}
+        style={[fullWidth && styles.full, off && styles.disabled, style]}
+      >
+        <LinearGradient
+          colors={Gradients.button}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[styles.gradient, { borderRadius: Radius.full, height: sz.height }]}
+        >
+          {content}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
 
   return (
     <TouchableOpacity
       onPress={onPress}
-      disabled={disabled || isLoading}
-      activeOpacity={0.8}
+      disabled={off}
+      activeOpacity={0.75}
       style={[
         styles.base,
-        vs.container,
-        ss.container,
-        fullWidth && styles.fullWidth,
-        { opacity },
+        { height: sz.height, borderRadius: Radius.full },
+        variant === 'secondary' && styles.secondary,
+        variant === 'ghost'     && styles.ghost,
+        variant === 'danger'    && styles.danger,
+        fullWidth               && styles.full,
+        off                     && styles.disabled,
         style,
       ]}
     >
-      {isLoading ? (
-        <ActivityIndicator color={variant === 'primary' || variant === 'danger' ? '#fff' : Colors.p800} size="small" />
-      ) : (
-        <View style={styles.row}>
-          {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
-          <Text style={[styles.text, Typography.bodyMed, vs.text, ss.text]}>{label}</Text>
-          {rightIcon && <View style={styles.iconRight}>{rightIcon}</View>}
-        </View>
-      )}
+      {content}
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  base: {
-    borderRadius: Radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fullWidth: { width: '100%' },
-  row: { flexDirection: 'row', alignItems: 'center' },
-  text: { fontWeight: '600' },
-  iconLeft: { marginRight: 8 },
-  iconRight: { marginLeft: 8 },
+  base:      { justifyContent: 'center', alignItems: 'center' },
+  full:      { width: '100%' },
+  disabled:  { opacity: 0.48 },
+  gradient:  { justifyContent: 'center', alignItems: 'center' },
+  inner:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs },
+  label:     { fontFamily: 'Inter_600SemiBold', letterSpacing: 0.3 },
+  secondary: { borderWidth: 1.5, borderColor: Colors.p800, backgroundColor: 'transparent' },
+  ghost:     { backgroundColor: 'transparent' },
+  danger:    { borderWidth: 1.5, borderColor: Colors.error, backgroundColor: 'transparent' },
 });

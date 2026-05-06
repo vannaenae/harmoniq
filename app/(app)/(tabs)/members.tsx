@@ -5,20 +5,20 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../../store/authStore';
-import { useChoirStore } from '../../../store/choirStore';
 import { subscribeMembers } from '../../../services/choirService';
-import { Avatar, Button, EmptyState, ErrorState, Pill, SkeletonCard } from '../../../components/ui';
+import { EmptyState, ErrorState, SkeletonCard } from '../../../components/ui';
 import { Colors } from '../../../constants/colors';
-import { Typography } from '../../../constants/typography';
 import { Spacing, Radius } from '../../../constants/spacing';
 import { ChoirMember } from '../../../types';
-import { vocalPartLabel, roleLabel } from '../../../lib/utils';
+import { getInitials } from '../../../lib/utils';
+
+const AVATAR_COLORS = ['#18005F', '#560056', '#3D0080', '#1a0360', '#5e52a6', '#913d8c'];
 
 export default function MembersScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { members, setMembers } = useChoirStore();
 
+  const [members, setMembers]     = useState<ChoirMember[]>([]);
   const [search, setSearch]       = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError]   = useState(false);
@@ -28,6 +28,7 @@ export default function MembersScreen() {
 
   useEffect(() => {
     if (!choirId) return;
+    setHasError(false);
     try {
       const unsub = subscribeMembers(choirId, (data) => {
         setMembers(data);
@@ -40,69 +41,88 @@ export default function MembersScreen() {
     }
   }, [choirId]);
 
-  const filtered = members.filter(
-    (m) =>
-      m.displayName.toLowerCase().includes(search.toLowerCase()) ||
-      m.email.toLowerCase().includes(search.toLowerCase()) ||
-      vocalPartLabel[m.vocalPart]?.toLowerCase().includes(search.toLowerCase())
+  const filtered = members.filter(m =>
+    m.displayName?.toLowerCase().includes(search.toLowerCase()) ||
+    m.email?.toLowerCase().includes(search.toLowerCase()) ||
+    m.vocalPart?.toLowerCase().includes(search.toLowerCase()),
   );
 
-  // Group by vocal part
-  const grouped = filtered.reduce<Record<string, ChoirMember[]>>((acc, m) => {
-    const part = vocalPartLabel[m.vocalPart] ?? 'Unassigned';
-    if (!acc[part]) acc[part] = [];
-    acc[part].push(m);
-    return acc;
-  }, {});
+  const avatarColor = (name: string) =>
+    AVATAR_COLORS[(name?.charCodeAt(0) ?? 0) % AVATAR_COLORS.length];
 
-  const renderMember = ({ item, index, total }: { item: ChoirMember; index: number; total: number }) => (
-    <TouchableOpacity
-      style={[styles.memberRow, index < total - 1 && styles.memberDivider]}
-      onPress={() => router.push(`/(app)/members/${item.uid}`)}
-      activeOpacity={0.7}
-    >
-      <Avatar name={item.displayName} photoURL={item.photoURL} size="md" />
-      <View style={styles.memberInfo}>
-        <Text style={styles.memberName}>{item.displayName}</Text>
-        <Text style={styles.memberSub}>{item.email}</Text>
-      </View>
-      <View style={styles.memberRight}>
-        <Pill
-          label={item.role === 'owner' ? 'Owner' : item.role === 'leader' ? 'Leader' : 'Member'}
-          variant={item.role}
-        />
-        <Text style={styles.chevron}>›</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const roleLabel = (role: string) => {
+    if (role === 'owner' || role === 'leader') return 'COORDINATOR';
+    return 'MEMBER';
+  };
+
+  const vocalLabel = (part?: string) => {
+    const map: Record<string, string> = {
+      soprano: 'Soprano', alto: 'Alto', tenor: 'Tenor', bass: 'Bass',
+      instrumentalist: 'Instrumentalist', unassigned: '',
+    };
+    return part ? (map[part] ?? part) : '';
+  };
+
+  const renderMember = ({ item }: { item: ChoirMember }) => {
+    const initials = getInitials(item.displayName ?? item.email ?? '??');
+    const bgColor  = avatarColor(item.displayName ?? '');
+    const isCoord  = item.role === 'owner' || item.role === 'leader';
+    const vocal    = vocalLabel(item.vocalPart);
+
+    return (
+      <TouchableOpacity
+        style={styles.memberRow}
+        onPress={() => router.push(`/(app)/members/${item.uid}`)}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.avatar, { backgroundColor: bgColor }]}>
+          <Text style={styles.avatarText}>{initials}</Text>
+        </View>
+
+        <View style={styles.memberInfo}>
+          <Text style={styles.memberName}>{item.displayName ?? 'Unknown'}</Text>
+          {vocal ? <Text style={styles.memberVocal}>{vocal}</Text> : null}
+        </View>
+
+        <View style={[styles.rolePill, isCoord && styles.rolePillCoord]}>
+          <Text style={[styles.rolePillText, isCoord && styles.rolePillTextCoord]}>
+            {roleLabel(item.role)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Top bar */}
+      {/* Top nav */}
       <View style={styles.topBar}>
-        <Text style={styles.logo}>Harmoniq</Text>
-        {isAdmin && (
-          <Button label="Invite" onPress={() => router.push('/(app)/invite')} size="sm" />
-        )}
+        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/choir-settings')}>
+          <Text style={styles.navIcon}>☰</Text>
+        </TouchableOpacity>
+        <Text style={styles.navLogo}>Harmoniq</Text>
+        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/announcements')}>
+          <Text style={styles.navIcon}>🔔</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Page heading */}
-      <View style={styles.pageHead}>
-        <View style={styles.headRow}>
-          <View>
-            <Text style={styles.pageTitle}>Members</Text>
-            <Text style={styles.pageSub}>
-              {isLoading ? 'Loading…' : `${members.length} member${members.length !== 1 ? 's' : ''}`}
-            </Text>
-          </View>
+      <View style={styles.pageHeader}>
+        <View style={styles.pageTitleRow}>
+          <Text style={styles.pageTitle}>Members</Text>
+          {isAdmin && (
+            <TouchableOpacity style={styles.inviteBtn} onPress={() => router.push('/(app)/invite')}>
+              <Text style={styles.inviteBtnText}>+ Invite Member</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Search */}
-        <View style={styles.searchWrap}>
+        <View style={styles.searchBar}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search members, parts..."
+            placeholder="Search members, roles..."
             placeholderTextColor={Colors.ink30}
             value={search}
             onChangeText={setSearch}
@@ -115,44 +135,33 @@ export default function MembersScreen() {
         </View>
       </View>
 
-      {/* Loading */}
       {isLoading && (
-        <View style={styles.skeleton}>
-          {[1, 2, 3, 4].map((i) => <SkeletonCard key={i} height={68} lines={2} />)}
+        <View style={{ padding: Spacing.lg, gap: Spacing.base }}>
+          {[1, 2, 3, 4, 5].map(i => <SkeletonCard key={i} height={64} lines={2} />)}
         </View>
       )}
 
-      {/* Error */}
       {!isLoading && hasError && <ErrorState fullScreen />}
 
-      {/* Empty — no members */}
       {!isLoading && !hasError && members.length === 0 && (
         <EmptyState
           icon="👥"
           title="No members yet"
-          description="Invite your choir members to get started."
-          actionLabel={isAdmin ? 'Invite Members' : undefined}
+          description={isAdmin ? 'Invite your first member to get started.' : 'No members have joined yet.'}
+          actionLabel={isAdmin ? 'Invite Member' : undefined}
           onAction={isAdmin ? () => router.push('/(app)/invite') : undefined}
         />
       )}
 
-      {/* Empty — no search results */}
       {!isLoading && !hasError && members.length > 0 && filtered.length === 0 && (
-        <EmptyState
-          icon="🔍"
-          title="No results"
-          description={`No members found for "${search}".`}
-        />
+        <EmptyState icon="🔍" title="No results" description={`No members found matching "${search}".`} />
       )}
 
-      {/* Members list */}
       {!isLoading && !hasError && filtered.length > 0 && (
         <FlatList
           data={filtered}
-          keyExtractor={(m) => m.uid}
-          renderItem={({ item, index }) =>
-            renderMember({ item, index, total: filtered.length })
-          }
+          keyExtractor={item => item.uid}
+          renderItem={renderMember}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
         />
@@ -169,12 +178,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.base,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingVertical: Spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(24,0,95,0.05)',
+    borderBottomColor: 'rgba(94,82,166,0.08)',
   },
-  logo: {
+  navBtn:  { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  navIcon: { fontSize: 20, color: Colors.p900 },
+  navLogo: {
     fontFamily: 'Inter_900Black',
     fontSize: 20,
     fontStyle: 'italic',
@@ -182,17 +193,28 @@ const styles = StyleSheet.create({
     color: Colors.p900,
   },
 
-  pageHead: {
+  pageHeader: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
     paddingBottom: Spacing.base,
     gap: Spacing.base,
   },
-  headRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  pageTitle: { ...Typography.headlineXL, color: Colors.ink },
-  pageSub: { ...Typography.bodyMD, color: Colors.ink50 },
+  pageTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  pageTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 32,
+    letterSpacing: -0.8,
+    color: Colors.ink,
+  },
+  inviteBtn: {
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.xs,
+    borderRadius: 20,
+    backgroundColor: Colors.p900,
+  },
+  inviteBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: Colors.white },
 
-  searchWrap: {
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
@@ -200,33 +222,53 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.ink10,
     paddingHorizontal: Spacing.base,
-    height: 44,
+    height: 48,
     gap: Spacing.sm,
   },
-  searchIcon: { fontSize: 14 },
-  searchInput: { flex: 1, ...Typography.body, color: Colors.ink },
-  clearBtn: { fontSize: 13, color: Colors.ink30, padding: 4 },
+  searchIcon:  { fontSize: 16 },
+  searchInput: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 15, color: Colors.ink },
+  clearBtn:    { fontSize: 14, color: Colors.ink30, padding: 4 },
 
-  skeleton: { padding: Spacing.lg, gap: Spacing.sm },
-
-  list: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: 100,
-  },
+  list: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
 
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Spacing.base,
     gap: Spacing.base,
+    borderBottomWidth: 0,
   },
-  memberDivider: {
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(55,0,91,0.06)',
+
+  avatar: {
+    width: 48, height: 48, borderRadius: 24,
+    alignItems: 'center', justifyContent: 'center',
   },
-  memberInfo: { flex: 1, gap: 2 },
-  memberName: { ...Typography.bodyLG, fontFamily: 'Inter_600SemiBold', color: Colors.ink },
-  memberSub: { ...Typography.bodyMD, color: Colors.ink50 },
-  memberRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  chevron: { fontSize: 20, color: Colors.ink30 },
+  avatarText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 16,
+    color: Colors.white,
+  },
+
+  memberInfo:  { flex: 1, gap: 2 },
+  memberName:  { fontFamily: 'Inter_600SemiBold', fontSize: 16, color: Colors.ink },
+  memberVocal: { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.ink70 },
+
+  rolePill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    backgroundColor: Colors.surfaceMid,
+  },
+  rolePillCoord: {
+    backgroundColor: Colors.p50,
+  },
+  rolePillText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 10,
+    letterSpacing: 0.5,
+    color: Colors.ink50,
+  },
+  rolePillTextCoord: {
+    color: Colors.p900,
+  },
 });

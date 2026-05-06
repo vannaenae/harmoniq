@@ -7,12 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../../store/authStore';
 import { useSetListStore } from '../../../store/setListStore';
 import { subscribeSetLists } from '../../../services/setListService';
-import { Button, EmptyState, ErrorState, Pill, SkeletonCard } from '../../../components/ui';
+import { EmptyState, ErrorState, SkeletonCard } from '../../../components/ui';
 import { Colors } from '../../../constants/colors';
-import { Typography } from '../../../constants/typography';
-import { Spacing, Radius } from '../../../constants/spacing';
+import { Spacing } from '../../../constants/spacing';
 import { SetList } from '../../../types';
-import { formatShortDate } from '../../../lib/utils';
+import { formatDate } from '../../../lib/utils';
 
 export default function SetListsScreen() {
   const router = useRouter();
@@ -27,6 +26,7 @@ export default function SetListsScreen() {
 
   useEffect(() => {
     if (!choirId) return;
+    setHasError(false);
     try {
       const unsub = subscribeSetLists(choirId, (data) => {
         setSetLists(data);
@@ -39,95 +39,97 @@ export default function SetListsScreen() {
     }
   }, [choirId]);
 
-  const now      = new Date();
-  const upcoming = setLists.filter((sl) => new Date(sl.serviceDate) >= now);
-  const past     = setLists.filter((sl) => new Date(sl.serviceDate) <  now);
+  const now = new Date();
+  const upcoming = setLists.filter(sl => new Date(sl.serviceDate) >= now);
+  const past     = setLists.filter(sl => new Date(sl.serviceDate) < now);
 
   const sections = [
-    ...(upcoming.length > 0 ? [{ title: 'Upcoming', data: upcoming }] : []),
-    ...(past.length > 0     ? [{ title: 'Past',     data: past     }] : []),
-  ];
+    { title: 'Upcoming Services', data: upcoming },
+    { title: 'Past Services',     data: past     },
+  ].filter(s => s.data.length > 0);
 
   const renderItem = ({ item, section }: { item: SetList; section: { title: string } }) => {
-    const isPast = section.title === 'Past';
+    const isPast = section.title === 'Past Services';
     return (
       <TouchableOpacity
-        style={[styles.item, isPast && styles.itemPast]}
+        style={[styles.row, isPast && styles.rowPast]}
         onPress={() => router.push(`/(app)/setlists/${item.id}`)}
         activeOpacity={0.7}
       >
-        <View style={styles.itemLeft}>
-          <View style={styles.itemTitleRow}>
-            <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
-            <Pill
-              label={item.status}
-              variant={item.status === 'published' ? 'published' : 'draft'}
-            />
+        <View style={styles.rowContent}>
+          <View style={styles.rowLeft}>
+            <View style={styles.rowTitleRow}>
+              <Text style={styles.rowTitle} numberOfLines={1}>{item.title}</Text>
+              {!isPast && item.status === 'published' && (
+                <View style={styles.pillPublished}><Text style={styles.pillPublishedText}>Published</Text></View>
+              )}
+              {!isPast && item.status === 'draft' && (
+                <View style={styles.pillDraft}><Text style={styles.pillDraftText}>Draft</Text></View>
+              )}
+            </View>
+            <Text style={styles.rowDate}>{formatDate(item.serviceDate)}</Text>
           </View>
-          <Text style={styles.itemMeta}>
-            {formatShortDate(item.serviceDate)}
-            {item.songs.length > 0 && ` · ${item.songs.length} song${item.songs.length !== 1 ? 's' : ''}`}
-          </Text>
+          <Text style={styles.rowChevron}>›</Text>
         </View>
-        <Text style={styles.chevron}>›</Text>
+        <View style={styles.rowDivider} />
       </TouchableOpacity>
     );
   };
 
   const renderSectionHeader = ({ section }: { section: { title: string } }) => (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{section.title}</Text>
-    </View>
+    <Text style={styles.sectionHeader}>{section.title}</Text>
   );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Top bar */}
+      {/* Top nav */}
       <View style={styles.topBar}>
-        <View style={styles.topLeft}>
-          <Text style={styles.logo}>Harmoniq</Text>
-        </View>
-        {isAdmin && (
-          <Button label="+ New" onPress={() => router.push('/(app)/setlists/create')} size="sm" />
-        )}
+        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/choir-settings')}>
+          <Text style={styles.navIcon}>☰</Text>
+        </TouchableOpacity>
+        <Text style={styles.navLogo}>Harmoniq</Text>
+        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/announcements')}>
+          <Text style={styles.navIcon}>🔔</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Page heading */}
-      <View style={styles.pageHead}>
-        <Text style={styles.pageTitle}>Set Lists</Text>
-        <Text style={styles.pageSub}>Manage and review upcoming and past services.</Text>
+      <View style={styles.pageHeader}>
+        <View>
+          <Text style={styles.pageTitle}>Set Lists</Text>
+          <Text style={styles.pageSub}>Manage and review upcoming and past services.</Text>
+        </View>
+        {isAdmin && (
+          <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/(app)/setlists/create')}>
+            <Text style={styles.addBtnText}>+ New</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Loading */}
       {isLoading && (
-        <View style={styles.skeleton}>
-          <SkeletonCard height={72} lines={2} />
-          <SkeletonCard height={72} lines={2} />
-          <SkeletonCard height={72} lines={2} />
+        <View style={{ padding: Spacing.lg, gap: Spacing.base }}>
+          {[1, 2, 3, 4].map(i => <SkeletonCard key={i} height={64} lines={2} />)}
         </View>
       )}
 
-      {/* Error */}
       {!isLoading && hasError && (
         <ErrorState fullScreen onRetry={() => { setIsLoading(true); setHasError(false); }} />
       )}
 
-      {/* Empty */}
       {!isLoading && !hasError && setLists.length === 0 && (
         <EmptyState
           icon="📋"
           title="No set lists yet"
-          description="Create your first set list to plan upcoming worship services."
+          description={isAdmin ? 'Create your first set list to plan your next service.' : 'Your director has not created any set lists yet.'}
           actionLabel={isAdmin ? 'Create Set List' : undefined}
           onAction={isAdmin ? () => router.push('/(app)/setlists/create') : undefined}
         />
       )}
 
-      {/* List */}
       {!isLoading && !hasError && setLists.length > 0 && (
         <SectionList
           sections={sections}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item.id}
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}
           contentContainerStyle={styles.list}
@@ -147,13 +149,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.base,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingVertical: Spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(24,0,95,0.05)',
+    borderBottomColor: 'rgba(94,82,166,0.08)',
   },
-  topLeft: {},
-  logo: {
+  navBtn:  { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  navIcon: { fontSize: 20, color: Colors.p900 },
+  navLogo: {
     fontFamily: 'Inter_900Black',
     fontSize: 20,
     fontStyle: 'italic',
@@ -161,48 +164,78 @@ const styles = StyleSheet.create({
     color: Colors.p900,
   },
 
-  pageHead: {
+  pageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
     paddingBottom: Spacing.base,
-    gap: Spacing.xs,
   },
-  pageTitle: { ...Typography.headlineXL, color: Colors.ink },
-  pageSub: { ...Typography.bodyMD, color: Colors.ink50 },
-
-  skeleton: { padding: Spacing.lg, gap: Spacing.sm },
-
-  list: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: 100,
+  pageTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 32,
+    letterSpacing: -0.8,
+    color: Colors.ink,
+    lineHeight: 38,
   },
+  pageSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: Colors.ink70,
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  addBtn: {
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.xs,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: Colors.p900,
+    marginTop: 6,
+  },
+  addBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: Colors.p900 },
+
+  list: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
 
   sectionHeader: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 20,
+    color: Colors.ink,
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.surfaceHigh,
-    marginBottom: Spacing.xs,
   },
-  sectionTitle: { ...Typography.headlineLG, color: Colors.ink },
 
-  item: {
+  row:     { paddingVertical: 2 },
+  rowPast: { opacity: 0.6 },
+
+  rowContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: Spacing.base,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(55,0,91,0.06)',
-    gap: Spacing.sm,
   },
-  itemPast: { opacity: 0.65 },
-  itemLeft: { flex: 1, gap: 4 },
-  itemTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    flexWrap: 'wrap',
+  rowLeft:     { flex: 1, gap: 4 },
+  rowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexWrap: 'wrap' },
+  rowTitle:    { fontFamily: 'Inter_600SemiBold', fontSize: 16, color: Colors.ink },
+  rowDate:     { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.ink50 },
+  rowChevron:  { fontSize: 22, color: Colors.ink30, paddingLeft: Spacing.sm },
+
+  pillPublished: {
+    backgroundColor: '#e9f5e9',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
   },
-  itemTitle: { ...Typography.bodyLG, fontFamily: 'Inter_600SemiBold', color: Colors.ink, flex: 1 },
-  itemMeta: { ...Typography.bodyMD, color: Colors.ink50 },
-  chevron: { fontSize: 22, color: Colors.ink30 },
+  pillPublishedText: { fontFamily: 'Inter_600SemiBold', fontSize: 11, color: '#16A34A' },
+
+  pillDraft: {
+    backgroundColor: Colors.surfaceMid,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+  },
+  pillDraftText: { fontFamily: 'Inter_600SemiBold', fontSize: 11, color: Colors.ink50 },
+
+  rowDivider: { height: 1, backgroundColor: 'rgba(55,0,91,0.06)' },
 });

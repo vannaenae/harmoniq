@@ -1,56 +1,49 @@
 export const Colors = {
-  // Purple Spectrum - Primary Brand
+  // Brand Primary
   p900: '#18005F',
-  p800: '#28005D',
+  p800: '#1a0360',   // primary-container (gradient start)
   p700: '#3D0080',
   p600: '#560056',
-  p500: '#6B2FA0',
-  p400: '#8B5CF6',
-  p300: '#A78BFA',
-  p200: '#C4B5FD',
-  p100: '#EDE9FE',
-  p50:  '#F8F2FC',
+  p500: '#5e52a6',   // surface-tint (links, focus)
+  p400: '#8478cf',   // on-primary-container
+  p300: '#c8bfff',   // inverse-primary
+  p200: '#e5deff',   // primary-fixed
+  p100: '#f3f0ff',
+  p50:  '#fcf8fe',   // background / surface
 
-  // Ink - Text
-  ink:     '#0E0E12',
-  ink90:   '#1B1B1F',
-  ink70:   '#484551',
-  ink50:   '#797582',
-  ink30:   '#C9C4D3',
-  ink10:   '#E4E1E7',
-  ink05:   '#EEEEF3',
+  // Secondary (gradient end)
+  secondary: '#913d8c',
 
-  // Surface
-  surface:      '#FFFFFF',
-  surface2:     '#FAFAFA',
-  surface3:     '#F5F4F8',
-  surfaceBg:    '#fcf8fe',
-  surfaceLow:   '#f6f2f8',
-  surfaceMid:   '#f0edf3',
-  surfaceHigh:  '#eae7ed',
-  surfaceHighest: '#e4e1e7',
+  // Ink / On-surface
+  ink:    '#1b1b1f',   // on-background / on-surface
+  ink70:  '#484551',   // on-surface-variant
+  ink50:  '#797582',   // outline
+  ink30:  '#c9c4d3',   // outline-variant
+  ink10:  '#e4e1e7',   // surface-variant / surface-container-highest
+  ink05:  '#f0edf3',   // surface-container
+
+  // Surface scale
+  surface:            '#ffffff',   // surface-container-lowest (cards)
+  surfaceLow:         '#f6f2f8',   // surface-container-low
+  surfaceMid:         '#f0edf3',   // surface-container
+  surfaceHigh:        '#eae7ed',   // surface-container-high
+  surfaceBg:          '#fcf8fe',   // background
 
   // Semantic
-  success:      '#16A34A',
-  successBg:    '#DCFCE7',
-  warning:      '#D97706',
-  warningBg:    '#FEF3C7',
-  error:        '#ba1a1a',
-  errorBg:      '#ffdad6',
-
-  // Gradient
-  gradientStart: '#18005F',
-  gradientEnd:   '#560056',
+  success:    '#16A34A',
+  successBg:  '#DCFCE7',
+  warning:    '#D97706',
+  warningBg:  '#FEF3C7',
+  error:      '#ba1a1a',
+  errorBg:    '#ffdad6',
 
   // Misc
-  white:   '#FFFFFF',
-  black:   '#000000',
-  outline: '#797582',
-  outlineVariant: '#c9c4d3',
+  white: '#FFFFFF',
+  black: '#000000',
 } as const;
 
 export const Gradients = {
-  hero: ['#18005F', '#560056'] as const,
-  heroLight: ['#28005D', '#6B2FA0'] as const,
-  splash: ['#18005F', '#560056', '#7B1FA2'] as const,
+  button:  ['#1a0360', '#913d8c'] as const,   // primary CTA gradient
+  hero:    ['#18005F', '#560056'] as const,
+  splash:  ['#18005F', '#560056', '#7B1FA2'] as const,
 } as const;
