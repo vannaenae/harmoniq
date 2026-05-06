@@ -1,15 +1,33 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
-import { Colors, Gradients } from '../constants/colors';
-import { Typography } from '../constants/typography';
+import { Colors } from '../constants/colors';
 
 export default function SplashGate() {
   const router = useRouter();
   const { user, isInitialized } = useAuthStore();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const dotsAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Fade in logo
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+
+    // Animate dots
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(dotsAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.timing(dotsAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+      ]),
+    ).start();
+  }, []);
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -17,21 +35,26 @@ export default function SplashGate() {
       if (user) {
         router.replace(user.choirId ? '/(app)/(tabs)' : '/(app)/onboarding');
       } else {
-        router.replace('/(auth)/login');
+        router.replace('/(auth)/welcome');
       }
-    }, 1800);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [isInitialized, user]);
 
   return (
-    <LinearGradient colors={Gradients.splash} style={styles.container}>
+    <LinearGradient
+      colors={['#18005F', '#3D0080', '#560056']}
+      start={{ x: 0.2, y: 0 }}
+      end={{ x: 0.8, y: 1 }}
+      style={styles.container}
+    >
       <SafeAreaView style={styles.inner}>
-        <View style={styles.logoWrap}>
-          <Text style={styles.logoIcon}>♪</Text>
+        <Animated.View style={[styles.center, { opacity: fadeAnim }]}>
           <Text style={styles.logo}>Harmoniq</Text>
-          <Text style={styles.tagline}>Worship. Coordinated.</Text>
-        </View>
-        <Text style={styles.brand}>by SoulSPCE</Text>
+          <Animated.Text style={[styles.dots, { opacity: dotsAnim }]}>• • •</Animated.Text>
+        </Animated.View>
+
+        <Text style={styles.brand}>A SOULSPCE PRODUCT</Text>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -43,27 +66,26 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
   },
-  logoWrap: { alignItems: 'center', gap: 12 },
-  logoIcon: { fontSize: 56, color: Colors.white },
+  center: { alignItems: 'center', gap: 20 },
   logo: {
-    ...Typography.display,
+    fontFamily: 'Inter_700Bold',
+    fontSize: 40,
     color: Colors.white,
-    fontStyle: 'italic',
-    letterSpacing: -1.5,
+    letterSpacing: -1,
   },
-  tagline: {
-    ...Typography.bodyMed,
-    color: 'rgba(255,255,255,0.7)',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+  dots: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 6,
   },
   brand: {
-    ...Typography.label,
-    color: 'rgba(255,255,255,0.5)',
     position: 'absolute',
-    bottom: 40,
-    letterSpacing: 1.5,
+    bottom: 48,
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 10,
+    letterSpacing: 2.5,
+    color: 'rgba(255,255,255,0.4)',
+    textTransform: 'uppercase',
   },
 });
