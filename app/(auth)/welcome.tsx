@@ -5,44 +5,50 @@ import {
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, {
+  Path, Rect, Defs,
+  LinearGradient as SvgGradient, Stop,
+  Filter, FeGaussianBlur, FeColorMatrix, FeBlend,
+} from 'react-native-svg';
 import { Colors } from '../../constants/colors';
 import { Spacing, Radius } from '../../constants/spacing';
 
-/** H-with-waveform logo built from SVG paths */
+/** Official Harmoniq icon — exact SVG from brand assets */
 function HarmoniqIcon() {
   return (
-    <Svg width={140} height={100} viewBox="0 0 140 100">
+    <Svg width={120} height={120} viewBox="0 0 120 120" fill="none">
       <Defs>
-        <SvgGradient id="logoGrad" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#D8B4FE" stopOpacity="1" />
-          <Stop offset="1" stopColor="#7C3AED" stopOpacity="1" />
+        <SvgGradient id="harmoniqGradient" x1="25" y1="20" x2="95" y2="100" gradientUnits="userSpaceOnUse">
+          <Stop stopColor="#F5B6FF" />
+          <Stop offset="0.48" stopColor="#9B4DFF" />
+          <Stop offset="1" stopColor="#5A18D6" />
         </SvgGradient>
+        <Filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+          <FeGaussianBlur stdDeviation={3} result="blur" />
+          <FeColorMatrix
+            in="blur"
+            type="matrix"
+            values="0 0 0 0 0.65  0 0 0 0 0.20  0 0 0 0 1  0 0 0 0.65 0"
+          />
+          <FeBlend in="SourceGraphic" />
+        </Filter>
       </Defs>
 
-      {/* Left waveform bars */}
-      <Path d="M8 34 L8 66"   stroke="#C084FC" strokeWidth="6" strokeLinecap="round" />
-      <Path d="M20 20 L20 80" stroke="#A855F7" strokeWidth="6" strokeLinecap="round" />
+      {/* Left synth bars */}
+      <Rect x={15} y={51} width={5}  height={18} rx={2.5} fill="url(#harmoniqGradient)" opacity={0.75} />
+      <Rect x={25} y={43} width={6}  height={34} rx={3}   fill="url(#harmoniqGradient)" opacity={0.85} />
+      <Rect x={37} y={34} width={7}  height={52} rx={3.5} fill="url(#harmoniqGradient)" />
 
-      {/* H left pillar */}
-      <Path d="M34 10 L34 90" stroke="#9333EA" strokeWidth="10" strokeLinecap="round" />
-
-      {/* H crossbar — wave dips down then up */}
+      {/* Main H shape */}
       <Path
-        d="M34 50 Q52 72 70 50 Q88 28 106 50"
-        stroke="#9333EA"
-        strokeWidth="9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
+        d="M48 24C48 19.6 51.6 16 56 16C60.4 16 64 19.6 64 24V47.5C67.5 43.8 71.2 42 75 42C82.2 42 86.7 49 90 54V24C90 19.6 93.6 16 98 16C102.4 16 106 19.6 106 24V96C106 100.4 102.4 104 98 104C93.6 104 90 100.4 90 96V72.5C86.5 76.2 82.8 78 79 78C71.8 78 67.3 71 64 66V96C64 100.4 60.4 104 56 104C51.6 104 48 100.4 48 96V24Z"
+        fill="url(#harmoniqGradient)"
+        filter="url(#glow)"
       />
 
-      {/* H right pillar */}
-      <Path d="M106 10 L106 90" stroke="#9333EA" strokeWidth="10" strokeLinecap="round" />
-
-      {/* Right waveform bars */}
-      <Path d="M120 20 L120 80" stroke="#A855F7" strokeWidth="6" strokeLinecap="round" />
-      <Path d="M132 34 L132 66" stroke="#C084FC" strokeWidth="6" strokeLinecap="round" />
+      {/* Right synth bars */}
+      <Rect x={111} y={51} width={5} height={18} rx={2.5} fill="url(#harmoniqGradient)" opacity={0.75} />
+      <Rect x={100} y={43} width={6} height={34} rx={3}   fill="url(#harmoniqGradient)" opacity={0.85} />
     </Svg>
   );
 }
