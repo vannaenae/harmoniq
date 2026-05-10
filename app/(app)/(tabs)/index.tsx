@@ -16,12 +16,6 @@ import { Colors, Gradients } from '../../../constants/colors';
 import { Spacing, Radius } from '../../../constants/spacing';
 import { formatDate } from '../../../lib/utils';
 
-type QuickAction = {
-  iconName: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-};
-
 export default function DashboardScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -54,14 +48,11 @@ export default function DashboardScreen() {
     setTimeout(() => setRefreshing(false), 800);
   };
 
-  const hour     = new Date().getHours();
+  const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const nextService = setLists.filter(sl => sl.status === 'published')[0] ?? null;
-
-  const quickActions: QuickAction[] = [
-    { iconName: 'musical-notes-outline', label: 'Add Song',      onPress: () => router.push('/(app)/songs/add') },
-    { iconName: 'person-add-outline',    label: 'Invite Member', onPress: () => router.push('/(app)/invite')    },
-  ];
+  const nextService = setLists.find(sl => sl.status === 'published') ?? null;
+  const confirmedCount = setLists.filter(s => s.status === 'published').length;
+  const maybeCount = 3; // placeholder — would come from availability subcollection
 
   if (!choirId) {
     return (
@@ -79,24 +70,36 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Top nav bar */}
+
+      {/* ── Top nav ── */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/choir-settings')}>
+        <TouchableOpacity
+          style={styles.navBtn}
+          onPress={() => router.push('/(app)/choir-settings')}
+        >
           <Ionicons name="menu" size={22} color={Colors.p900} />
         </TouchableOpacity>
         <Text style={styles.navLogo}>Harmoniq</Text>
-        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/announcements')}>
+        <TouchableOpacity
+          style={styles.navBtn}
+          onPress={() => router.push('/(app)/announcements')}
+        >
           <Ionicons name="notifications-outline" size={22} color={Colors.p900} />
         </TouchableOpacity>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.p800} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.p800} />
+        }
         showsVerticalScrollIndicator={false}
       >
         {hasError && (
-          <ErrorState title="Couldn't load dashboard" onRetry={() => { setIsLoading(true); bootstrap(); }} />
+          <ErrorState
+            title="Couldn't load dashboard"
+            onRetry={() => { setIsLoading(true); bootstrap(); }}
+          />
         )}
 
         {isLoading && !hasError && (
@@ -119,39 +122,50 @@ export default function DashboardScreen() {
               </Text>
             </View>
 
-            {/* Hero — Next Service */}
+            {/* ── Hero: Next Service ── */}
             {nextService ? (
-              <TouchableOpacity onPress={() => router.push(`/(app)/setlists/${nextService.id}`)} activeOpacity={0.9}>
+              <TouchableOpacity
+                onPress={() => router.push(`/(app)/setlists/${nextService.id}`)}
+                activeOpacity={0.9}
+              >
                 <LinearGradient
                   colors={Gradients.hero}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.hero}
                 >
+                  {/* Eyebrow + badge */}
                   <View style={styles.heroTop}>
                     <Text style={styles.heroEyebrow}>NEXT SERVICE</Text>
                     <View style={styles.heroBadge}>
                       <Text style={styles.heroBadgeText}>PUBLISHED</Text>
                     </View>
                   </View>
+
+                  {/* Title */}
                   <Text style={styles.heroTitle}>{nextService.title}</Text>
+
+                  {/* Date row */}
                   <View style={styles.heroDateRow}>
-                    <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.85)" />
+                    <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.75)" />
                     <Text style={styles.heroDate}>{formatDate(nextService.serviceDate)}</Text>
                   </View>
+
                   <View style={styles.heroDivider} />
+
+                  {/* Stats */}
                   <View style={styles.heroStats}>
                     <View style={styles.heroStat}>
                       <Text style={styles.heroStatNum}>{nextService.songs.length}</Text>
-                      <Text style={styles.heroStatLabel}>SONGS</Text>
+                      <Text style={styles.heroStatLabel}>Songs</Text>
                     </View>
                     <View style={styles.heroStat}>
-                      <Text style={styles.heroStatNum}>{setLists.filter(s => s.status === 'published').length}</Text>
-                      <Text style={styles.heroStatLabel}>CONFIRMED</Text>
+                      <Text style={styles.heroStatNum}>{confirmedCount}</Text>
+                      <Text style={styles.heroStatLabel}>Confirmed</Text>
                     </View>
                     <View style={styles.heroStat}>
-                      <Text style={styles.heroStatNum}>3</Text>
-                      <Text style={styles.heroStatLabel}>MAYBE</Text>
+                      <Text style={styles.heroStatNum}>{maybeCount}</Text>
+                      <Text style={styles.heroStatLabel}>Maybe</Text>
                     </View>
                   </View>
                 </LinearGradient>
@@ -164,28 +178,37 @@ export default function DashboardScreen() {
               >
                 <Ionicons name="musical-notes-outline" size={40} color={Colors.ink30} />
                 <Text style={styles.heroEmptyTitle}>No upcoming service</Text>
-                <Text style={styles.heroEmptySub}>Create a set list to plan your next worship service</Text>
+                <Text style={styles.heroEmptySub}>
+                  Create a set list to plan your next worship service
+                </Text>
               </TouchableOpacity>
             )}
 
-            {/* Quick Actions */}
+            {/* ── Quick Actions ── */}
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Quick Actions</Text>
-              {quickActions.map((a, i) => (
+              {[
+                { iconName: 'musical-notes-outline' as const, label: 'Add Song',      route: '/(app)/songs/add'       },
+                { iconName: 'person-add-outline'    as const, label: 'Invite Member', route: '/(app)/invite'          },
+              ].map((a, i, arr) => (
                 <React.Fragment key={a.label}>
-                  <TouchableOpacity style={styles.actionRow} onPress={a.onPress} activeOpacity={0.7}>
-                    <View style={styles.actionIconWrap}>
+                  <TouchableOpacity
+                    style={styles.actionRow}
+                    onPress={() => router.push(a.route as any)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.actionIcon}>
                       <Ionicons name={a.iconName} size={18} color={Colors.p700} />
                     </View>
                     <Text style={styles.actionLabel}>{a.label}</Text>
                     <Ionicons name="chevron-forward" size={18} color={Colors.ink30} />
                   </TouchableOpacity>
-                  {i < quickActions.length - 1 && <View style={styles.rowDivider} />}
+                  {i < arr.length - 1 && <View style={styles.divider} />}
                 </React.Fragment>
               ))}
             </View>
 
-            {/* Availability summary */}
+            {/* ── Your Availability ── */}
             <View style={styles.card}>
               <View style={styles.cardTitleRow}>
                 <Text style={styles.cardTitle}>Your Availability</Text>
@@ -193,10 +216,12 @@ export default function DashboardScreen() {
                   <Ionicons name="calendar-outline" size={20} color={Colors.p500} />
                 </TouchableOpacity>
               </View>
-              <View style={styles.availBody}>
+              <View style={styles.availRow}>
                 <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
-                <Text style={styles.availTitle}>You are confirmed</Text>
-                <Text style={styles.availSub}>for all services this month.</Text>
+                <View style={{ gap: 2 }}>
+                  <Text style={styles.availTitle}>You are confirmed</Text>
+                  <Text style={styles.availSub}>for all services this month.</Text>
+                </View>
               </View>
             </View>
           </>
@@ -230,7 +255,7 @@ const styles = StyleSheet.create({
 
   scroll: { padding: Spacing.lg, gap: Spacing.lg, paddingBottom: 100 },
 
-  greeting:    { gap: 6 },
+  greeting: { gap: 4 },
   greetingText: {
     fontFamily: 'Inter_700Bold',
     fontSize: 32,
@@ -240,9 +265,9 @@ const styles = StyleSheet.create({
   },
   greetingSub: {
     fontFamily: 'Inter_400Regular',
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.ink70,
-    lineHeight: 24,
+    lineHeight: 22,
   },
 
   hero: {
@@ -250,22 +275,72 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     shadowColor: Colors.p900,
     shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.25,
-    shadowRadius: 30,
+    shadowOpacity: 0.3,
+    shadowRadius: 40,
     elevation: 12,
   },
-  heroTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  heroEyebrow:   { fontFamily: 'Inter_600SemiBold', fontSize: 11, letterSpacing: 2, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase' },
-  heroBadge:     { borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: Radius.full, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: 'rgba(255,255,255,0.1)' },
-  heroBadgeText: { fontFamily: 'Inter_600SemiBold', fontSize: 11, letterSpacing: 1, color: Colors.white },
-  heroTitle:     { fontFamily: 'Inter_700Bold', fontSize: 26, color: Colors.white, lineHeight: 32, marginBottom: Spacing.sm },
-  heroDateRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.lg },
-  heroDate:      { fontFamily: 'Inter_400Regular', fontSize: 15, color: 'rgba(255,255,255,0.85)' },
-  heroDivider:   { height: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginBottom: Spacing.base },
-  heroStats:     { flexDirection: 'row', gap: Spacing.xl },
-  heroStat:      { gap: 2 },
-  heroStatNum:   { fontFamily: 'Inter_700Bold', fontSize: 22, color: Colors.white },
-  heroStatLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase' },
+  heroTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  heroEyebrow: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    letterSpacing: 2,
+    color: 'rgba(255,255,255,0.7)',
+    textTransform: 'uppercase',
+  },
+  heroBadge: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderRadius: Radius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  heroBadgeText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 10,
+    letterSpacing: 1,
+    color: Colors.white,
+  },
+  heroTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 26,
+    color: Colors.white,
+    lineHeight: 32,
+    marginBottom: Spacing.sm,
+  },
+  heroDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: Spacing.lg,
+  },
+  heroDate: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  heroDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    marginBottom: Spacing.base,
+  },
+  heroStats: { flexDirection: 'row', gap: Spacing.xl },
+  heroStat:  { gap: 2 },
+  heroStatNum: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 24,
+    color: Colors.white,
+  },
+  heroStatLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.65)',
+  },
 
   heroEmpty: {
     borderRadius: 24,
@@ -277,7 +352,13 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   heroEmptyTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 17, color: Colors.ink },
-  heroEmptySub:   { fontFamily: 'Inter_400Regular', fontSize: 14, color: Colors.ink50, textAlign: 'center', lineHeight: 20 },
+  heroEmptySub:   {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: Colors.ink50,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 
   card: {
     backgroundColor: Colors.surface,
@@ -286,33 +367,49 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(201,196,211,0.3)',
     gap: Spacing.sm,
+    shadowColor: Colors.p900,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
   },
   cardTitle: {
     fontFamily: 'Inter_700Bold',
     fontSize: 18,
     color: Colors.p900,
-    marginBottom: Spacing.xs,
+    marginBottom: 4,
   },
-  cardTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
 
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.base,
     paddingVertical: Spacing.sm,
-    backgroundColor: Colors.surfaceLow,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.base,
   },
-  actionIconWrap: {
+  actionIcon: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: Colors.surfaceMid,
     alignItems: 'center', justifyContent: 'center',
   },
-  actionLabel:   { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 16, color: Colors.ink },
-  rowDivider:    { height: 0 },
+  actionLabel: {
+    flex: 1,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 16,
+    color: Colors.ink,
+  },
+  divider: { height: 1, backgroundColor: Colors.ink10 },
 
-  availBody:  { alignItems: 'center', paddingVertical: Spacing.base, gap: Spacing.xs },
+  availRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.base,
+    paddingVertical: Spacing.sm,
+  },
   availTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 16, color: Colors.ink },
-  availSub:   { fontFamily: 'Inter_400Regular', fontSize: 14, color: Colors.ink70 },
+  availSub:   { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.ink70 },
 });

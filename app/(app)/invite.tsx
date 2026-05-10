@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Share, TouchableOpacity, Clipboard,
+  View, Text, StyleSheet, ScrollView, Share, TouchableOpacity,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useChoirStore } from '../../store/choirStore';
@@ -21,7 +22,7 @@ export default function InviteScreen() {
 
   const handleCopy = () => {
     if (!choir?.inviteCode) return;
-    Clipboard.setString(choir.inviteCode);
+    await Clipboard.setStringAsync(choir.inviteCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

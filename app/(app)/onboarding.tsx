@@ -17,46 +17,51 @@ type Step = 'choose' | 'create' | 'join';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-function DayPicker({
+function DaySelector({
   label,
-  iconName,
   value,
   onChange,
-  accentColor,
 }: {
   label: string;
-  iconName: keyof typeof Ionicons.glyphMap;
   value: string;
   onChange: (v: string) => void;
-  accentColor: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <View style={[styles.dayCard, { borderColor: Colors.ink10 }]}>
-        <View style={styles.dayCardTop}>
-          <Ionicons name={iconName} size={16} color={accentColor} />
-          <Text style={[styles.dayCardLabel, { color: accentColor }]}>{label}</Text>
-        </View>
-        <TouchableOpacity style={styles.daySelect} onPress={() => setOpen(true)} activeOpacity={0.7}>
+      <View style={styles.daySelectorWrap}>
+        <Text style={styles.dayLabel}>{label}</Text>
+        <TouchableOpacity
+          style={styles.dayBtn}
+          onPress={() => setOpen(true)}
+          activeOpacity={0.7}
+        >
           <Text style={styles.dayValue}>{value}</Text>
-          <Ionicons name="chevron-down" size={18} color={Colors.p800} />
+          <Ionicons name="chevron-down" size={18} color={Colors.ink50} />
         </TouchableOpacity>
       </View>
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setOpen(false)}>
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setOpen(false)}
+        >
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>{label}</Text>
             {DAYS.map(day => (
               <TouchableOpacity
                 key={day}
-                style={[styles.dayOption, value === day && styles.dayOptionActive]}
+                style={styles.dayOption}
                 onPress={() => { onChange(day); setOpen(false); }}
               >
-                <Text style={[styles.dayOptionText, value === day && styles.dayOptionTextActive]}>{day}</Text>
-                {value === day && <Ionicons name="checkmark" size={18} color={Colors.p800} />}
+                <Text style={[styles.dayOptionText, value === day && styles.dayOptionActive]}>
+                  {day}
+                </Text>
+                {value === day && (
+                  <Ionicons name="checkmark" size={18} color={Colors.p800} />
+                )}
               </TouchableOpacity>
             ))}
           </View>
@@ -75,177 +80,235 @@ export default function OnboardingScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError]         = useState('');
 
+  // Create form
   const [choirName, setChoirName]       = useState('');
   const [churchName, setChurchName]     = useState('');
   const [serviceDay, setServiceDay]     = useState('Sunday');
   const [rehearsalDay, setRehearsalDay] = useState('Wednesday');
-  const [inviteCode, setInviteCode]     = useState('');
+
+  // Join form
+  const [inviteCode, setInviteCode] = useState('');
 
   const back = () => { setStep('choose'); setError(''); };
 
   const handleCreate = async () => {
     if (!choirName.trim()) { setError('Please enter a choir name.'); return; }
     if (!user?.uid) return;
-    setIsLoading(true); setError('');
+    setIsLoading(true);
+    setError('');
     try {
-      const choir = await createChoir(user.uid, choirName.trim(), churchName.trim() || undefined, serviceDay, rehearsalDay);
+      const choir = await createChoir(
+        user.uid, choirName.trim(),
+        churchName.trim() || undefined,
+        serviceDay, rehearsalDay,
+      );
       setChoir(choir);
       router.replace('/(app)/(tabs)');
     } catch {
       setError('Failed to create choir. Please try again.');
-    } finally { setIsLoading(false); }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleJoin = async () => {
-    if (inviteCode.trim().length < 6) { setError('Enter a valid 6-character invite code.'); return; }
+    if (inviteCode.trim().length < 6) {
+      setError('Enter a valid 6-character invite code.');
+      return;
+    }
     if (!user?.uid) return;
-    setIsLoading(true); setError('');
+    setIsLoading(true);
+    setError('');
     try {
       const choir = await joinChoirByCode(user.uid, inviteCode.trim());
       setChoir(choir);
       router.replace('/(app)/(tabs)');
     } catch {
       setError('Invalid code. Check with your choir admin and try again.');
-    } finally { setIsLoading(false); }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  // ── CHOOSE ──────────────────────────────────────────────────────────────
+  if (step === 'choose') {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.chooseWrap}>
+          <View style={styles.chooseHero}>
+            <Text style={styles.chooseTitle}>Welcome to Harmoniq</Text>
+            <Text style={styles.chooseSub}>
+              {user?.displayName?.split(' ')[0]
+                ? `Hi ${user.displayName!.split(' ')[0]}, get started by creating a new choir or joining an existing one.`
+                : 'Get started by creating a new choir or joining an existing one.'}
+            </Text>
+          </View>
+
+          <View style={styles.chooseCards}>
+            {/* Create */}
+            <TouchableOpacity
+              style={styles.choiceCard}
+              onPress={() => setStep('create')}
+              activeOpacity={0.85}
+            >
+              <View style={styles.choiceIconWrap}>
+                <Ionicons name="add-circle-outline" size={28} color={Colors.p800} />
+              </View>
+              <View style={styles.choiceText}>
+                <Text style={styles.choiceTitle}>Create a Choir</Text>
+                <Text style={styles.choiceDesc}>
+                  Establish a new workspace for your ministry. Build your roster, set lists, and align your team.
+                </Text>
+              </View>
+              <View style={styles.choiceFooter}>
+                <Text style={styles.choiceAction}>START BUILDING</Text>
+                <Ionicons name="arrow-forward" size={14} color={Colors.p800} />
+              </View>
+            </TouchableOpacity>
+
+            {/* Join */}
+            <TouchableOpacity
+              style={[styles.choiceCard, styles.choiceCardJoin]}
+              onPress={() => setStep('join')}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.choiceIconWrap, styles.choiceIconJoin]}>
+                <Ionicons name="people-outline" size={28} color={Colors.secondary} />
+              </View>
+              <View style={styles.choiceText}>
+                <Text style={styles.choiceTitle}>Join a Choir</Text>
+                <Text style={styles.choiceDesc}>
+                  Have an invitation code? Connect with your worship team to access services and coordinate your availability.
+                </Text>
+              </View>
+              <View style={styles.choiceFooter}>
+                <Text style={[styles.choiceAction, { color: Colors.secondary }]}>ENTER CODE</Text>
+                <Ionicons name="arrow-forward" size={14} color={Colors.secondary} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── CREATE ──────────────────────────────────────────────────────────────
+  if (step === 'create') {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <TouchableOpacity style={styles.backBtn} onPress={back}>
+          <Ionicons name="arrow-back" size={22} color={Colors.p900} />
+        </TouchableOpacity>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            contentContainerStyle={styles.formScroll}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.stepTitle}>Create your Choir.</Text>
+            <Text style={styles.stepSub}>
+              Establish the foundation for your worship team. These details coordinate your set lists, members, and rehearsals seamlessly.
+            </Text>
+
+            {error ? (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Fields */}
+            <View style={styles.fieldsCard}>
+              <Input
+                label="Choir Name"
+                placeholder="e.g. Sanctuary Choir"
+                value={choirName}
+                onChangeText={setChoirName}
+              />
+              <Input
+                label="Church Name"
+                placeholder="e.g. Grace Community Church"
+                value={churchName}
+                onChangeText={setChurchName}
+              />
+            </View>
+
+            {/* Day selectors */}
+            <DaySelector
+              label="Default Service Day"
+              value={serviceDay}
+              onChange={setServiceDay}
+            />
+            <DaySelector
+              label="Rehearsal Day"
+              value={rehearsalDay}
+              onChange={setRehearsalDay}
+            />
+
+            <Button
+              label="Finish Setup"
+              onPress={handleCreate}
+              isLoading={isLoading}
+              fullWidth
+              size="lg"
+              rightIcon={<Ionicons name="checkmark-circle-outline" size={20} color={Colors.white} />}
+            />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  // ── JOIN ─────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.formScroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.joinIconWrap}>
+            <Ionicons name="people-outline" size={36} color={Colors.secondary} />
+          </View>
 
-        {/* Back button — only on create/join steps */}
-        {step !== 'choose' && (
-          <TouchableOpacity style={styles.backBtn} onPress={back}>
-            <Ionicons name="arrow-back" size={22} color={Colors.p900} />
+          <Text style={styles.stepTitle}>Join Choir</Text>
+          <Text style={styles.stepSub}>
+            Enter the 6-digit invite code provided by your worship leader or coordinator.
+          </Text>
+
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          <Input
+            label="Invite Code"
+            placeholder="e.g. A1B2C3"
+            autoCapitalize="characters"
+            maxLength={6}
+            value={inviteCode}
+            onChangeText={setInviteCode}
+          />
+
+          <Button
+            label="Join Choir"
+            onPress={handleJoin}
+            isLoading={isLoading}
+            fullWidth
+            size="lg"
+            rightIcon={<Ionicons name="arrow-forward" size={18} color={Colors.white} />}
+          />
+
+          <TouchableOpacity style={styles.requestCodeRow} onPress={back}>
+            <Text style={styles.requestCodeText}>Request an invite code</Text>
           </TouchableOpacity>
-        )}
-
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-
-          {/* ── CHOOSE ── */}
-          {step === 'choose' && (
-            <View style={styles.section}>
-              <Text style={styles.welcomeTitle}>Welcome to Harmoniq</Text>
-              <Text style={styles.welcomeSub}>
-                {user?.displayName?.split(' ')[0] ? `Hi ${user.displayName.split(' ')[0]}, get` : 'Get'} started by creating a new choir or joining an existing one.
-              </Text>
-
-              {/* Create card */}
-              <TouchableOpacity style={styles.choiceCard} onPress={() => setStep('create')} activeOpacity={0.85}>
-                <View style={[styles.choiceIconWrap, { backgroundColor: Colors.p50 }]}>
-                  <Ionicons name="add-circle-outline" size={28} color={Colors.p800} />
-                </View>
-                <View style={styles.choiceTextGroup}>
-                  <Text style={styles.choiceTitle}>Create a Choir</Text>
-                  <Text style={styles.choiceDesc}>
-                    Establish a new workspace for your ministry. Build your roster, set lists, and align your team.
-                  </Text>
-                </View>
-                <View style={styles.choiceArrowRow}>
-                  <Text style={styles.choiceArrowLabel}>START BUILDING</Text>
-                  <Ionicons name="arrow-forward" size={16} color={Colors.p800} />
-                </View>
-              </TouchableOpacity>
-
-              {/* Join card */}
-              <TouchableOpacity style={[styles.choiceCard, styles.choiceCardSecondary]} onPress={() => setStep('join')} activeOpacity={0.85}>
-                <View style={[styles.choiceIconWrap, { backgroundColor: '#ffedf8' }]}>
-                  <Ionicons name="people-outline" size={28} color={Colors.secondary} />
-                </View>
-                <View style={styles.choiceTextGroup}>
-                  <Text style={styles.choiceTitle}>Join a Choir</Text>
-                  <Text style={styles.choiceDesc}>
-                    Have an invitation code? Connect with your worship team to access services and coordinate your availability.
-                  </Text>
-                </View>
-                <View style={styles.choiceArrowRow}>
-                  <Text style={[styles.choiceArrowLabel, { color: Colors.secondary }]}>ENTER CODE</Text>
-                  <Ionicons name="arrow-forward" size={16} color={Colors.secondary} />
-                </View>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* ── CREATE ── */}
-          {step === 'create' && (
-            <View style={styles.section}>
-              <Text style={styles.stepTitle}>Create your Choir.</Text>
-              <Text style={styles.stepSub}>Establish the foundation for your worship team.</Text>
-
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-
-              <View style={styles.fieldsGroup}>
-                <Input
-                  label="Choir Name"
-                  placeholder="e.g. Sanctuary Choir"
-                  value={choirName}
-                  onChangeText={setChoirName}
-                />
-                <Input
-                  label="Church Name"
-                  placeholder="e.g. Grace Community Church"
-                  value={churchName}
-                  onChangeText={setChurchName}
-                />
-              </View>
-
-              <View style={styles.daysGrid}>
-                <DayPicker
-                  label="DEFAULT SERVICE DAY"
-                  iconName="calendar-outline"
-                  value={serviceDay}
-                  onChange={setServiceDay}
-                  accentColor={Colors.p800}
-                />
-                <DayPicker
-                  label="REHEARSAL DAY"
-                  iconName="musical-notes-outline"
-                  value={rehearsalDay}
-                  onChange={setRehearsalDay}
-                  accentColor={Colors.secondary}
-                />
-              </View>
-
-              <Button
-                label="Create Choir"
-                onPress={handleCreate}
-                isLoading={isLoading}
-                fullWidth
-                size="lg"
-              />
-            </View>
-          )}
-
-          {/* ── JOIN ── */}
-          {step === 'join' && (
-            <View style={styles.section}>
-              <View style={styles.joinIconWrap}>
-                <Ionicons name="people-outline" size={40} color={Colors.secondary} />
-              </View>
-              <Text style={styles.stepTitle}>Join a Choir</Text>
-              <Text style={styles.stepSub}>Enter the 6-character invite code from your director.</Text>
-
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-
-              <Input
-                label="Invite Code"
-                placeholder="e.g. A1B2C3"
-                autoCapitalize="characters"
-                maxLength={6}
-                value={inviteCode}
-                onChangeText={setInviteCode}
-              />
-
-              <Button
-                label="Join Choir"
-                onPress={handleJoin}
-                isLoading={isLoading}
-                fullWidth
-                size="lg"
-              />
-            </View>
-          )}
-
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -253,8 +316,7 @@ export default function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: Colors.surfaceBg },
-  scroll: { flexGrow: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: 40 },
+  safe: { flex: 1, backgroundColor: Colors.surfaceBg },
 
   backBtn: {
     paddingHorizontal: Spacing.lg,
@@ -263,23 +325,29 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
 
-  section: { gap: Spacing.xl },
-
-  // Choose step
-  welcomeTitle: {
+  // ── CHOOSE ──
+  chooseWrap: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
+    paddingBottom: 40,
+    gap: Spacing.xl,
+  },
+  chooseHero: { gap: Spacing.sm },
+  chooseTitle: {
     fontFamily: 'Inter_700Bold',
     fontSize: 32,
     letterSpacing: -0.8,
     color: Colors.ink,
     lineHeight: 38,
   },
-  welcomeSub: {
+  chooseSub: {
     fontFamily: 'Inter_400Regular',
     fontSize: 16,
-    color: Colors.ink50,
+    color: Colors.ink70,
     lineHeight: 24,
-    marginTop: -Spacing.base,
   },
+  chooseCards: { gap: Spacing.base },
 
   choiceCard: {
     backgroundColor: Colors.surface,
@@ -289,20 +357,21 @@ const styles = StyleSheet.create({
     borderColor: Colors.ink10,
     gap: Spacing.base,
     shadowColor: Colors.p900,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
     elevation: 2,
   },
-  choiceCardSecondary: {
-    borderColor: 'rgba(145,61,140,0.12)',
+  choiceCardJoin: {
+    borderColor: 'rgba(145,61,140,0.18)',
   },
   choiceIconWrap: {
-    width: 52, height: 52,
-    borderRadius: 14,
+    width: 52, height: 52, borderRadius: 14,
+    backgroundColor: Colors.p50,
     alignItems: 'center', justifyContent: 'center',
   },
-  choiceTextGroup: { gap: 6 },
+  choiceIconJoin: { backgroundColor: '#ffedf8' },
+  choiceText: { gap: 6 },
   choiceTitle: {
     fontFamily: 'Inter_700Bold',
     fontSize: 20,
@@ -312,23 +381,29 @@ const styles = StyleSheet.create({
   choiceDesc: {
     fontFamily: 'Inter_400Regular',
     fontSize: 14,
-    color: Colors.ink50,
+    color: Colors.ink70,
     lineHeight: 21,
   },
-  choiceArrowRow: {
+  choiceFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     marginTop: Spacing.xs,
   },
-  choiceArrowLabel: {
+  choiceAction: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
     letterSpacing: 1.5,
     color: Colors.p800,
   },
 
-  // Create step
+  // ── FORM ──
+  formScroll: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: 40,
+    gap: Spacing.xl,
+  },
   stepTitle: {
     fontFamily: 'Inter_700Bold',
     fontSize: 32,
@@ -339,11 +414,11 @@ const styles = StyleSheet.create({
   stepSub: {
     fontFamily: 'Inter_400Regular',
     fontSize: 15,
-    color: Colors.ink50,
+    color: Colors.ink70,
     lineHeight: 22,
     marginTop: -Spacing.base,
   },
-  fieldsGroup: {
+  fieldsCard: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.xl,
     padding: Spacing.lg,
@@ -351,42 +426,50 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.ink10,
   },
-  daysGrid: { flexDirection: 'row', gap: Spacing.base },
+  errorBanner: {
+    backgroundColor: Colors.errorBg,
+    borderRadius: 12,
+    padding: Spacing.base,
+  },
+  errorText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+    color: Colors.error,
+  },
 
-  // Day picker card
-  dayCard: {
-    flex: 1,
-    backgroundColor: Colors.surfaceLow,
+  // Day selector
+  daySelectorWrap: {
+    backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     padding: Spacing.base,
     borderWidth: 1,
-    minHeight: 110,
-    justifyContent: 'space-between',
+    borderColor: Colors.ink10,
+    gap: Spacing.sm,
   },
-  dayCardTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dayCardLabel: {
+  dayLabel: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 9,
+    fontSize: 11,
     letterSpacing: 1.4,
+    color: Colors.ink50,
     textTransform: 'uppercase',
   },
-  daySelect: {
+  dayBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: 1.5,
-    borderBottomColor: 'rgba(26,3,96,0.25)',
-    paddingBottom: 6,
-    paddingTop: 10,
+    borderBottomColor: Colors.ink10,
+    paddingBottom: 8,
+    paddingTop: 4,
   },
   dayValue: {
     fontFamily: 'Inter_700Bold',
     fontSize: 18,
-    color: Colors.p900,
+    color: Colors.ink,
     letterSpacing: -0.3,
   },
 
-  // Day modal
+  // Modal
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -397,7 +480,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: Spacing.lg,
-    paddingBottom: 40,
+    paddingBottom: 48,
     gap: 4,
   },
   modalHandle: {
@@ -409,11 +492,11 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontFamily: 'Inter_700Bold',
-    fontSize: 16,
-    color: Colors.ink,
-    marginBottom: Spacing.base,
+    fontSize: 14,
+    color: Colors.ink50,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
+    marginBottom: Spacing.base,
   },
   dayOption: {
     flexDirection: 'row',
@@ -423,31 +506,30 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.ink10,
   },
-  dayOptionActive: { },
   dayOptionText: {
     fontFamily: 'Inter_500Medium',
     fontSize: 17,
     color: Colors.ink,
   },
-  dayOptionTextActive: {
+  dayOptionActive: {
     fontFamily: 'Inter_700Bold',
     color: Colors.p800,
   },
 
-  // Join step
+  // Join
   joinIconWrap: {
-    width: 72, height: 72,
-    borderRadius: 20,
+    width: 72, height: 72, borderRadius: 20,
     backgroundColor: '#ffedf8',
     alignItems: 'center', justifyContent: 'center',
+    alignSelf: 'flex-start',
   },
-
-  error: {
+  requestCodeRow: {
+    alignItems: 'center',
+    paddingTop: Spacing.sm,
+  },
+  requestCodeText: {
     fontFamily: 'Inter_500Medium',
-    fontSize: 14,
-    color: Colors.error,
-    backgroundColor: Colors.errorBg,
-    padding: Spacing.base,
-    borderRadius: 12,
+    fontSize: 15,
+    color: Colors.p500,
   },
 });

@@ -9,9 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../store/authStore';
 import { useSetListStore } from '../../../store/setListStore';
 import { subscribeSetLists } from '../../../services/setListService';
-import {
-  doc, setDoc, getDoc, collection,
-} from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { EmptyState, ErrorState, SkeletonCard } from '../../../components/ui';
 import { Colors, Gradients } from '../../../constants/colors';
@@ -62,32 +60,42 @@ export default function AvailabilityScreen() {
     }
   };
 
-  const now     = new Date();
+  const now      = new Date();
   const upcoming = setLists.filter(sl => new Date(sl.serviceDate) >= now);
   const next     = upcoming[0] ?? null;
   const rest     = upcoming.slice(1);
 
-  const statusConfig = {
-    available:   { label: 'Available',   color: Colors.success,  bg: Colors.successBg  },
-    unavailable: { label: 'Unavailable', color: Colors.error,    bg: Colors.errorBg    },
-    maybe:       { label: 'Pending',     color: Colors.warning,  bg: Colors.warningBg  },
+  const statusLabel: Record<Status, { text: string; color: string; bg: string }> = {
+    available:   { text: 'Available',   color: Colors.success, bg: Colors.successBg  },
+    unavailable: { text: 'Unavailable', color: Colors.error,   bg: Colors.errorBg    },
+    maybe:       { text: 'Pending',     color: Colors.warning, bg: Colors.warningBg  },
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+
       {/* Top nav */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/choir-settings')}>
+        <TouchableOpacity
+          style={styles.navBtn}
+          onPress={() => router.push('/(app)/choir-settings')}
+        >
           <Ionicons name="menu" size={22} color={Colors.p900} />
         </TouchableOpacity>
         <Text style={styles.navLogo}>Harmoniq</Text>
-        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/announcements')}>
+        <TouchableOpacity
+          style={styles.navBtn}
+          onPress={() => router.push('/(app)/announcements')}
+        >
           <Ionicons name="notifications-outline" size={22} color={Colors.p900} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Page heading */}
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Heading */}
         <Text style={styles.pageTitle}>Your Availability</Text>
         <Text style={styles.pageSub}>
           Confirm your attendance for upcoming services to help the team coordinate vocals and scheduling.
@@ -96,8 +104,8 @@ export default function AvailabilityScreen() {
         {isLoading && (
           <View style={{ gap: Spacing.base }}>
             <SkeletonCard height={200} />
-            <SkeletonCard height={100} lines={2} />
-            <SkeletonCard height={100} lines={2} />
+            <SkeletonCard height={90} lines={2} />
+            <SkeletonCard height={90} lines={2} />
           </View>
         )}
 
@@ -113,88 +121,103 @@ export default function AvailabilityScreen() {
 
         {!isLoading && !hasError && next && (
           <>
-            {/* Next service card */}
+            {/* ── Next Service hero card ── */}
             <LinearGradient
               colors={Gradients.hero}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.nextCard}
             >
-              <Text style={styles.nextEyebrow}>NEXT SERVICE</Text>
+              <View style={styles.nextHeader}>
+                <Ionicons name="star" size={16} color="rgba(255,255,255,0.7)" />
+                <Text style={styles.nextEyebrow}>Next Service</Text>
+              </View>
+
               <Text style={styles.nextTitle}>{next.title}</Text>
+
               <View style={styles.nextDateRow}>
-                <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.8)" />
+                <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.7)" />
                 <Text style={styles.nextDate}>{formatDate(next.serviceDate)}</Text>
               </View>
 
+              {/* Mark Available */}
               <TouchableOpacity
                 style={[
-                  styles.markBtn,
-                  responses[next.id] === 'available' && styles.markBtnActive,
+                  styles.markAvailBtn,
+                  responses[next.id] === 'available' && styles.markAvailBtnActive,
                 ]}
                 onPress={() => handleRespond(next.id, 'available')}
                 activeOpacity={0.8}
               >
-                <View style={styles.btnRow}>
-                  {responses[next.id] === 'available' && (
-                    <Ionicons name="checkmark" size={16} color={Colors.p900} />
-                  )}
-                  <Text style={[styles.markBtnText, responses[next.id] === 'available' && { color: Colors.p900 }]}>
-                    {responses[next.id] === 'available' ? 'Marked Available' : 'Mark Available'}
-                  </Text>
-                </View>
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={18}
+                  color={responses[next.id] === 'available' ? Colors.p900 : Colors.white}
+                />
+                <Text style={[
+                  styles.markAvailText,
+                  responses[next.id] === 'available' && { color: Colors.p900 },
+                ]}>
+                  {responses[next.id] === 'available' ? 'Marked Available' : 'Mark Available'}
+                </Text>
               </TouchableOpacity>
 
-              <View style={styles.altBtns}>
+              {/* Not Sure / Unavailable */}
+              <View style={styles.altRow}>
                 <TouchableOpacity
-                  style={[styles.altBtn, responses[next.id] === 'maybe' && styles.altBtnMaybe]}
+                  style={[
+                    styles.altBtn,
+                    responses[next.id] === 'maybe' && styles.altBtnMaybe,
+                  ]}
                   onPress={() => handleRespond(next.id, 'maybe')}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.btnRow}>
-                    <Ionicons name="alert-outline" size={14} color={Colors.white} />
-                    <Text style={styles.altBtnText}>Not Sure</Text>
-                  </View>
+                  <Ionicons name="help-outline" size={15} color={Colors.white} />
+                  <Text style={styles.altBtnText}>Not Sure</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
-                  style={[styles.altBtn, responses[next.id] === 'unavailable' && styles.altBtnUnavail]}
+                  style={[
+                    styles.altBtn,
+                    responses[next.id] === 'unavailable' && styles.altBtnUnavail,
+                  ]}
                   onPress={() => handleRespond(next.id, 'unavailable')}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.btnRow}>
-                    <Ionicons name="close" size={14} color={Colors.white} />
-                    <Text style={styles.altBtnText}>Unavailable</Text>
-                  </View>
+                  <Ionicons name="close-outline" size={15} color={Colors.white} />
+                  <Text style={styles.altBtnText}>Unavailable</Text>
                 </TouchableOpacity>
               </View>
             </LinearGradient>
 
-            {/* Upcoming schedule */}
+            {/* ── Upcoming Schedule ── */}
             {rest.length > 0 && (
               <>
                 <Text style={styles.sectionTitle}>Upcoming Schedule</Text>
                 {rest.map(sl => {
-                  const resp = responses[sl.id];
-                  const cfg  = resp ? statusConfig[resp] : null;
+                  const resp = responses[sl.id] as Status | undefined;
+                  const cfg  = resp ? statusLabel[resp] : null;
                   return (
                     <View key={sl.id} style={styles.scheduleCard}>
-                      <View style={styles.scheduleLeft}>
+                      <View style={styles.scheduleIcon}>
                         <Ionicons name="calendar-outline" size={18} color={Colors.p700} />
                       </View>
                       <View style={styles.scheduleInfo}>
+                        {cfg && (
+                          <View style={[styles.statusPill, { backgroundColor: cfg.bg }]}>
+                            <Text style={[styles.statusText, { color: cfg.color }]}>{cfg.text}</Text>
+                          </View>
+                        )}
                         <Text style={styles.scheduleTitle}>{sl.title}</Text>
                         <Text style={styles.scheduleDate}>{formatDate(sl.serviceDate)}</Text>
-                        <TouchableOpacity onPress={() => handleRespond(sl.id, resp === 'available' ? 'maybe' : 'available')}>
+                        <TouchableOpacity
+                          onPress={() => handleRespond(sl.id, resp === 'available' ? 'maybe' : 'available')}
+                        >
                           <Text style={styles.scheduleAction}>
                             {resp === 'available' ? 'Edit Response' : 'Respond Now'}
                           </Text>
                         </TouchableOpacity>
                       </View>
-                      {cfg && (
-                        <View style={[styles.statusPill, { backgroundColor: cfg.bg }]}>
-                          <Text style={[styles.statusPillText, { color: cfg.color }]}>{cfg.label}</Text>
-                        </View>
-                      )}
                     </View>
                   );
                 })}
@@ -252,16 +275,21 @@ const styles = StyleSheet.create({
     gap: Spacing.base,
     shadowColor: Colors.p900,
     shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
+    shadowOpacity: 0.25,
+    shadowRadius: 32,
     elevation: 10,
+  },
+  nextHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: -4,
   },
   nextEyebrow: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 11,
-    letterSpacing: 2,
-    color: 'rgba(255,255,255,0.65)',
-    textTransform: 'uppercase',
+    fontSize: 12,
+    letterSpacing: 1,
+    color: 'rgba(255,255,255,0.75)',
   },
   nextTitle: {
     fontFamily: 'Inter_700Bold',
@@ -278,40 +306,45 @@ const styles = StyleSheet.create({
   nextDate: {
     fontFamily: 'Inter_400Regular',
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.75)',
   },
 
-  btnRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-
-  markBtn: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+  markAvailBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     borderRadius: Radius.full,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.4)',
-    paddingVertical: 12,
-    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: 13,
   },
-  markBtnActive: {
+  markAvailBtnActive: {
     backgroundColor: Colors.white,
+    borderColor: Colors.white,
   },
-  markBtnText: {
+  markAvailText: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 15,
     color: Colors.white,
   },
 
-  altBtns: { flexDirection: 'row', gap: Spacing.sm },
+  altRow: { flexDirection: 'row', gap: Spacing.sm },
   altBtn: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     borderRadius: Radius.full,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
-    paddingVertical: 10,
-    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingVertical: 11,
   },
-  altBtnMaybe:   { backgroundColor: 'rgba(217,119,6,0.3)',  borderColor: Colors.warning },
-  altBtnUnavail: { backgroundColor: 'rgba(186,26,26,0.3)',  borderColor: Colors.error   },
+  altBtnMaybe:   { borderColor: Colors.warning,  backgroundColor: 'rgba(217,119,6,0.25)'  },
+  altBtnUnavail: { borderColor: Colors.error,     backgroundColor: 'rgba(186,26,26,0.25)'  },
   altBtnText: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 13,
@@ -322,12 +355,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     fontSize: 20,
     color: Colors.ink,
-    marginTop: Spacing.sm,
   },
 
   scheduleCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: Colors.surface,
     borderRadius: 16,
     padding: Spacing.base,
@@ -335,12 +367,21 @@ const styles = StyleSheet.create({
     borderColor: Colors.ink10,
     gap: Spacing.base,
   },
-  scheduleLeft:   { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surfaceMid, alignItems: 'center', justifyContent: 'center' },
-  scheduleInfo:   { flex: 1, gap: 2 },
+  scheduleIcon: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: Colors.surfaceMid,
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  scheduleInfo:   { flex: 1, gap: 4 },
+  statusPill:     { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
+  statusText:     { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   scheduleTitle:  { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: Colors.ink },
   scheduleDate:   { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.ink50 },
-  scheduleAction: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: Colors.p500, marginTop: 4 },
-
-  statusPill:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  statusPillText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  scheduleAction: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: Colors.p500,
+    marginTop: 2,
+  },
 });

@@ -10,7 +10,7 @@ import { loginUser, fetchUserDoc } from '../../services/authService';
 import { useAuthStore } from '../../store/authStore';
 import { Button } from '../../components/ui';
 import { Colors } from '../../constants/colors';
-import { Spacing } from '../../constants/spacing';
+import { Spacing, Radius } from '../../constants/spacing';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -48,109 +48,140 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <TouchableOpacity style={styles.back} onPress={() => router.replace('/(auth)/welcome')}>
+
+        {/* Back arrow */}
+        <TouchableOpacity style={styles.back} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={Colors.p900} />
         </TouchableOpacity>
 
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.title}>Welcome back</Text>
 
-          {error ? <Text style={styles.errorBanner}>{error}</Text> : null}
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
-          <View style={styles.fields}>
-            <View style={styles.fieldWrap}>
-              <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
+          {/* EMAIL ADDRESS */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your email"
+              placeholderTextColor={Colors.ink30}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              value={email}
+              onChangeText={setEmail}
+            />
+          </View>
+
+          {/* PASSWORD */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>PASSWORD</Text>
+              <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}>
+                <Text style={styles.forgotLink}>Forgot?</Text>
+              </TouchableOpacity>
+            </View>
+            <View>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your email"
+                placeholder="Enter your password"
                 placeholderTextColor={Colors.ink30}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                value={email}
-                onChangeText={setEmail}
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
               />
-            </View>
-
-            <View style={styles.fieldWrap}>
-              <View style={styles.labelRow}>
-                <Text style={styles.fieldLabel}>PASSWORD</Text>
-                <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}>
-                  <Text style={styles.forgotLink}>Forgot?</Text>
-                </TouchableOpacity>
-              </View>
-              <View>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your password"
-                  placeholderTextColor={Colors.ink30}
-                  secureTextEntry={!showPassword}
-                  value={password}
-                  onChangeText={setPassword}
+              <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword(p => !p)}>
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={Colors.ink50}
                 />
-                <TouchableOpacity style={styles.showBtn} onPress={() => setShowPassword(p => !p)}>
-                  <Text style={styles.showText}>{showPassword ? 'Hide' : 'Show'}</Text>
-                </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
 
-          <Button label="Sign In" onPress={handleLogin} isLoading={isLoading} fullWidth size="lg" style={styles.cta} />
+          <Button
+            label="Sign In"
+            onPress={handleLogin}
+            isLoading={isLoading}
+            fullWidth
+            size="lg"
+            style={{ marginTop: Spacing.xl }}
+          />
         </ScrollView>
 
+        {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>{"Don't have an account? "}</Text>
           <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
             <Text style={styles.footerLink}>Create one</Text>
           </TouchableOpacity>
         </View>
+
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe:       { flex: 1, backgroundColor: Colors.surfaceBg },
-  back:       { paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm },
+  safe: { flex: 1, backgroundColor: Colors.surfaceBg },
+
+  back: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.base,
+    paddingBottom: Spacing.xs,
+    alignSelf: 'flex-start',
+  },
 
   scroll: {
     flexGrow: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
     paddingBottom: 40,
+    gap: Spacing.xl,
   },
 
   title: {
     fontFamily: 'Inter_700Bold',
-    fontSize: 32,
-    lineHeight: 40,
-    letterSpacing: -0.6,
+    fontSize: 36,
+    lineHeight: 44,
+    letterSpacing: -1,
     color: Colors.p900,
-    marginBottom: 40,
   },
 
   errorBanner: {
+    backgroundColor: Colors.errorBg,
+    borderRadius: 12,
+    padding: Spacing.base,
+  },
+  errorText: {
     fontFamily: 'Inter_500Medium',
     fontSize: 14,
     color: Colors.error,
-    backgroundColor: Colors.errorBg,
-    padding: Spacing.base,
-    borderRadius: 10,
-    marginBottom: Spacing.lg,
   },
 
-  fields:    { gap: Spacing.xl },
-  fieldWrap: { gap: 6 },
-  labelRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-
+  fieldGroup: { gap: 10 },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   fieldLabel: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
-    letterSpacing: 1.4,
+    letterSpacing: 1.6,
     textTransform: 'uppercase',
     color: Colors.ink50,
   },
-
   input: {
     fontFamily: 'Inter_400Regular',
     fontSize: 17,
@@ -158,14 +189,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1.5,
     borderBottomColor: Colors.ink10,
     paddingVertical: Spacing.sm,
-    paddingRight: 52,
+    paddingRight: 44,
     backgroundColor: 'transparent',
   },
-
-  showBtn:    { position: 'absolute', right: 0, bottom: Spacing.sm },
-  showText:   { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: Colors.p500 },
-  forgotLink: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: Colors.p500 },
-  cta:        { marginTop: 40 },
+  eyeBtn: {
+    position: 'absolute',
+    right: 0,
+    bottom: Spacing.sm,
+    padding: 4,
+  },
+  forgotLink: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: Colors.p500,
+  },
 
   footer: {
     flexDirection: 'row',
