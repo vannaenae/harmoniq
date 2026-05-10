@@ -20,7 +20,7 @@ export default function InviteScreen() {
 
   const isOwner = user?.role === 'owner';
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!choir?.inviteCode) return;
     await Clipboard.setStringAsync(choir.inviteCode);
     setCopied(true);

@@ -6,15 +6,25 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../../../lib/firebase';
 import { useAuthStore } from '../../../store/authStore';
 import { useChoirStore } from '../../../store/choirStore';
 import { useSetListStore } from '../../../store/setListStore';
 import { subscribeChoir } from '../../../services/choirService';
 import { subscribeSetLists } from '../../../services/setListService';
+import { subscribeUpcomingEvents } from '../../../services/rehearsalService';
 import { EmptyState, ErrorState, SkeletonCard } from '../../../components/ui';
 import { Colors, Gradients } from '../../../constants/colors';
 import { Spacing, Radius } from '../../../constants/spacing';
-import { formatDate } from '../../../lib/utils';
+import { RehearsalEvent } from '../../../types';
+import { formatDate, formatTime } from '../../../lib/utils';
+
+const EVENT_TYPE_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
+  service:   'business-outline',
+  rehearsal: 'musical-notes-outline',
+  other:     'pin-outline',
+};
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -22,11 +32,14 @@ export default function DashboardScreen() {
   const { choir, setChoir } = useChoirStore();
   const { setLists, setSetLists } = useSetListStore();
 
-  const [isLoading, setIsLoading]   = useState(true);
-  const [hasError, setHasError]     = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [isLoading, setIsLoading]           = useState(true);
+  const [hasError, setHasError]             = useState(false);
+  const [refreshing, setRefreshing]         = useState(false);
+  const [upcomingEvents, setUpcomingEvents] = useState<RehearsalEvent[]>([]);
+  const [myAvailability, setMyAvailability] = useState<'available' | 'unavailable' | 'maybe' | null>(null);
 
   const choirId = user?.choirId;
+  const isAdmin = user?.role === 'owner' || user?.role === 'leader';
 
   const bootstrap = () => {
     if (!choirId) { setIsLoading(false); return; }
@@ -34,7 +47,8 @@ export default function DashboardScreen() {
     try {
       const u1 = subscribeChoir(choirId, (c) => { setChoir(c); setIsLoading(false); });
       const u2 = subscribeSetLists(choirId, setSetLists);
-      return () => { u1(); u2(); };
+      const u3 = subscribeUpcomingEvents(choirId, setUpcomingEvents);
+      return () => { u1(); u2(); u3(); };
     } catch {
       setHasError(true);
       setIsLoading(false);
@@ -43,16 +57,44 @@ export default function DashboardScreen() {
 
   useEffect(() => { return bootstrap(); }, [choirId]);
 
+  // Load current user's availability for the next published set list
+  useEffect(() => {
+    if (!choirId || !user?.uid) return;
+    const nextPublished = setLists.find((sl) => {
+      const d = typeof sl.serviceDate === 'string' ? new Date(sl.serviceDate) : sl.serviceDate;
+      return sl.status === 'published' && d >= new Date();
+    });
+    if (!nextPublished) { setMyAvailability(null); return; }
+
+    const docId = `${nextPublished.id}_${user.uid}`;
+    const q = query(
+      collection(db, 'choirs', choirId, 'availability'),
+      where('userId', '==', user.uid),
+      where('setListId', '==', nextPublished.id),
+    );
+    return onSnapshot(q, (snap) => {
+      if (snap.empty) { setMyAvailability(null); return; }
+      setMyAvailability(snap.docs[0].data().status ?? null);
+    });
+  }, [choirId, user?.uid, setLists]);
+
   const onRefresh = () => {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 800);
   };
 
-  const hour = new Date().getHours();
+  const hour     = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const nextService = setLists.find(sl => sl.status === 'published') ?? null;
-  const confirmedCount = setLists.filter(s => s.status === 'published').length;
-  const maybeCount = 3; // placeholder — would come from availability subcollection
+  const nextService = setLists.find((sl) => {
+    const d = typeof sl.serviceDate === 'string' ? new Date(sl.serviceDate) : sl.serviceDate;
+    return sl.status === 'published' && d >= new Date();
+  }) ?? null;
+
+  const availStatusCfg: Record<string, { text: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
+    available:   { text: 'You are confirmed for the next service.',   color: Colors.success, icon: 'checkmark-circle'  },
+    unavailable: { text: 'You marked yourself unavailable.',          color: Colors.error,   icon: 'close-circle'      },
+    maybe:       { text: 'You marked yourself as not sure.',          color: Colors.warning, icon: 'help-circle'       },
+  };
 
   if (!choirId) {
     return (
@@ -134,7 +176,6 @@ export default function DashboardScreen() {
                   end={{ x: 1, y: 1 }}
                   style={styles.hero}
                 >
-                  {/* Eyebrow + badge */}
                   <View style={styles.heroTop}>
                     <Text style={styles.heroEyebrow}>NEXT SERVICE</Text>
                     <View style={styles.heroBadge}>
@@ -142,10 +183,8 @@ export default function DashboardScreen() {
                     </View>
                   </View>
 
-                  {/* Title */}
                   <Text style={styles.heroTitle}>{nextService.title}</Text>
 
-                  {/* Date row */}
                   <View style={styles.heroDateRow}>
                     <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.75)" />
                     <Text style={styles.heroDate}>{formatDate(nextService.serviceDate)}</Text>
@@ -153,19 +192,14 @@ export default function DashboardScreen() {
 
                   <View style={styles.heroDivider} />
 
-                  {/* Stats */}
                   <View style={styles.heroStats}>
                     <View style={styles.heroStat}>
                       <Text style={styles.heroStatNum}>{nextService.songs.length}</Text>
                       <Text style={styles.heroStatLabel}>Songs</Text>
                     </View>
                     <View style={styles.heroStat}>
-                      <Text style={styles.heroStatNum}>{confirmedCount}</Text>
-                      <Text style={styles.heroStatLabel}>Confirmed</Text>
-                    </View>
-                    <View style={styles.heroStat}>
-                      <Text style={styles.heroStatNum}>{maybeCount}</Text>
-                      <Text style={styles.heroStatLabel}>Maybe</Text>
+                      <Text style={styles.heroStatNum}>{upcomingEvents.length}</Text>
+                      <Text style={styles.heroStatLabel}>Events</Text>
                     </View>
                   </View>
                 </LinearGradient>
@@ -184,30 +218,6 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             )}
 
-            {/* ── Quick Actions ── */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Quick Actions</Text>
-              {[
-                { iconName: 'musical-notes-outline' as const, label: 'Add Song',      route: '/(app)/songs/add'       },
-                { iconName: 'person-add-outline'    as const, label: 'Invite Member', route: '/(app)/invite'          },
-              ].map((a, i, arr) => (
-                <React.Fragment key={a.label}>
-                  <TouchableOpacity
-                    style={styles.actionRow}
-                    onPress={() => router.push(a.route as any)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.actionIcon}>
-                      <Ionicons name={a.iconName} size={18} color={Colors.p700} />
-                    </View>
-                    <Text style={styles.actionLabel}>{a.label}</Text>
-                    <Ionicons name="chevron-forward" size={18} color={Colors.ink30} />
-                  </TouchableOpacity>
-                  {i < arr.length - 1 && <View style={styles.divider} />}
-                </React.Fragment>
-              ))}
-            </View>
-
             {/* ── Your Availability ── */}
             <View style={styles.card}>
               <View style={styles.cardTitleRow}>
@@ -216,13 +226,107 @@ export default function DashboardScreen() {
                   <Ionicons name="calendar-outline" size={20} color={Colors.p500} />
                 </TouchableOpacity>
               </View>
-              <View style={styles.availRow}>
-                <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
-                <View style={{ gap: 2 }}>
-                  <Text style={styles.availTitle}>You are confirmed</Text>
-                  <Text style={styles.availSub}>for all services this month.</Text>
+              {myAvailability ? (
+                <View style={styles.availRow}>
+                  <Ionicons
+                    name={availStatusCfg[myAvailability].icon}
+                    size={28}
+                    color={availStatusCfg[myAvailability].color}
+                  />
+                  <Text style={styles.availText}>{availStatusCfg[myAvailability].text}</Text>
                 </View>
+              ) : nextService ? (
+                <TouchableOpacity
+                  style={styles.availPrompt}
+                  onPress={() => router.push('/(app)/(tabs)/availability')}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="help-circle-outline" size={28} color={Colors.ink30} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.availPromptTitle}>Haven't responded yet</Text>
+                    <Text style={styles.availPromptSub}>Tap to confirm your attendance</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.ink30} />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.availRow}>
+                  <Ionicons name="checkmark-circle" size={28} color={Colors.ink30} />
+                  <Text style={styles.availText}>No upcoming services scheduled.</Text>
+                </View>
+              )}
+            </View>
+
+            {/* ── Upcoming Rehearsals ── */}
+            {upcomingEvents.length > 0 && (
+              <View style={styles.card}>
+                <View style={styles.cardTitleRow}>
+                  <Text style={styles.cardTitle}>Upcoming Events</Text>
+                  {isAdmin && (
+                    <TouchableOpacity onPress={() => router.push('/(app)/rehearsals/create')}>
+                      <Ionicons name="add-circle-outline" size={22} color={Colors.p500} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {upcomingEvents.slice(0, 3).map((ev, i, arr) => (
+                  <React.Fragment key={ev.id}>
+                    <TouchableOpacity
+                      style={styles.eventRow}
+                      onPress={() => router.push(`/(app)/rehearsals/${ev.id}`)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.eventIcon}>
+                        <Ionicons
+                          name={EVENT_TYPE_ICON[ev.type] ?? 'calendar-outline'}
+                          size={18}
+                          color={Colors.p700}
+                        />
+                      </View>
+                      <View style={styles.eventInfo}>
+                        <Text style={styles.eventTitle}>{ev.title}</Text>
+                        <Text style={styles.eventDate}>
+                          {formatDate(ev.startTime)} · {formatTime(ev.startTime)}
+                        </Text>
+                        {ev.location ? (
+                          <Text style={styles.eventLocation} numberOfLines={1}>
+                            {ev.location}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color={Colors.ink30} />
+                    </TouchableOpacity>
+                    {i < arr.length - 1 && <View style={styles.divider} />}
+                  </React.Fragment>
+                ))}
               </View>
+            )}
+
+            {/* ── Quick Actions ── */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Quick Actions</Text>
+              {[
+                { iconName: 'list-outline'        as const, label: 'New Set List',  route: '/(app)/setlists/create', adminOnly: true  },
+                { iconName: 'calendar-outline'    as const, label: 'New Event',     route: '/(app)/rehearsals/create', adminOnly: true },
+                { iconName: 'musical-notes-outline' as const, label: 'Add Song',   route: '/(app)/songs/add',       adminOnly: true  },
+                { iconName: 'person-add-outline'  as const, label: 'Invite Member', route: '/(app)/invite',         adminOnly: true  },
+                { iconName: 'library-outline'     as const, label: 'Song Library',  route: '/(app)/songs',          adminOnly: false },
+              ]
+                .filter((a) => !a.adminOnly || isAdmin)
+                .map((a, i, arr) => (
+                  <React.Fragment key={a.label}>
+                    <TouchableOpacity
+                      style={styles.actionRow}
+                      onPress={() => router.push(a.route as any)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.actionIcon}>
+                        <Ionicons name={a.iconName} size={18} color={Colors.p700} />
+                      </View>
+                      <Text style={styles.actionLabel}>{a.label}</Text>
+                      <Ionicons name="chevron-forward" size={18} color={Colors.ink30} />
+                    </TouchableOpacity>
+                    {i < arr.length - 1 && <View style={styles.divider} />}
+                  </React.Fragment>
+                ))}
             </View>
           </>
         )}
@@ -385,6 +489,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  // Availability
+  availRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.base,
+    paddingVertical: Spacing.sm,
+  },
+  availText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+    color: Colors.ink,
+    flex: 1,
+    lineHeight: 20,
+  },
+  availPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.base,
+    paddingVertical: Spacing.sm,
+  },
+  availPromptTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: Colors.ink },
+  availPromptSub:   { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.ink50 },
+
+  // Events
+  eventRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.base,
+    paddingVertical: Spacing.sm,
+  },
+  eventIcon: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: Colors.surfaceMid,
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  eventInfo:     { flex: 1, gap: 2 },
+  eventTitle:    { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: Colors.ink },
+  eventDate:     { fontFamily: 'Inter_400Regular', fontSize: 12, color: Colors.ink50 },
+  eventLocation: { fontFamily: 'Inter_400Regular', fontSize: 12, color: Colors.ink70 },
+
+  // Quick Actions
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -403,13 +549,4 @@ const styles = StyleSheet.create({
     color: Colors.ink,
   },
   divider: { height: 1, backgroundColor: Colors.ink10 },
-
-  availRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.base,
-    paddingVertical: Spacing.sm,
-  },
-  availTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 16, color: Colors.ink },
-  availSub:   { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.ink70 },
 });
