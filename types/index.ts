@@ -52,6 +52,7 @@ export interface Song {
   version?: string;
   key?: string;
   tempo?: number;
+  genre?: string;
   youtubeUrl?: string;
   spotifyUrl?: string;
   description?: string;
@@ -81,6 +82,7 @@ export interface SetList {
   choirId: string;
   title: string;
   serviceDate: Date;
+  serviceTime?: string;
   status: SetListStatus;
   notes?: string;
   songs: SetListSong[];

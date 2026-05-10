@@ -6,11 +6,13 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  collection, query, where, onSnapshot, doc, setDoc,
+} from 'firebase/firestore';
+import { db } from '../../../lib/firebase';
 import { useAuthStore } from '../../../store/authStore';
 import { useSetListStore } from '../../../store/setListStore';
 import { subscribeSetLists } from '../../../services/setListService';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../../../lib/firebase';
 import { EmptyState, ErrorState, SkeletonCard } from '../../../components/ui';
 import { Colors, Gradients } from '../../../constants/colors';
 import { Spacing, Radius } from '../../../constants/spacing';
@@ -24,13 +26,14 @@ export default function AvailabilityScreen() {
   const { user } = useAuthStore();
   const { setLists, setSetLists } = useSetListStore();
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError]   = useState(false);
-  const [responses, setResponses] = useState<Record<string, Status>>({});
-  const [saving, setSaving]       = useState<string | null>(null);
+  const [isLoading, setIsLoading]   = useState(true);
+  const [hasError, setHasError]     = useState(false);
+  const [responses, setResponses]   = useState<Record<string, Status>>({});
+  const [saving, setSaving]         = useState<string | null>(null);
 
   const choirId = user?.choirId;
 
+  // Subscribe to set lists
   useEffect(() => {
     if (!choirId) return;
     try {
@@ -45,30 +48,57 @@ export default function AvailabilityScreen() {
     }
   }, [choirId]);
 
+  // Load existing availability responses for this user
+  useEffect(() => {
+    if (!choirId || !user?.uid) return;
+    const q = query(
+      collection(db, 'choirs', choirId, 'availability'),
+      where('userId', '==', user.uid),
+    );
+    return onSnapshot(q, (snap) => {
+      const map: Record<string, Status> = {};
+      snap.docs.forEach((d) => {
+        const data = d.data();
+        if (data.setListId && data.status) {
+          map[data.setListId] = data.status as Status;
+        }
+      });
+      setResponses(map);
+    });
+  }, [choirId, user?.uid]);
+
   const handleRespond = async (setListId: string, status: Status) => {
     if (!user?.uid || !choirId) return;
-    setResponses(prev => ({ ...prev, [setListId]: status }));
+    // Optimistic update
+    setResponses((prev) => ({ ...prev, [setListId]: status }));
     setSaving(setListId);
     try {
       await setDoc(
         doc(db, 'choirs', choirId, 'availability', `${setListId}_${user.uid}`),
-        { setListId, userId: user.uid, status, updatedAt: new Date().toISOString() },
+        { setListId, userId: user.uid, choirId, status, updatedAt: new Date().toISOString() },
         { merge: true },
       );
+    } catch {
+      // Roll back optimistic update on failure
+      setResponses((prev) => {
+        const next = { ...prev };
+        delete next[setListId];
+        return next;
+      });
     } finally {
       setSaving(null);
     }
   };
 
   const now      = new Date();
-  const upcoming = setLists.filter(sl => new Date(sl.serviceDate) >= now);
+  const upcoming = setLists.filter((sl) => new Date(sl.serviceDate) >= now);
   const next     = upcoming[0] ?? null;
   const rest     = upcoming.slice(1);
 
-  const statusLabel: Record<Status, { text: string; color: string; bg: string }> = {
-    available:   { text: 'Available',   color: Colors.success, bg: Colors.successBg  },
-    unavailable: { text: 'Unavailable', color: Colors.error,   bg: Colors.errorBg    },
-    maybe:       { text: 'Pending',     color: Colors.warning, bg: Colors.warningBg  },
+  const statusLabel: Record<Status, { text: string; color: string; bg: string; icon: keyof typeof Ionicons.glyphMap }> = {
+    available:   { text: 'Available',   color: Colors.success, bg: Colors.successBg, icon: 'checkmark-circle' },
+    unavailable: { text: 'Unavailable', color: Colors.error,   bg: Colors.errorBg,   icon: 'close-circle'     },
+    maybe:       { text: 'Not Sure',    color: Colors.warning, bg: Colors.warningBg, icon: 'help-circle'      },
   };
 
   return (
@@ -76,26 +106,16 @@ export default function AvailabilityScreen() {
 
       {/* Top nav */}
       <View style={styles.topBar}>
-        <TouchableOpacity
-          style={styles.navBtn}
-          onPress={() => router.push('/(app)/choir-settings')}
-        >
+        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/choir-settings')}>
           <Ionicons name="menu" size={22} color={Colors.p900} />
         </TouchableOpacity>
         <Text style={styles.navLogo}>Harmoniq</Text>
-        <TouchableOpacity
-          style={styles.navBtn}
-          onPress={() => router.push('/(app)/announcements')}
-        >
+        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/(app)/announcements')}>
           <Ionicons name="notifications-outline" size={22} color={Colors.p900} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Heading */}
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.pageTitle}>Your Availability</Text>
         <Text style={styles.pageSub}>
           Confirm your attendance for upcoming services to help the team coordinate vocals and scheduling.
@@ -111,7 +131,7 @@ export default function AvailabilityScreen() {
 
         {!isLoading && hasError && <ErrorState fullScreen />}
 
-        {!isLoading && !hasError && setLists.length === 0 && (
+        {!isLoading && !hasError && upcoming.length === 0 && (
           <EmptyState
             iconName="calendar-outline"
             title="No services scheduled"
@@ -140,6 +160,20 @@ export default function AvailabilityScreen() {
                 <Text style={styles.nextDate}>{formatDate(next.serviceDate)}</Text>
               </View>
 
+              {/* Current response badge */}
+              {responses[next.id] && (
+                <View style={styles.currentResponseRow}>
+                  <Ionicons
+                    name={statusLabel[responses[next.id]].icon}
+                    size={14}
+                    color="rgba(255,255,255,0.9)"
+                  />
+                  <Text style={styles.currentResponseText}>
+                    Currently: {statusLabel[responses[next.id]].text}
+                  </Text>
+                </View>
+              )}
+
               {/* Mark Available */}
               <TouchableOpacity
                 style={[
@@ -148,6 +182,7 @@ export default function AvailabilityScreen() {
                 ]}
                 onPress={() => handleRespond(next.id, 'available')}
                 activeOpacity={0.8}
+                disabled={saving === next.id}
               >
                 <Ionicons
                   name="checkmark-circle-outline"
@@ -165,24 +200,20 @@ export default function AvailabilityScreen() {
               {/* Not Sure / Unavailable */}
               <View style={styles.altRow}>
                 <TouchableOpacity
-                  style={[
-                    styles.altBtn,
-                    responses[next.id] === 'maybe' && styles.altBtnMaybe,
-                  ]}
+                  style={[styles.altBtn, responses[next.id] === 'maybe' && styles.altBtnMaybe]}
                   onPress={() => handleRespond(next.id, 'maybe')}
                   activeOpacity={0.8}
+                  disabled={saving === next.id}
                 >
                   <Ionicons name="help-outline" size={15} color={Colors.white} />
                   <Text style={styles.altBtnText}>Not Sure</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[
-                    styles.altBtn,
-                    responses[next.id] === 'unavailable' && styles.altBtnUnavail,
-                  ]}
+                  style={[styles.altBtn, responses[next.id] === 'unavailable' && styles.altBtnUnavail]}
                   onPress={() => handleRespond(next.id, 'unavailable')}
                   activeOpacity={0.8}
+                  disabled={saving === next.id}
                 >
                   <Ionicons name="close-outline" size={15} color={Colors.white} />
                   <Text style={styles.altBtnText}>Unavailable</Text>
@@ -194,7 +225,7 @@ export default function AvailabilityScreen() {
             {rest.length > 0 && (
               <>
                 <Text style={styles.sectionTitle}>Upcoming Schedule</Text>
-                {rest.map(sl => {
+                {rest.map((sl) => {
                   const resp = responses[sl.id] as Status | undefined;
                   const cfg  = resp ? statusLabel[resp] : null;
                   return (
@@ -205,18 +236,40 @@ export default function AvailabilityScreen() {
                       <View style={styles.scheduleInfo}>
                         {cfg && (
                           <View style={[styles.statusPill, { backgroundColor: cfg.bg }]}>
+                            <Ionicons name={cfg.icon} size={11} color={cfg.color} />
                             <Text style={[styles.statusText, { color: cfg.color }]}>{cfg.text}</Text>
                           </View>
                         )}
                         <Text style={styles.scheduleTitle}>{sl.title}</Text>
                         <Text style={styles.scheduleDate}>{formatDate(sl.serviceDate)}</Text>
-                        <TouchableOpacity
-                          onPress={() => handleRespond(sl.id, resp === 'available' ? 'maybe' : 'available')}
-                        >
-                          <Text style={styles.scheduleAction}>
-                            {resp === 'available' ? 'Edit Response' : 'Respond Now'}
-                          </Text>
-                        </TouchableOpacity>
+
+                        {/* Inline response buttons */}
+                        <View style={styles.inlineButtons}>
+                          {(['available', 'maybe', 'unavailable'] as Status[]).map((s) => (
+                            <TouchableOpacity
+                              key={s}
+                              style={[
+                                styles.inlineBtn,
+                                resp === s && { backgroundColor: statusLabel[s].bg, borderColor: statusLabel[s].color },
+                              ]}
+                              onPress={() => handleRespond(sl.id, s)}
+                              disabled={saving === sl.id}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons
+                                name={statusLabel[s].icon}
+                                size={12}
+                                color={resp === s ? statusLabel[s].color : Colors.ink50}
+                              />
+                              <Text style={[
+                                styles.inlineBtnText,
+                                resp === s && { color: statusLabel[s].color },
+                              ]}>
+                                {statusLabel[s].text}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
                       </View>
                     </View>
                   );
@@ -301,12 +354,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: Spacing.xs,
   },
   nextDate: {
     fontFamily: 'Inter_400Regular',
     fontSize: 14,
     color: 'rgba(255,255,255,0.75)',
+  },
+  currentResponseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: -4,
+  },
+  currentResponseText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.85)',
   },
 
   markAvailBtn: {
@@ -319,6 +382,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.4)',
     backgroundColor: 'rgba(255,255,255,0.12)',
     paddingVertical: 13,
+    marginTop: 4,
   },
   markAvailBtnActive: {
     backgroundColor: Colors.white,
@@ -373,15 +437,35 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
   },
-  scheduleInfo:   { flex: 1, gap: 4 },
-  statusPill:     { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
-  statusText:     { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
-  scheduleTitle:  { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: Colors.ink },
-  scheduleDate:   { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.ink50 },
-  scheduleAction: {
+  scheduleInfo:  { flex: 1, gap: 4 },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  statusText:    { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  scheduleTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: Colors.ink },
+  scheduleDate:  { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.ink50 },
+
+  inlineButtons: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
+  inlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.ink10,
+    backgroundColor: Colors.surfaceMid,
+  },
+  inlineBtnText: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 13,
-    color: Colors.p500,
-    marginTop: 2,
+    fontSize: 11,
+    color: Colors.ink50,
   },
 });
