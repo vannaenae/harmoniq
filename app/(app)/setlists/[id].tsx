@@ -45,8 +45,8 @@ export default function SetListDetailScreen() {
       const d = snap.data();
       setSetList({
         ...d, id: snap.id,
-        serviceDate: toDateStr(d.serviceDate),
-        createdAt:   toDateStr(d.createdAt),
+        serviceDate: toDateStr(d.serviceDate) as unknown as Date,
+        createdAt:   toDateStr(d.createdAt) as unknown as Date,
       } as SetList);
       setIsLoading(false);
     });
@@ -177,10 +177,10 @@ export default function SetListDetailScreen() {
             <Text style={styles.heroDate}>{formatDate(setList.serviceDate)}</Text>
           </View>
 
-          {setList.serviceTime ? (
+          {setList.notes ? (
             <View style={styles.heroDateRow}>
               <Ionicons name="time-outline" size={13} color="rgba(255,255,255,0.7)" />
-              <Text style={styles.heroDate}>{setList.serviceTime}</Text>
+              <Text style={styles.heroDate}>{setList.notes}</Text>
             </View>
           ) : null}
 

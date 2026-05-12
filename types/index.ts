@@ -44,6 +44,8 @@ export interface ChoirMember {
 
 // ── Song ──────────────────────────────────────────────────────────────────────
 
+export type SongGenre = 'Gospel' | 'Contemporary' | 'Hymn' | 'Modern' | 'Anthem' | 'Other';
+
 export interface Song {
   id: string;
   choirId: string;
@@ -51,6 +53,7 @@ export interface Song {
   artist?: string;
   version?: string;
   key?: string;
+  genre?: SongGenre;
   tempo?: number;
   youtubeUrl?: string;
   spotifyUrl?: string;
