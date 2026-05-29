@@ -90,10 +90,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionStorage.setItem('harmonic_google_token', credential.accessToken)
     }
     await createUserDoc(user)
+    // Force-fetch after doc creation — onAuthStateChanged may have already fired
+    // before the doc existed, leaving harmonicUser null and causing a sign-in loop.
+    const u = await fetchHarmonicUser(user.uid)
+    setFirebaseUser(user)
+    setHarmonicUser(u)
   }
 
   const signInWithEmail = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password)
+    const result = await signInWithEmailAndPassword(auth, email, password)
+    const u = await fetchHarmonicUser(result.user.uid)
+    setHarmonicUser(u)
   }
 
   const signUpWithEmail = async (email: string, password: string, displayName: string) => {
@@ -101,6 +108,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await updateProfile(result.user, { displayName })
     await sendEmailVerification(result.user)
     await createUserDoc(result.user)
+    const u = await fetchHarmonicUser(result.user.uid)
+    setFirebaseUser(result.user)
+    setHarmonicUser(u)
   }
 
   const sendPasswordReset = async (email: string) => {
