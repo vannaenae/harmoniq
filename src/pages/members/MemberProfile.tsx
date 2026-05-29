@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Mail, Shield, Music2, Trash2 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -12,9 +12,11 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useChoir } from '@/contexts/ChoirContext'
 import { updateMemberRole, updateMemberVoicePart, removeMember } from '@/lib/members'
+import { getMemberAttendanceHistory, type AttendanceHistoryEntry } from '@/lib/attendance'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { voicePartLabel } from '@/lib/utils'
 import { attendanceMeta } from '@/lib/status'
-import type { VoicePart, UserRole, AttendanceStatus } from '@/types'
+import type { VoicePart, UserRole } from '@/types'
 
 const PART_OPTIONS = [
   { value: 'soprano', label: 'Soprano' },
@@ -28,23 +30,27 @@ const ROLE_OPTIONS = [
   { value: 'director', label: 'Director' },
 ]
 
-// API_POINT: Firestore — real attendance history lands in Phase 5; mock for now
-const MOCK_HISTORY: { service: string; status: AttendanceStatus }[] = [
-  { service: 'Sunday Service', status: 'present' },
-  { service: 'Midweek Service', status: 'present' },
-  { service: 'Sunday Service', status: 'absent' },
-  { service: 'Rehearsal', status: 'unavailable' },
-  { service: 'Sunday Service', status: 'present' },
-]
-
 export function MemberProfile() {
   const { uid } = useParams<{ uid: string }>()
   const navigate = useNavigate()
   const { choir, members, isDirector, refreshMembers } = useChoir()
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [working, setWorking] = useState(false)
+  const [history, setHistory] = useState<AttendanceHistoryEntry[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(true)
 
   const member = members.find(m => m.uid === uid)
+
+  useEffect(() => {
+    if (!choir || !uid) return
+    let active = true
+    setLoadingHistory(true)
+    getMemberAttendanceHistory(choir.id, uid, 5)
+      .then(h => { if (active) setHistory(h.filter(e => e.status !== 'no_record')) })
+      .catch(err => console.error('Load history error:', err))
+      .finally(() => { if (active) setLoadingHistory(false) })
+    return () => { active = false }
+  }, [choir, uid])
 
   if (!member) {
     return (
@@ -107,14 +113,24 @@ export function MemberProfile() {
           <h3 className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3">
             Recent attendance
           </h3>
-          <Card className="divide-y divide-harmonic-border">
-            {MOCK_HISTORY.map((h, i) => (
-              <div key={i} className="flex items-center justify-between px-4 py-3">
-                <span className="text-sm text-harmonic-text">{h.service}</span>
-                <Badge tone={attendanceMeta[h.status].tone}>{attendanceMeta[h.status].label}</Badge>
-              </div>
-            ))}
-          </Card>
+          {loadingHistory ? (
+            <Skeleton className="h-32 w-full rounded-card" />
+          ) : history.length === 0 ? (
+            <Card className="p-4">
+              <p className="text-sm text-harmonic-muted text-center">No attendance recorded yet.</p>
+            </Card>
+          ) : (
+            <Card className="divide-y divide-harmonic-border">
+              {history.map(({ service, status }) => (
+                <div key={service.id} className="flex items-center justify-between px-4 py-3">
+                  <span className="text-sm text-harmonic-text truncate">{service.title}</span>
+                  {status !== 'no_record' && (
+                    <Badge tone={attendanceMeta[status].tone}>{attendanceMeta[status].label}</Badge>
+                  )}
+                </div>
+              ))}
+            </Card>
+          )}
         </section>
 
         {/* Director controls */}

@@ -27,6 +27,7 @@ import { Select } from '@/components/ui/Select'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
 import { getService, getSetList, saveSetList } from '@/lib/firestore'
 import { listSongs } from '@/lib/songs'
@@ -36,6 +37,7 @@ import type { SetListItem, Service, Song } from '@/types'
 export function SetListBuilder() {
   const { serviceId } = useParams<{ serviceId: string }>()
   const navigate = useNavigate()
+  const { firebaseUser } = useAuth()
   const { choir, members } = useChoir()
 
   const [service, setService] = useState<Service | null>(null)
@@ -123,13 +125,27 @@ export function SetListBuilder() {
   }
 
   const handleSave = async (publish: boolean) => {
-    if (!choir || !serviceId) return
+    if (!choir || !serviceId || !firebaseUser) return
     setSaving(true)
     try {
       await saveSetList(choir.id, serviceId, items)
       if (publish) {
         const { updateService } = await import('@/lib/firestore')
         await updateService(choir.id, serviceId, { status: 'published' })
+
+        /* API_POINT: Notifications — let members know the service + set list is live. */
+        const { broadcastNotification } = await import('@/lib/notifications')
+        const recipients = members.filter(m => m.uid !== firebaseUser.uid).map(m => m.uid)
+        if (recipients.length) {
+          await broadcastNotification(
+            choir.id,
+            recipients,
+            'service_update',
+            'A service was published',
+            `${service?.title ?? 'A service'} is ready — check the set list and mark your availability.`,
+            `/services/${serviceId}`,
+          )
+        }
       }
       navigate(`/services/${serviceId}`)
     } catch (err) {

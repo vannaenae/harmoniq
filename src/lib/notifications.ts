@@ -40,6 +40,20 @@ export async function createNotification(
   })
 }
 
+/** Fan-out a notification to many recipients (e.g. service published, announcement). */
+export async function broadcastNotification(
+  choirId: string,
+  recipientIds: string[],
+  category: NotificationCategory,
+  title: string,
+  body: string,
+  deepLink?: string,
+): Promise<void> {
+  await Promise.all(
+    recipientIds.map(uid => createNotification(choirId, uid, category, title, body, deepLink)),
+  )
+}
+
 export async function listMyNotifications(
   choirId: string,
   userId: string,

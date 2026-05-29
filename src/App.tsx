@@ -34,7 +34,14 @@ import { SongLibrary } from '@/pages/library/SongLibrary'
 import { SongLibraryDetail } from '@/pages/library/SongLibraryDetail'
 import { AddCustomSong } from '@/pages/library/AddCustomSong'
 
-// Stub pages (Phase 5+)
+// Attendance, announcements, notifications (Phase 5)
+import { AttendanceTracker } from '@/pages/attendance/AttendanceTracker'
+import { MyAttendance } from '@/pages/attendance/MyAttendance'
+import { AnnouncementsFeed } from '@/pages/announcements/AnnouncementsFeed'
+import { CreateAnnouncement } from '@/pages/announcements/CreateAnnouncement'
+import { NotificationCentre } from '@/pages/notifications/NotificationCentre'
+
+// Stub pages (Phase 6+)
 import { StubPage } from '@/pages/StubPage'
 
 /** Route guard — redirects unauthenticated users to sign-in */
@@ -272,11 +279,21 @@ export function App() {
         }
       />
       <Route
-        path="/announcements/*"
+        path="/announcements"
         element={
           <RequireAuth>
             <RequireOnboarding>
-              <StubPage title="Announcements" description="Messages from your director." />
+              <AnnouncementsFeed />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/announcements/new"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <CreateAnnouncement />
             </RequireOnboarding>
           </RequireAuth>
         }
@@ -286,7 +303,27 @@ export function App() {
         element={
           <RequireAuth>
             <RequireOnboarding>
-              <StubPage title="Notifications" description="Service updates, availability reminders, and more." />
+              <NotificationCentre />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/attendance"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <AttendanceTracker />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/my-attendance"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <MyAttendance />
             </RequireOnboarding>
           </RequireAuth>
         }

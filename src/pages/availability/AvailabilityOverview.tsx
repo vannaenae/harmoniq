@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Download, Users, UserPlus } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Download, Users, UserPlus, CalendarCheck } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -77,9 +78,14 @@ export function AvailabilityOverview() {
           title="Availability"
           subtitle="Who can make it"
           actions={
-            <Button variant="outlined" size="sm" onClick={handleExport} disabled={members.length === 0}>
-              <Download size={16} /> Export CSV
-            </Button>
+            <>
+              <Link to="/attendance">
+                <Button variant="outlined" size="sm"><CalendarCheck size={16} /> Attendance</Button>
+              </Link>
+              <Button variant="outlined" size="sm" onClick={handleExport} disabled={members.length === 0}>
+                <Download size={16} /> Export CSV
+              </Button>
+            </>
           }
         />
 

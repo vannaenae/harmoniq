@@ -66,6 +66,12 @@ service cloud.firestore {
           allow create: if isSignedIn() && request.auth.uid == userId;
           allow update: if isSignedIn() && request.auth.uid == userId;
         }
+
+        // Attendance — members read (their own + choir-wide); Directors write.
+        match /attendance/{userId} {
+          allow read:  if isMemberOf(choirId) || isChoirOwner(choirId);
+          allow write: if isDirectorOf(choirId) || isChoirOwner(choirId);
+        }
       }
 
       // Choir-private custom songs
