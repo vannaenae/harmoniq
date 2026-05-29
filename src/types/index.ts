@@ -4,6 +4,22 @@ export type UserRole = 'director' | 'member'
 
 export type VoicePart = 'soprano' | 'alto' | 'tenor' | 'bass' | 'unclassified'
 
+export interface NotificationPrefs {
+  serviceUpdates: boolean
+  availabilityReminders: boolean
+  announcements: boolean
+  system: boolean
+  reminderTiming: '48h' | '24h'
+}
+
+export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
+  serviceUpdates: true,
+  availabilityReminders: true,
+  announcements: true,
+  system: true,
+  reminderTiming: '24h',
+}
+
 export interface HarmonicUser {
   uid: string
   email: string
@@ -14,6 +30,7 @@ export interface HarmonicUser {
   voicePart?: VoicePart
   choirId?: string
   onboardingComplete: boolean
+  notificationPrefs?: NotificationPrefs
   createdAt: Date
   updatedAt: Date
 }

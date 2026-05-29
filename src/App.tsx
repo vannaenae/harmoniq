@@ -41,8 +41,13 @@ import { AnnouncementsFeed } from '@/pages/announcements/AnnouncementsFeed'
 import { CreateAnnouncement } from '@/pages/announcements/CreateAnnouncement'
 import { NotificationCentre } from '@/pages/notifications/NotificationCentre'
 
-// Stub pages (Phase 6+)
-import { StubPage } from '@/pages/StubPage'
+// Profile & settings (Phase 6)
+import { Settings } from '@/pages/settings/Settings'
+import { MyProfile } from '@/pages/settings/MyProfile'
+import { ChoirSettings } from '@/pages/settings/ChoirSettings'
+import { NotificationSettings } from '@/pages/settings/NotificationSettings'
+import { DeleteAccount } from '@/pages/settings/DeleteAccount'
+import { PrivacyPolicy, TermsOfService } from '@/pages/settings/LegalPage'
 
 /** Route guard — redirects unauthenticated users to sign-in */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -329,11 +334,41 @@ export function App() {
         }
       />
       <Route
-        path="/settings/*"
+        path="/settings"
         element={
           <RequireAuth>
             <RequireOnboarding>
-              <StubPage title="Settings" description="Profile, choir settings, and preferences." />
+              <Settings />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/settings/choir"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <ChoirSettings />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/settings/notifications"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <NotificationSettings />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/settings/delete"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <DeleteAccount />
             </RequireOnboarding>
           </RequireAuth>
         }
@@ -342,13 +377,13 @@ export function App() {
       {/* Invite link entry point */}
       <Route path="/join/:code" element={<JoinChoir />} />
 
-      {/* Profile (Phase 6 builds the full screen; voice-part request is live now) */}
+      {/* Profile */}
       <Route
         path="/profile"
         element={
           <RequireAuth>
             <RequireOnboarding>
-              <StubPage title="My Profile" description="Your profile and preferences. Coming in the next phase." />
+              <MyProfile />
             </RequireOnboarding>
           </RequireAuth>
         }
@@ -364,9 +399,9 @@ export function App() {
         }
       />
 
-      {/* Static */}
-      <Route path="/privacy" element={<StubPage title="Privacy Policy" />} />
-      <Route path="/terms" element={<StubPage title="Terms of Service" />} />
+      {/* Static (public) */}
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsOfService />} />
 
       {/* Root redirect */}
       <Route

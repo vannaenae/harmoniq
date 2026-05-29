@@ -32,7 +32,7 @@ function timeAgo(date: Date): string {
 export function NotificationCentre() {
   const navigate = useNavigate()
   const { firebaseUser } = useAuth()
-  const { choir } = useChoir()
+  const { choir, refreshUnread } = useChoir()
   const [items, setItems] = useState<AppNotification[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -53,6 +53,7 @@ export function NotificationCentre() {
     if (choir && !n.read) {
       await markNotificationRead(choir.id, n.id)
       setItems(prev => prev.map(x => (x.id === n.id ? { ...x, read: true } : x)))
+      refreshUnread()
     }
     if (n.deepLink) navigate(n.deepLink)
   }
@@ -61,6 +62,7 @@ export function NotificationCentre() {
     if (!choir || !firebaseUser) return
     await markAllRead(choir.id, firebaseUser.uid)
     setItems(prev => prev.map(x => ({ ...x, read: true })))
+    refreshUnread()
   }
 
   return (

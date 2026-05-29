@@ -9,6 +9,7 @@ import {
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
+import { countUnread } from '@/lib/notifications'
 import type { Choir, ChoirMember } from '@/types'
 
 interface ChoirContextValue {
@@ -16,8 +17,10 @@ interface ChoirContextValue {
   members: ChoirMember[]
   loading: boolean
   isDirector: boolean
+  unreadCount: number
   refreshChoir: () => Promise<void>
   refreshMembers: () => Promise<void>
+  refreshUnread: () => Promise<void>
 }
 
 const ChoirContext = createContext<ChoirContextValue | null>(null)
@@ -33,11 +36,18 @@ function coerceDate(v: unknown): Date {
 }
 
 export function ChoirProvider({ children }: { children: ReactNode }) {
-  const { harmonicUser } = useAuth()
+  const { harmonicUser, firebaseUser } = useAuth()
   const choirId = harmonicUser?.choirId
   const [choir, setChoir] = useState<Choir | null>(null)
   const [members, setMembers] = useState<ChoirMember[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
+
+  const refreshUnread = useCallback(async () => {
+    if (!choirId || !firebaseUser) { setUnreadCount(0); return }
+    try { setUnreadCount(await countUnread(choirId, firebaseUser.uid)) }
+    catch { setUnreadCount(0) }
+  }, [choirId, firebaseUser])
 
   const refreshChoir = useCallback(async () => {
     if (!choirId) {
@@ -74,13 +84,13 @@ export function ChoirProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true
     setLoading(true)
-    Promise.all([refreshChoir(), refreshMembers()]).finally(() => {
+    Promise.all([refreshChoir(), refreshMembers(), refreshUnread()]).finally(() => {
       if (active) setLoading(false)
     })
     return () => {
       active = false
     }
-  }, [refreshChoir, refreshMembers])
+  }, [refreshChoir, refreshMembers, refreshUnread])
 
   return (
     <ChoirContext.Provider
@@ -89,8 +99,10 @@ export function ChoirProvider({ children }: { children: ReactNode }) {
         members,
         loading,
         isDirector: harmonicUser?.role === 'director',
+        unreadCount,
         refreshChoir,
         refreshMembers,
+        refreshUnread,
       }}
     >
       {children}
