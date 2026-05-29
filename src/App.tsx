@@ -1,63 +1,58 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Skeleton } from '@/components/ui/Skeleton'
 
-// Auth
+// Auth — small, loaded immediately
 import { SignIn } from '@/pages/auth/SignIn'
-import { SignUp } from '@/pages/auth/SignUp'
-import { ForgotPassword } from '@/pages/auth/ForgotPassword'
-import { VerifyEmail } from '@/pages/auth/VerifyEmail'
 
-// Onboarding
-import { RoleSelection } from '@/pages/onboarding/RoleSelection'
-import { CreateOrJoinChoir } from '@/pages/onboarding/CreateOrJoinChoir'
-import { VoicePart } from '@/pages/onboarding/VoicePart'
+// Everything else — lazy loaded on first visit
+const SignUp            = lazy(() => import('@/pages/auth/SignUp').then(m => ({ default: m.SignUp })))
+const ForgotPassword    = lazy(() => import('@/pages/auth/ForgotPassword').then(m => ({ default: m.ForgotPassword })))
+const VerifyEmail       = lazy(() => import('@/pages/auth/VerifyEmail').then(m => ({ default: m.VerifyEmail })))
 
-// Dashboard
-import { Dashboard } from '@/pages/dashboard/Dashboard'
+const RoleSelection     = lazy(() => import('@/pages/onboarding/RoleSelection').then(m => ({ default: m.RoleSelection })))
+const CreateOrJoinChoir = lazy(() => import('@/pages/onboarding/CreateOrJoinChoir').then(m => ({ default: m.CreateOrJoinChoir })))
+const VoicePart         = lazy(() => import('@/pages/onboarding/VoicePart').then(m => ({ default: m.VoicePart })))
 
-// Services & set lists (Phase 2)
-import { ServicesList } from '@/pages/services/ServicesList'
-import { ServiceForm } from '@/pages/services/ServiceForm'
-import { SetListBuilder } from '@/pages/services/SetListBuilder'
-import { SetListDetail } from '@/pages/services/SetListDetail'
-import { SongDetail } from '@/pages/services/SongDetail'
+const Dashboard         = lazy(() => import('@/pages/dashboard/Dashboard').then(m => ({ default: m.Dashboard })))
 
-// Availability & members (Phase 3)
-import { MarkAvailability } from '@/pages/availability/MarkAvailability'
-import { AvailabilityOverview } from '@/pages/availability/AvailabilityOverview'
-import { MembersDirectory } from '@/pages/members/MembersDirectory'
-import { MemberProfile } from '@/pages/members/MemberProfile'
-import { InviteMembers } from '@/pages/members/InviteMembers'
-import { VoicePartRequest } from '@/pages/members/VoicePartRequest'
-import { JoinChoir } from '@/pages/JoinChoir'
+const ServicesList      = lazy(() => import('@/pages/services/ServicesList').then(m => ({ default: m.ServicesList })))
+const ServiceForm       = lazy(() => import('@/pages/services/ServiceForm').then(m => ({ default: m.ServiceForm })))
+const SetListBuilder    = lazy(() => import('@/pages/services/SetListBuilder').then(m => ({ default: m.SetListBuilder })))
+const SetListDetail     = lazy(() => import('@/pages/services/SetListDetail').then(m => ({ default: m.SetListDetail })))
+const SongDetail        = lazy(() => import('@/pages/services/SongDetail').then(m => ({ default: m.SongDetail })))
+const ServiceRoster     = lazy(() => import('@/pages/services/ServiceRoster').then(m => ({ default: m.ServiceRoster })))
 
-// Song library (Phase 4)
-import { SongLibrary } from '@/pages/library/SongLibrary'
-import { SongLibraryDetail } from '@/pages/library/SongLibraryDetail'
-import { AddCustomSong } from '@/pages/library/AddCustomSong'
+const MarkAvailability  = lazy(() => import('@/pages/availability/MarkAvailability').then(m => ({ default: m.MarkAvailability })))
+const AvailabilityOverview = lazy(() => import('@/pages/availability/AvailabilityOverview').then(m => ({ default: m.AvailabilityOverview })))
 
-// Attendance, announcements, notifications (Phase 5)
-import { AttendanceTracker } from '@/pages/attendance/AttendanceTracker'
-import { MyAttendance } from '@/pages/attendance/MyAttendance'
-import { AnnouncementsFeed } from '@/pages/announcements/AnnouncementsFeed'
-import { CreateAnnouncement } from '@/pages/announcements/CreateAnnouncement'
-import { NotificationCentre } from '@/pages/notifications/NotificationCentre'
+const MembersDirectory  = lazy(() => import('@/pages/members/MembersDirectory').then(m => ({ default: m.MembersDirectory })))
+const MemberProfile     = lazy(() => import('@/pages/members/MemberProfile').then(m => ({ default: m.MemberProfile })))
+const InviteMembers     = lazy(() => import('@/pages/members/InviteMembers').then(m => ({ default: m.InviteMembers })))
+const VoicePartRequest  = lazy(() => import('@/pages/members/VoicePartRequest').then(m => ({ default: m.VoicePartRequest })))
+const JoinChoir         = lazy(() => import('@/pages/JoinChoir').then(m => ({ default: m.JoinChoir })))
 
-// Messaging (Phase 7)
-import { MessagesLayout } from '@/pages/messages/MessagesLayout'
-import { ChannelView } from '@/pages/messages/ChannelView'
+const SongLibrary       = lazy(() => import('@/pages/library/SongLibrary').then(m => ({ default: m.SongLibrary })))
+const SongLibraryDetail = lazy(() => import('@/pages/library/SongLibraryDetail').then(m => ({ default: m.SongLibraryDetail })))
+const AddCustomSong     = lazy(() => import('@/pages/library/AddCustomSong').then(m => ({ default: m.AddCustomSong })))
 
-// Roster (Phase 7)
-import { ServiceRoster } from '@/pages/services/ServiceRoster'
+const AttendanceTracker = lazy(() => import('@/pages/attendance/AttendanceTracker').then(m => ({ default: m.AttendanceTracker })))
+const MyAttendance      = lazy(() => import('@/pages/attendance/MyAttendance').then(m => ({ default: m.MyAttendance })))
+const AnnouncementsFeed = lazy(() => import('@/pages/announcements/AnnouncementsFeed').then(m => ({ default: m.AnnouncementsFeed })))
+const CreateAnnouncement = lazy(() => import('@/pages/announcements/CreateAnnouncement').then(m => ({ default: m.CreateAnnouncement })))
+const NotificationCentre = lazy(() => import('@/pages/notifications/NotificationCentre').then(m => ({ default: m.NotificationCentre })))
 
-// Profile & settings (Phase 6)
-import { Settings } from '@/pages/settings/Settings'
-import { MyProfile } from '@/pages/settings/MyProfile'
-import { ChoirSettings } from '@/pages/settings/ChoirSettings'
-import { NotificationSettings } from '@/pages/settings/NotificationSettings'
-import { DeleteAccount } from '@/pages/settings/DeleteAccount'
-import { PrivacyPolicy, TermsOfService } from '@/pages/settings/LegalPage'
+const MessagesLayout    = lazy(() => import('@/pages/messages/MessagesLayout').then(m => ({ default: m.MessagesLayout })))
+const ChannelView       = lazy(() => import('@/pages/messages/ChannelView').then(m => ({ default: m.ChannelView })))
+
+const Settings          = lazy(() => import('@/pages/settings/Settings').then(m => ({ default: m.Settings })))
+const MyProfile         = lazy(() => import('@/pages/settings/MyProfile').then(m => ({ default: m.MyProfile })))
+const ChoirSettings     = lazy(() => import('@/pages/settings/ChoirSettings').then(m => ({ default: m.ChoirSettings })))
+const NotificationSettings = lazy(() => import('@/pages/settings/NotificationSettings').then(m => ({ default: m.NotificationSettings })))
+const DeleteAccount     = lazy(() => import('@/pages/settings/DeleteAccount').then(m => ({ default: m.DeleteAccount })))
+const PrivacyPolicy     = lazy(() => import('@/pages/settings/LegalPage').then(m => ({ default: m.PrivacyPolicy })))
+const TermsOfService    = lazy(() => import('@/pages/settings/LegalPage').then(m => ({ default: m.TermsOfService })))
 
 /** Route guard — redirects unauthenticated users to sign-in */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -99,6 +94,11 @@ function FullScreenLoader() {
   )
 }
 
+// Wrap lazy routes so the full-screen loader shows during chunk fetch
+function S({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<FullScreenLoader />}>{children}</Suspense>
+}
+
 export function App() {
   const { firebaseUser, harmonicUser, loading } = useAuth()
 
@@ -115,340 +115,72 @@ export function App() {
             : <SignIn />
         }
       />
-
       <Route
         path="/sign-up"
         element={
           firebaseUser && harmonicUser?.onboardingComplete
             ? <Navigate to="/dashboard" replace />
-            : <SignUp />
+            : <S><SignUp /></S>
         }
       />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/forgot-password" element={<S><ForgotPassword /></S>} />
+      <Route path="/verify-email" element={<S><VerifyEmail /></S>} />
 
       {/* Onboarding */}
-      <Route
-        path="/onboarding/role"
-        element={
-          <RequireAuth>
-            <RoleSelection />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/onboarding/choir"
-        element={
-          <RequireAuth>
-            <CreateOrJoinChoir />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/onboarding/voice-part"
-        element={
-          <RequireAuth>
-            <VoicePart />
-          </RequireAuth>
-        }
-      />
+      <Route path="/onboarding/role" element={<RequireAuth><S><RoleSelection /></S></RequireAuth>} />
+      <Route path="/onboarding/choir" element={<RequireAuth><S><CreateOrJoinChoir /></S></RequireAuth>} />
+      <Route path="/onboarding/voice-part" element={<RequireAuth><S><VoicePart /></S></RequireAuth>} />
 
-      {/* App — all require auth + completed onboarding */}
-      <Route
-        path="/dashboard"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <Dashboard />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/services"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <ServicesList />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/services/new"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <ServiceForm />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/services/:serviceId/edit"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <ServiceForm />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/services/:serviceId/setlist"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <SetListBuilder />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/services/:serviceId/songs/:songId"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <SongDetail />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/services/:serviceId/availability"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <MarkAvailability />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/availability"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <AvailabilityOverview />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/services/:serviceId"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <SetListDetail />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/library"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <SongLibrary />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/library/add"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <AddCustomSong />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/library/:songId"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <SongLibraryDetail />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
+      {/* App */}
+      <Route path="/dashboard" element={<RequireAuth><RequireOnboarding><S><Dashboard /></S></RequireOnboarding></RequireAuth>} />
+
+      <Route path="/services" element={<RequireAuth><RequireOnboarding><S><ServicesList /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/services/new" element={<RequireAuth><RequireOnboarding><S><ServiceForm /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/services/:serviceId/edit" element={<RequireAuth><RequireOnboarding><S><ServiceForm /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/services/:serviceId/setlist" element={<RequireAuth><RequireOnboarding><S><SetListBuilder /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/services/:serviceId/songs/:songId" element={<RequireAuth><RequireOnboarding><S><SongDetail /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/services/:serviceId/availability" element={<RequireAuth><RequireOnboarding><S><MarkAvailability /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/services/:serviceId/roster" element={<RequireAuth><RequireOnboarding><S><ServiceRoster /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/services/:serviceId" element={<RequireAuth><RequireOnboarding><S><SetListDetail /></S></RequireOnboarding></RequireAuth>} />
+
+      <Route path="/availability" element={<RequireAuth><RequireOnboarding><S><AvailabilityOverview /></S></RequireOnboarding></RequireAuth>} />
+
+      <Route path="/library" element={<RequireAuth><RequireOnboarding><S><SongLibrary /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/library/add" element={<RequireAuth><RequireOnboarding><S><AddCustomSong /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/library/:songId" element={<RequireAuth><RequireOnboarding><S><SongLibraryDetail /></S></RequireOnboarding></RequireAuth>} />
+
+      <Route path="/members" element={<RequireAuth><RequireOnboarding><S><MembersDirectory /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/members/invite" element={<RequireAuth><RequireOnboarding><S><InviteMembers /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/members/:uid" element={<RequireAuth><RequireOnboarding><S><MemberProfile /></S></RequireOnboarding></RequireAuth>} />
+
+      <Route path="/announcements" element={<RequireAuth><RequireOnboarding><S><AnnouncementsFeed /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/announcements/new" element={<RequireAuth><RequireOnboarding><S><CreateAnnouncement /></S></RequireOnboarding></RequireAuth>} />
+
+      <Route path="/notifications" element={<RequireAuth><RequireOnboarding><S><NotificationCentre /></S></RequireOnboarding></RequireAuth>} />
+
+      <Route path="/attendance" element={<RequireAuth><RequireOnboarding><S><AttendanceTracker /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/my-attendance" element={<RequireAuth><RequireOnboarding><S><MyAttendance /></S></RequireOnboarding></RequireAuth>} />
+
       {/* Messages */}
       <Route
         path="/messages"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <MessagesLayout />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
+        element={<RequireAuth><RequireOnboarding><S><MessagesLayout /></S></RequireOnboarding></RequireAuth>}
       >
-        <Route path=":channelId" element={<ChannelView />} />
+        <Route path=":channelId" element={<S><ChannelView /></S>} />
       </Route>
 
-      {/* Roster */}
-      <Route
-        path="/services/:serviceId/roster"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <ServiceRoster />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
+      <Route path="/settings" element={<RequireAuth><RequireOnboarding><S><Settings /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/settings/choir" element={<RequireAuth><RequireOnboarding><S><ChoirSettings /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/settings/notifications" element={<RequireAuth><RequireOnboarding><S><NotificationSettings /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/settings/delete" element={<RequireAuth><RequireOnboarding><S><DeleteAccount /></S></RequireOnboarding></RequireAuth>} />
 
-      <Route
-        path="/members"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <MembersDirectory />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/members/invite"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <InviteMembers />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/members/:uid"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <MemberProfile />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/announcements"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <AnnouncementsFeed />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/announcements/new"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <CreateAnnouncement />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/notifications"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <NotificationCentre />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/attendance"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <AttendanceTracker />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/my-attendance"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <MyAttendance />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/settings"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <Settings />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/settings/choir"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <ChoirSettings />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/settings/notifications"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <NotificationSettings />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/settings/delete"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <DeleteAccount />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
+      <Route path="/join/:code" element={<S><JoinChoir /></S>} />
 
-      {/* Invite link entry point */}
-      <Route path="/join/:code" element={<JoinChoir />} />
+      <Route path="/profile" element={<RequireAuth><RequireOnboarding><S><MyProfile /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/profile/voice-part" element={<RequireAuth><RequireOnboarding><S><VoicePartRequest /></S></RequireOnboarding></RequireAuth>} />
 
-      {/* Profile */}
-      <Route
-        path="/profile"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <MyProfile />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/profile/voice-part"
-        element={
-          <RequireAuth>
-            <RequireOnboarding>
-              <VoicePartRequest />
-            </RequireOnboarding>
-          </RequireAuth>
-        }
-      />
-
-      {/* Static (public) */}
-      <Route path="/privacy" element={<PrivacyPolicy />} />
-      <Route path="/terms" element={<TermsOfService />} />
+      <Route path="/privacy" element={<S><PrivacyPolicy /></S>} />
+      <Route path="/terms" element={<S><TermsOfService /></S>} />
 
       {/* Root redirect */}
       <Route
@@ -462,7 +194,6 @@ export function App() {
         }
       />
 
-      {/* 404 */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

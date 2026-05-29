@@ -22,6 +22,27 @@ service cloud.firestore {
       return isMemberOf(choirId) && getUserData().role == 'director';
     }
 
+    // Returns true when the signed-in user may see a channel based on its
+    // visibleTo field. Directors always see everything.
+    function canSeeChannel(channelData) {
+      let vis = channelData.visibleTo;
+      let role = getUserData().role;
+      let part = getUserData().voicePart;
+      let vocalistParts = ['soprano', 'alto', 'tenor', 'bass', 'unclassified'];
+      let instrumentParts = ['keys', 'guitar', 'bass_guitar', 'drums', 'other_instrument'];
+      return vis == 'all'
+        || role == 'director'
+        || (vis == 'vocalists' && vocalistParts.hasAny([part]))
+        || (vis == 'instrumentalists' && instrumentParts.hasAny([part]));
+    }
+
+    // Returns true when the signed-in user may post to a channel (directors
+    // can always post; non-directors are blocked if directorOnly is true).
+    function canPostToChannel(channelData) {
+      return canSeeChannel(channelData)
+        && (!channelData.directorOnly || getUserData().role == 'director');
+    }
+
     function isChoirOwner(choirId) {
       return isSignedIn() &&
         get(/databases/$(database)/documents/choirs/$(choirId)).data.ownerId == request.auth.uid;
@@ -104,17 +125,23 @@ service cloud.firestore {
         allow update: if isDirectorOf(choirId);
       }
 
-      // Channels — all choir members read; Directors create/delete.
+      // Channels — visibility and posting respect visibleTo + directorOnly flags.
       match /channels/{channelId} {
-        allow read:  if isMemberOf(choirId) || isChoirOwner(choirId);
+        allow read:   if (isMemberOf(choirId) || isChoirOwner(choirId))
+                      && (isChoirOwner(choirId) || canSeeChannel(resource.data));
         allow create: if isDirectorOf(choirId) || isChoirOwner(choirId);
         allow update: if isDirectorOf(choirId) || isChoirOwner(choirId);
         allow delete: if isDirectorOf(choirId) || isChoirOwner(choirId);
 
-        // Messages — choir members can read; posting depends on directorOnly flag.
+        // Messages — visibility mirrors channel; authorId must match caller; directorOnly enforced.
         match /messages/{messageId} {
-          allow read:   if isMemberOf(choirId) || isChoirOwner(choirId);
-          allow create: if isMemberOf(choirId) || isChoirOwner(choirId);
+          allow read:   if (isMemberOf(choirId) || isChoirOwner(choirId))
+                        && (isChoirOwner(choirId) || canSeeChannel(
+                              get(/databases/$(database)/documents/choirs/$(choirId)/channels/$(channelId)).data));
+          allow create: if (isMemberOf(choirId) || isChoirOwner(choirId))
+                        && request.resource.data.authorId == request.auth.uid
+                        && (isChoirOwner(choirId) || canPostToChannel(
+                              get(/databases/$(database)/documents/choirs/$(choirId)/channels/$(channelId)).data));
           allow update: if (isMemberOf(choirId) && resource.data.authorId == request.auth.uid)
                         || isDirectorOf(choirId) || isChoirOwner(choirId);
           allow delete: if (isMemberOf(choirId) && resource.data.authorId == request.auth.uid)
