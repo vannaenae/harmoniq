@@ -101,6 +101,7 @@ export function SignIn() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 autoComplete="current-password"
+                className="pr-11"
                 required
               />
               <button

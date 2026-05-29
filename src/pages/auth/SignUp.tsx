@@ -124,6 +124,7 @@ export function SignUp() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 autoComplete="new-password"
+                className="pr-11"
                 required
               />
               <button
