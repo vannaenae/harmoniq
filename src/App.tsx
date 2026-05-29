@@ -13,7 +13,14 @@ import { VoicePart } from '@/pages/onboarding/VoicePart'
 // Dashboard
 import { Dashboard } from '@/pages/dashboard/Dashboard'
 
-// Stub pages (Phase 2+)
+// Services & set lists (Phase 2)
+import { ServicesList } from '@/pages/services/ServicesList'
+import { ServiceForm } from '@/pages/services/ServiceForm'
+import { SetListBuilder } from '@/pages/services/SetListBuilder'
+import { SetListDetail } from '@/pages/services/SetListDetail'
+import { SongDetail } from '@/pages/services/SongDetail'
+
+// Stub pages (Phase 3+)
 import { StubPage } from '@/pages/StubPage'
 
 /** Route guard — redirects unauthenticated users to sign-in */
@@ -111,11 +118,71 @@ export function App() {
         }
       />
       <Route
-        path="/services/*"
+        path="/services"
         element={
           <RequireAuth>
             <RequireOnboarding>
-              <StubPage title="Services" description="Your set lists and service schedule will live here." />
+              <ServicesList />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/services/new"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <ServiceForm />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/services/:serviceId/edit"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <ServiceForm />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/services/:serviceId/setlist"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <SetListBuilder />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/services/:serviceId/songs/:songId"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <SongDetail />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/services/:serviceId/availability"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <StubPage title="Mark availability" description="Tell your director if you can make it. Coming in the next phase." />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/services/:serviceId"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <SetListDetail />
             </RequireOnboarding>
           </RequireAuth>
         }
