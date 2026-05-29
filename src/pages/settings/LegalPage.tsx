@@ -44,7 +44,7 @@ export function PrivacyPolicy() {
     <LegalPage
       title="Privacy Policy"
       updated="May 2026"
-      intro="Harmonic is a choir and worship team management app, a SoulSPCE project. This policy explains what we collect and how we use it."
+      intro="Harmoniq is a choir and worship team management app, a SoulSPCE project. This policy explains what we collect and how we use it."
       sections={[
         { heading: 'What we collect', body: 'Your Google account name, email, and profile photo when you sign in; the choir, availability, attendance, and song data you create in the app.' },
         { heading: 'How we use it', body: 'To run your choir workspace — showing services, availability, members, and announcements to the right people. We never sell your data.' },
@@ -61,12 +61,12 @@ export function TermsOfService() {
     <LegalPage
       title="Terms of Service"
       updated="May 2026"
-      intro="By using Harmonic you agree to these terms. Harmonic is provided to help worship teams coordinate."
+      intro="By using Harmoniq you agree to these terms. Harmoniq is provided to help worship teams coordinate."
       sections={[
-        { heading: 'Using Harmonic', body: 'You must sign in with a valid Google account. You are responsible for activity under your account and for the content you post to your choir.' },
+        { heading: 'Using Harmoniq', body: 'You must sign in with a valid Google account. You are responsible for activity under your account and for the content you post to your choir.' },
         { heading: 'Acceptable use', body: 'Be respectful. Do not upload unlawful content or infringe copyright. Lyrics are linked out to Genius; we never host full lyrics.' },
         { heading: 'Content ownership', body: 'You keep ownership of what you create. You grant your choir access to the content you share within it.' },
-        { heading: 'Availability', body: 'We aim to keep Harmonic running smoothly but provide it "as is" without warranties. Features may change as the app evolves.' },
+        { heading: 'Availability', body: 'We aim to keep Harmoniq running smoothly but provide it "as is" without warranties. Features may change as the app evolves.' },
         { heading: 'Termination', body: 'You can delete your account at any time. We may suspend accounts that violate these terms.' },
       ]}
     />

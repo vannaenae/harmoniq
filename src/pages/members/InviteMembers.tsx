@@ -29,7 +29,7 @@ export function InviteMembers() {
 
   const handleWhatsApp = () => {
     const text = encodeURIComponent(
-      `Join our choir on Harmonic! Tap to join ${choir.name}:\n${inviteLink}`,
+      `Join our choir on Harmoniq! Tap to join ${choir.name}:\n${inviteLink}`,
     )
     window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener')
   }

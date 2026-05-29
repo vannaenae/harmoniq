@@ -1,5 +1,5 @@
 /**
- * Harmonic Cloud Functions — all third-party API calls run here so that
+ * Harmoniq Cloud Functions — all third-party API calls run here so that
  * SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET / GENIUS_TOKEN never reach the client.
  *
  * Configure secrets before deploy:
