@@ -27,6 +27,7 @@
     "firebase": "^12.12.1",
     "lucide-react": "^0.475.0",
     "nanoid": "^5.1.11",
+    "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.0",

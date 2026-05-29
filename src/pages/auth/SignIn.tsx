@@ -24,8 +24,13 @@ export function SignIn() {
     }
   }
 
-  // If already signed in, redirect
+  // If already signed in, honour a pending invite first, then route normally
   if (harmonicUser) {
+    const pendingInvite = localStorage.getItem('harmonic_pending_invite')
+    if (pendingInvite && !harmonicUser.choirId) {
+      navigate(`/join/${pendingInvite}`, { replace: true })
+      return null
+    }
     navigate(harmonicUser.onboardingComplete ? '/dashboard' : '/onboarding/role', { replace: true })
     return null
   }

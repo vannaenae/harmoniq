@@ -20,7 +20,16 @@ import { SetListBuilder } from '@/pages/services/SetListBuilder'
 import { SetListDetail } from '@/pages/services/SetListDetail'
 import { SongDetail } from '@/pages/services/SongDetail'
 
-// Stub pages (Phase 3+)
+// Availability & members (Phase 3)
+import { MarkAvailability } from '@/pages/availability/MarkAvailability'
+import { AvailabilityOverview } from '@/pages/availability/AvailabilityOverview'
+import { MembersDirectory } from '@/pages/members/MembersDirectory'
+import { MemberProfile } from '@/pages/members/MemberProfile'
+import { InviteMembers } from '@/pages/members/InviteMembers'
+import { VoicePartRequest } from '@/pages/members/VoicePartRequest'
+import { JoinChoir } from '@/pages/JoinChoir'
+
+// Stub pages (Phase 4+)
 import { StubPage } from '@/pages/StubPage'
 
 /** Route guard — redirects unauthenticated users to sign-in */
@@ -172,7 +181,17 @@ export function App() {
         element={
           <RequireAuth>
             <RequireOnboarding>
-              <StubPage title="Mark availability" description="Tell your director if you can make it. Coming in the next phase." />
+              <MarkAvailability />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/availability"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <AvailabilityOverview />
             </RequireOnboarding>
           </RequireAuth>
         }
@@ -198,11 +217,31 @@ export function App() {
         }
       />
       <Route
-        path="/members/*"
+        path="/members"
         element={
           <RequireAuth>
             <RequireOnboarding>
-              <StubPage title="Members" description="Your choir members and voice parts." />
+              <MembersDirectory />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/members/invite"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <InviteMembers />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/members/:uid"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <MemberProfile />
             </RequireOnboarding>
           </RequireAuth>
         }
@@ -233,6 +272,31 @@ export function App() {
           <RequireAuth>
             <RequireOnboarding>
               <StubPage title="Settings" description="Profile, choir settings, and preferences." />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+
+      {/* Invite link entry point */}
+      <Route path="/join/:code" element={<JoinChoir />} />
+
+      {/* Profile (Phase 6 builds the full screen; voice-part request is live now) */}
+      <Route
+        path="/profile"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <StubPage title="My Profile" description="Your profile and preferences. Coming in the next phase." />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/profile/voice-part"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <VoicePartRequest />
             </RequireOnboarding>
           </RequireAuth>
         }

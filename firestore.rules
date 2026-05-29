@@ -79,6 +79,24 @@ service cloud.firestore {
         allow read:  if isMemberOf(choirId) || isChoirOwner(choirId);
         allow write: if isDirectorOf(choirId) || isChoirOwner(choirId);
       }
+
+      // In-app notifications — any member may create one (e.g. substitution,
+      // voice-part request); recipients read/update their own.
+      match /notifications/{notificationId} {
+        allow read:   if isMemberOf(choirId) &&
+                         (resource.data.userId == request.auth.uid || isDirectorOf(choirId));
+        allow create: if isMemberOf(choirId);
+        allow update: if isMemberOf(choirId) && resource.data.userId == request.auth.uid;
+        allow delete: if isDirectorOf(choirId);
+      }
+
+      // Voice-part change requests — members create their own; Directors read/update.
+      match /voicePartRequests/{requestId} {
+        allow read:   if isDirectorOf(choirId) ||
+                         (isMemberOf(choirId) && resource.data.uid == request.auth.uid);
+        allow create: if isMemberOf(choirId) && request.resource.data.uid == request.auth.uid;
+        allow update: if isDirectorOf(choirId);
+      }
     }
 
     // ── Global song library (read-only for authenticated users) ───────────────

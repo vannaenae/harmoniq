@@ -254,9 +254,14 @@ function NextServiceCard({ service, isDirector }: { service: Service; isDirector
 
       <div className="mt-4 pt-4 border-t border-harmonic-border flex gap-2">
         {isDirector ? (
-          <Link to={`/services/${service.id}/setlist`}>
-            <Button variant="primary" size="sm">Open set list</Button>
-          </Link>
+          <>
+            <Link to={`/services/${service.id}/setlist`}>
+              <Button variant="primary" size="sm">Open set list</Button>
+            </Link>
+            <Link to="/availability">
+              <Button variant="outlined" size="sm">Availability</Button>
+            </Link>
+          </>
         ) : (
           <>
             <Link to={`/services/${service.id}/availability`}>
