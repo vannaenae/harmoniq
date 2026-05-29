@@ -90,8 +90,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionStorage.setItem('harmonic_google_token', credential.accessToken)
     }
     await createUserDoc(user)
-    // Force-fetch after doc creation — onAuthStateChanged may have already fired
-    // before the doc existed, leaving harmonicUser null and causing a sign-in loop.
+    // onAuthStateChanged may fire before createUserDoc finishes, leaving
+    // harmonicUser null and causing a sign-in loop. Force-set it here.
     const u = await fetchHarmonicUser(user.uid)
     setFirebaseUser(user)
     setHarmonicUser(u)
