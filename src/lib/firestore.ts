@@ -36,6 +36,8 @@ export async function listServices(choirId: string): Promise<Service[]> {
       ...data,
       id: d.id,
       date: toDate(data.date),
+      availabilityDeadline: data.availabilityDeadline ? toDate(data.availabilityDeadline) : undefined,
+      setListDeadline: data.setListDeadline ? toDate(data.setListDeadline) : undefined,
       createdAt: toDate(data.createdAt),
       updatedAt: toDate(data.updatedAt),
     } as Service
@@ -50,6 +52,8 @@ export async function getService(choirId: string, serviceId: string): Promise<Se
     ...data,
     id: snap.id,
     date: toDate(data.date),
+    availabilityDeadline: data.availabilityDeadline ? toDate(data.availabilityDeadline) : undefined,
+    setListDeadline: data.setListDeadline ? toDate(data.setListDeadline) : undefined,
     createdAt: toDate(data.createdAt),
     updatedAt: toDate(data.updatedAt),
   } as Service
