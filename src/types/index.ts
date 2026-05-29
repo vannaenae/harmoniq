@@ -2,7 +2,9 @@
 
 export type UserRole = 'director' | 'member'
 
-export type VoicePart = 'soprano' | 'alto' | 'tenor' | 'bass' | 'unclassified'
+export type VoicePart =
+  | 'soprano' | 'alto' | 'tenor' | 'bass' | 'unclassified'
+  | 'keys' | 'guitar' | 'bass_guitar' | 'drums' | 'other_instrument'
 
 export interface NotificationPrefs {
   serviceUpdates: boolean
@@ -72,15 +74,15 @@ export interface Song {
   artist?: string
   genre?: SongGenre
   defaultKey?: string
-  spotifyTrackId?: string    /* API_POINT: Spotify — cached track ID */
-  spotifyPreviewUrl?: string /* API_POINT: Spotify — 30s preview */
-  albumArtUrl?: string       /* API_POINT: Spotify — artwork */
-  geniusUrl?: string         /* API_POINT: Genius — lyrics page URL */
+  spotifyTrackId?: string
+  spotifyPreviewUrl?: string
+  albumArtUrl?: string
+  geniusUrl?: string
   lyricsUrl?: string
   notes?: string
-  sheetMusicUrl?: string      // chord chart PDF (Firebase Storage)
+  sheetMusicUrl?: string
   isCustom: boolean
-  choirId?: string           // set for choir-private custom songs
+  choirId?: string
   addedBy: string
   createdAt: Date
   updatedAt: Date
@@ -90,17 +92,38 @@ export interface Song {
 
 export type ServiceStatus = 'draft' | 'published'
 
+export type ServiceType =
+  | 'first_worship' | 'second_worship' | 'offering_hymn'
+  | 'thanksgiving' | 'communion' | 'evening_service'
+  | 'special_service' | 'rehearsal' | 'other'
+
+export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
+  first_worship:    'First Worship',
+  second_worship:   'Second Worship',
+  offering_hymn:    'Offering Hymn',
+  thanksgiving:     'Thanksgiving',
+  communion:        'Communion',
+  evening_service:  'Evening Service',
+  special_service:  'Special Service',
+  rehearsal:        'Rehearsal',
+  other:            'Other',
+}
+
 export interface Service {
   id: string
   choirId: string
   title: string
+  serviceType?: ServiceType
   date: Date
   time?: string
   theme?: string
   scriptureRef?: string
   status: ServiceStatus
-  calendarEventId?: string   /* API_POINT: Google Calendar — event ID */
-  calendarLink?: string      /* API_POINT: Google Calendar — shareable link */
+  availabilityDeadline?: Date
+  setListDeadline?: Date
+  rosteredMemberIds?: string[]
+  calendarEventId?: string
+  calendarLink?: string
   createdBy: string
   createdAt: Date
   updatedAt: Date
@@ -129,6 +152,38 @@ export interface Availability {
   status: AvailabilityStatus
   note?: string
   updatedAt: Date
+}
+
+// ── Messaging ─────────────────────────────────────────────────────────────────
+
+export type ChannelVisibility = 'all' | 'vocalists' | 'instrumentalists' | 'directors'
+
+export interface Channel {
+  id: string
+  choirId: string
+  name: string
+  description?: string
+  category: 'general' | 'sections' | 'planning' | 'announcements'
+  visibleTo: ChannelVisibility
+  directorOnly: boolean
+  order: number
+  createdBy: string
+  createdAt: Date
+  lastMessageAt?: Date
+  lastMessagePreview?: string
+}
+
+export interface Message {
+  id: string
+  channelId: string
+  text: string
+  authorId: string
+  authorName: string
+  authorPhotoUrl?: string
+  createdAt: Date
+  editedAt?: Date
+  pinned: boolean
+  reactions: Record<string, string[]>
 }
 
 // ── Announcement ─────────────────────────────────────────────────────────────

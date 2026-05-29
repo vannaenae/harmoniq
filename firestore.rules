@@ -103,6 +103,32 @@ service cloud.firestore {
         allow create: if isMemberOf(choirId) && request.resource.data.uid == request.auth.uid;
         allow update: if isDirectorOf(choirId);
       }
+
+      // Channels — all choir members read; Directors create/delete.
+      match /channels/{channelId} {
+        allow read:  if isMemberOf(choirId) || isChoirOwner(choirId);
+        allow create: if isDirectorOf(choirId) || isChoirOwner(choirId);
+        allow update: if isDirectorOf(choirId) || isChoirOwner(choirId);
+        allow delete: if isDirectorOf(choirId) || isChoirOwner(choirId);
+
+        // Messages — choir members can read; posting depends on directorOnly flag.
+        match /messages/{messageId} {
+          allow read:   if isMemberOf(choirId) || isChoirOwner(choirId);
+          allow create: if isMemberOf(choirId) || isChoirOwner(choirId);
+          allow update: if (isMemberOf(choirId) && resource.data.authorId == request.auth.uid)
+                        || isDirectorOf(choirId) || isChoirOwner(choirId);
+          allow delete: if (isMemberOf(choirId) && resource.data.authorId == request.auth.uid)
+                        || isDirectorOf(choirId) || isChoirOwner(choirId);
+        }
+      }
+
+      // Practice notes — each member owns their own notes.
+      match /practiceNotes/{noteId} {
+        allow read:   if isMemberOf(choirId) &&
+                         noteId.matches(request.auth.uid + '_.*');
+        allow write:  if isMemberOf(choirId) &&
+                         noteId.matches(request.auth.uid + '_.*');
+      }
     }
 
     // ── Global song library (read-only for authenticated users) ───────────────

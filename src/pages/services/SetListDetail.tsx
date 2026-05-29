@@ -50,9 +50,14 @@ export function SetListDetail() {
           back="/services"
           actions={
             isDirector ? (
-              <Link to={`/services/${serviceId}/setlist`}>
-                <Button variant="outlined" size="sm">Edit</Button>
-              </Link>
+              <div className="flex gap-2">
+                <Link to={`/services/${serviceId}/roster`}>
+                  <Button variant="outlined" size="sm">Roster</Button>
+                </Link>
+                <Link to={`/services/${serviceId}/setlist`}>
+                  <Button variant="outlined" size="sm">Edit</Button>
+                </Link>
+              </div>
             ) : undefined
           }
         />

@@ -4,8 +4,9 @@ import {
   LayoutDashboard,
   CalendarDays,
   Music2,
-  Users,
+  MessageSquare,
   MoreHorizontal,
+  Users,
   Megaphone,
   Bell,
   Settings,
@@ -17,11 +18,12 @@ import { useChoir } from '@/contexts/ChoirContext'
 const primaryItems = [
   { to: '/dashboard', label: 'Home',     icon: LayoutDashboard },
   { to: '/services',  label: 'Services', icon: CalendarDays },
+  { to: '/messages',  label: 'Messages', icon: MessageSquare },
   { to: '/library',   label: 'Library',  icon: Music2 },
-  { to: '/members',   label: 'Members',  icon: Users },
 ]
 
 const moreItems = [
+  { to: '/members',       label: 'Members',       icon: Users },
   { to: '/announcements', label: 'Announcements', icon: Megaphone },
   { to: '/notifications', label: 'Notifications', icon: Bell },
   { to: '/settings',      label: 'Settings',      icon: Settings },

@@ -41,6 +41,13 @@ import { AnnouncementsFeed } from '@/pages/announcements/AnnouncementsFeed'
 import { CreateAnnouncement } from '@/pages/announcements/CreateAnnouncement'
 import { NotificationCentre } from '@/pages/notifications/NotificationCentre'
 
+// Messaging (Phase 7)
+import { MessagesLayout } from '@/pages/messages/MessagesLayout'
+import { ChannelView } from '@/pages/messages/ChannelView'
+
+// Roster (Phase 7)
+import { ServiceRoster } from '@/pages/services/ServiceRoster'
+
 // Profile & settings (Phase 6)
 import { Settings } from '@/pages/settings/Settings'
 import { MyProfile } from '@/pages/settings/MyProfile'
@@ -253,6 +260,32 @@ export function App() {
           </RequireAuth>
         }
       />
+      {/* Messages */}
+      <Route
+        path="/messages"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <MessagesLayout />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      >
+        <Route path=":channelId" element={<ChannelView />} />
+      </Route>
+
+      {/* Roster */}
+      <Route
+        path="/services/:serviceId/roster"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <ServiceRoster />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+
       <Route
         path="/members"
         element={

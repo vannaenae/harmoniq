@@ -6,9 +6,10 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 
 interface AppLayoutProps {
   children: ReactNode
+  hidePadding?: boolean
 }
 
-export function AppLayout({ children }: AppLayoutProps) {
+export function AppLayout({ children, hidePadding }: AppLayoutProps) {
   const online = useOnlineStatus()
 
   return (
@@ -23,7 +24,10 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       <Sidebar />
 
-      <main className="md:ml-64 pb-20 md:pb-0 min-h-screen" id="main-content">
+      <main
+        className={`md:ml-64 ${hidePadding ? '' : 'pb-20 md:pb-0'} min-h-screen`}
+        id="main-content"
+      >
         {/* Offline banner */}
         {!online && (
           <div
