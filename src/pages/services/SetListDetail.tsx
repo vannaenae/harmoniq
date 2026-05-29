@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { Music2, Play, ChevronRight, CalendarClock } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
@@ -14,6 +14,7 @@ import type { Service, SetListItem } from '@/types'
 
 export function SetListDetail() {
   const { serviceId } = useParams<{ serviceId: string }>()
+  const navigate = useNavigate()
   const { choir, members, isDirector } = useChoir()
   const [service, setService] = useState<Service | null>(null)
   const [items, setItems] = useState<SetListItem[]>([])
@@ -119,10 +120,10 @@ export function SetListDetail() {
                           </p>
                         )}
                       </div>
-                      {/* API_POINT: Spotify — 30s preview play (Phase 4) */}
+                      {/* Spotify preview lives on the song detail (embed player) */}
                       <button
-                        onClick={(e) => { e.preventDefault(); console.info('[stub] Spotify preview', item.title) }}
-                        aria-label={`Preview ${item.title}`}
+                        onClick={(e) => { e.preventDefault(); navigate(`/services/${serviceId}/songs/${item.songId}`) }}
+                        aria-label={`Preview ${item.title} on Spotify`}
                         className="w-9 h-9 rounded-full bg-harmonic-surface flex items-center justify-center flex-shrink-0 hover:bg-harmonic-border transition-colors"
                       >
                         <Play size={15} className="text-harmonic-primary ml-0.5" aria-hidden="true" />

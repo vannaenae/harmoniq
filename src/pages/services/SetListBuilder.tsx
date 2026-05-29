@@ -29,7 +29,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useChoir } from '@/contexts/ChoirContext'
 import { getService, getSetList, saveSetList } from '@/lib/firestore'
-import { searchMockSongs } from '@/lib/mockSongs'
+import { listSongs } from '@/lib/songs'
 import { generateId } from '@/lib/utils'
 import type { SetListItem, Service, Song } from '@/types'
 
@@ -40,6 +40,7 @@ export function SetListBuilder() {
 
   const [service, setService] = useState<Service | null>(null)
   const [items, setItems] = useState<SetListItem[]>([])
+  const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -53,11 +54,12 @@ export function SetListBuilder() {
     if (!choir || !serviceId) return
     let active = true
     setLoading(true)
-    Promise.all([getService(choir.id, serviceId), getSetList(choir.id, serviceId)])
-      .then(([svc, list]) => {
+    Promise.all([getService(choir.id, serviceId), getSetList(choir.id, serviceId), listSongs(choir.id)])
+      .then(([svc, list, lib]) => {
         if (!active) return
         setService(svc)
         setItems(list)
+        setSongs(lib)
       })
       .catch(err => console.error('Load set list error:', err))
       .finally(() => { if (active) setLoading(false) })
@@ -195,6 +197,7 @@ export function SetListBuilder() {
       <AddSongModal
         open={searchOpen}
         onOpenChange={setSearchOpen}
+        songs={songs}
         onPick={addSong}
         onCustom={addCustomSong}
       />
@@ -286,11 +289,13 @@ function SortableSongRow({
 function AddSongModal({
   open,
   onOpenChange,
+  songs,
   onPick,
   onCustom,
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
+  songs: Song[]
   onPick: (song: Song) => void
   onCustom: (title: string, artist: string) => void
 }) {
@@ -299,7 +304,10 @@ function AddSongModal({
   const [customTitle, setCustomTitle] = useState('')
   const [customArtist, setCustomArtist] = useState('')
 
-  const results = searchMockSongs(q)
+  const term = q.trim().toLowerCase()
+  const results = term
+    ? songs.filter(s => s.title.toLowerCase().includes(term) || (s.artist ?? '').toLowerCase().includes(term))
+    : songs
 
   return (
     <Modal

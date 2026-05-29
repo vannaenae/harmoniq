@@ -29,7 +29,12 @@ import { InviteMembers } from '@/pages/members/InviteMembers'
 import { VoicePartRequest } from '@/pages/members/VoicePartRequest'
 import { JoinChoir } from '@/pages/JoinChoir'
 
-// Stub pages (Phase 4+)
+// Song library (Phase 4)
+import { SongLibrary } from '@/pages/library/SongLibrary'
+import { SongLibraryDetail } from '@/pages/library/SongLibraryDetail'
+import { AddCustomSong } from '@/pages/library/AddCustomSong'
+
+// Stub pages (Phase 5+)
 import { StubPage } from '@/pages/StubPage'
 
 /** Route guard — redirects unauthenticated users to sign-in */
@@ -207,11 +212,31 @@ export function App() {
         }
       />
       <Route
-        path="/library/*"
+        path="/library"
         element={
           <RequireAuth>
             <RequireOnboarding>
-              <StubPage title="Song Library" description="Browse, search, and add songs to your choir's library." />
+              <SongLibrary />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/library/add"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <AddCustomSong />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/library/:songId"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <SongLibraryDetail />
             </RequireOnboarding>
           </RequireAuth>
         }

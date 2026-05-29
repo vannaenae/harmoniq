@@ -61,6 +61,7 @@ export interface Song {
   geniusUrl?: string         /* API_POINT: Genius — lyrics page URL */
   lyricsUrl?: string
   notes?: string
+  sheetMusicUrl?: string      // chord chart PDF (Firebase Storage)
   isCustom: boolean
   choirId?: string           // set for choir-private custom songs
   addedBy: string

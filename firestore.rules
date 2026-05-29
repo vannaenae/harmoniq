@@ -104,5 +104,17 @@ service cloud.firestore {
       allow read:  if isSignedIn();
       allow write: if false; // seeded via admin SDK only
     }
+
+    // ── Integration caches (Spotify / Genius) ─────────────────────────────────
+    // Cloud Functions own these; clients may read and mirror cache entries to
+    // avoid repeat lookups. No secrets are ever stored here.
+    match /spotifyCache/{key} {
+      allow read:   if isSignedIn();
+      allow create, update: if isSignedIn();
+    }
+    match /geniusCache/{key} {
+      allow read:   if isSignedIn();
+      allow create, update: if isSignedIn();
+    }
   }
 }

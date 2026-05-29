@@ -1,0 +1,12 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Choir assets (logos, chord charts) — any signed-in user may read;
+    // writes restricted to signed-in users (tighten per-choir as needed).
+    match /choirs/{choirId}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024; // 10MB cap
+    }
+  }
+}

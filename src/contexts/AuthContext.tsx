@@ -9,6 +9,7 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   signOut as firebaseSignOut,
+  GoogleAuthProvider,
   type User,
 } from 'firebase/auth'
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
@@ -61,6 +62,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     const result = await signInWithPopup(auth, googleProvider)
     const user = result.user
+
+    /* API_POINT: Google Calendar — stash the OAuth access token (calendar scopes)
+       so service publishing can create calendar events this session. */
+    const credential = GoogleAuthProvider.credentialFromResult(result)
+    if (credential?.accessToken) {
+      sessionStorage.setItem('harmonic_google_token', credential.accessToken)
+    }
 
     // Create user doc on first sign-in
     const userRef = doc(db, 'users', user.uid)
