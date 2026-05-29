@@ -4,6 +4,9 @@ import { Skeleton } from '@/components/ui/Skeleton'
 
 // Auth
 import { SignIn } from '@/pages/auth/SignIn'
+import { SignUp } from '@/pages/auth/SignUp'
+import { ForgotPassword } from '@/pages/auth/ForgotPassword'
+import { VerifyEmail } from '@/pages/auth/VerifyEmail'
 
 // Onboarding
 import { RoleSelection } from '@/pages/onboarding/RoleSelection'
@@ -112,6 +115,17 @@ export function App() {
             : <SignIn />
         }
       />
+
+      <Route
+        path="/sign-up"
+        element={
+          firebaseUser && harmonicUser?.onboardingComplete
+            ? <Navigate to="/dashboard" replace />
+            : <SignUp />
+        }
+      />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
 
       {/* Onboarding */}
       <Route
