@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Mail, ArrowLeft, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -70,18 +70,15 @@ export function ForgotPassword() {
               )}
 
               <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
-                <div className="relative">
-                  <Input
-                    type="email"
-                    label="Email address"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    autoComplete="email"
-                    required
-                  />
-                  <Mail size={16} className="absolute left-3 top-[38px] text-harmonic-muted pointer-events-none" aria-hidden="true" />
-                </div>
+                <Input
+                  type="email"
+                  label="Email address"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  autoComplete="email"
+                  required
+                />
 
                 <Button type="submit" variant="primary" fullWidth disabled={loading || !email}>
                   {loading ? 'Sending…' : 'Send reset link'}

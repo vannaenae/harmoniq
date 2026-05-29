@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, User, Mail, Lock } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -97,30 +97,24 @@ export function SignUp() {
           )}
 
           <form onSubmit={handleSignUp} className="flex flex-col gap-4" noValidate>
-            <div className="relative">
-              <Input
-                label="Your name"
-                placeholder="Grace Adeyemi"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                autoComplete="name"
-                required
-              />
-              <User size={16} className="absolute left-3 top-[38px] text-harmonic-muted pointer-events-none" aria-hidden="true" />
-            </div>
+            <Input
+              label="Your name"
+              placeholder="Grace Adeyemi"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              autoComplete="name"
+              required
+            />
 
-            <div className="relative">
-              <Input
-                type="email"
-                label="Email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                autoComplete="email"
-                required
-              />
-              <Mail size={16} className="absolute left-3 top-[38px] text-harmonic-muted pointer-events-none" aria-hidden="true" />
-            </div>
+            <Input
+              type="email"
+              label="Email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              autoComplete="email"
+              required
+            />
 
             <div className="relative">
               <Input
@@ -132,7 +126,6 @@ export function SignUp() {
                 autoComplete="new-password"
                 required
               />
-              <Lock size={16} className="absolute left-3 top-[38px] text-harmonic-muted pointer-events-none" aria-hidden="true" />
               <button
                 type="button"
                 onClick={() => setShowPassword(v => !v)}
@@ -164,7 +157,6 @@ export function SignUp() {
                 autoComplete="new-password"
                 required
               />
-              <Lock size={16} className="absolute left-3 top-[38px] text-harmonic-muted pointer-events-none" aria-hidden="true" />
             </div>
 
             <Button
