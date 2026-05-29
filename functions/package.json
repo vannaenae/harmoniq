@@ -1,0 +1,23 @@
+{
+  "name": "harmonic-functions",
+  "description": "Server-side Cloud Functions for Harmonic — Spotify, Genius, Google Calendar. Tokens stay here, never on the client.",
+  "type": "module",
+  "engines": {
+    "node": "20"
+  },
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions",
+    "seed": "npm run build && node lib/seed.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "private": true
+}

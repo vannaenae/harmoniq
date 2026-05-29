@@ -10,21 +10,18 @@ service cloud.firestore {
       return request.auth.uid == uid;
     }
 
-    function getUser() {
+    function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isMemberOf(choirId) {
-      return isSignedIn() && getUser().choirId == choirId;
+      return isSignedIn() && getUserData().choirId == choirId;
     }
 
-    function isLeaderOf(choirId) {
-      return isMemberOf(choirId) &&
-        (getUser().role == 'owner' || getUser().role == 'leader');
+    function isDirectorOf(choirId) {
+      return isMemberOf(choirId) && getUserData().role == 'director';
     }
 
-    // The user who owns the choir document (used during choir creation
-    // before the user doc has been updated with choirId)
     function isChoirOwner(choirId) {
       return isSignedIn() &&
         get(/databases/$(database)/documents/choirs/$(choirId)).data.ownerId == request.auth.uid;
@@ -35,47 +32,95 @@ service cloud.firestore {
       allow read:   if isSignedIn() && isOwner(uid);
       allow create: if isSignedIn() && isOwner(uid);
       allow update: if isSignedIn() && isOwner(uid);
+      allow delete: if false; // handled by Cloud Function on account deletion
     }
 
     // ── Choirs ────────────────────────────────────────────────────────────────
     match /choirs/{choirId} {
       allow read:   if isMemberOf(choirId) || isChoirOwner(choirId);
       allow create: if isSignedIn();
-      allow update: if isLeaderOf(choirId) || isChoirOwner(choirId);
-      allow delete: if isLeaderOf(choirId) || isChoirOwner(choirId);
+      allow update: if isDirectorOf(choirId) || isChoirOwner(choirId);
+      allow delete: if isChoirOwner(choirId);
 
-      match /setlists/{setListId} {
-        allow read:   if isMemberOf(choirId) || isChoirOwner(choirId);
-        allow write:  if isLeaderOf(choirId) || isChoirOwner(choirId);
-      }
-
-      match /songs/{songId} {
-        allow read:   if isMemberOf(choirId) || isChoirOwner(choirId);
-        allow write:  if isLeaderOf(choirId) || isChoirOwner(choirId);
-      }
-
-      match /announcements/{announcementId} {
-        allow read:   if isMemberOf(choirId) || isChoirOwner(choirId);
-        allow write:  if isLeaderOf(choirId) || isChoirOwner(choirId);
-      }
-
-      match /events/{eventId} {
-        allow read:   if isMemberOf(choirId) || isChoirOwner(choirId);
-        allow write:  if isLeaderOf(choirId) || isChoirOwner(choirId);
-      }
-
-      match /availability/{docId} {
-        allow read:   if isMemberOf(choirId) || isChoirOwner(choirId);
-        allow create: if isMemberOf(choirId) || isChoirOwner(choirId);
-        allow update: if (isMemberOf(choirId) || isChoirOwner(choirId)) &&
-                         resource.data.userId == request.auth.uid;
-      }
-
-      // Members — owner can always write (needed during choir creation)
+      // Members subcollection
       match /members/{memberId} {
-        allow read:   if isMemberOf(choirId) || isChoirOwner(choirId);
-        allow write:  if isLeaderOf(choirId) || isChoirOwner(choirId);
+        allow read:  if isMemberOf(choirId) || isChoirOwner(choirId);
+        allow write: if isDirectorOf(choirId) || isChoirOwner(choirId)
+                     || (isSignedIn() && request.auth.uid == memberId); // joining
       }
+
+      // Services subcollection
+      match /services/{serviceId} {
+        allow read:  if isMemberOf(choirId) || isChoirOwner(choirId);
+        allow write: if isDirectorOf(choirId) || isChoirOwner(choirId);
+
+        // Set list items
+        match /setlist/{itemId} {
+          allow read:  if isMemberOf(choirId) || isChoirOwner(choirId);
+          allow write: if isDirectorOf(choirId) || isChoirOwner(choirId);
+        }
+
+        // Availability
+        match /availability/{userId} {
+          allow read:  if isMemberOf(choirId) || isChoirOwner(choirId);
+          allow create: if isSignedIn() && request.auth.uid == userId;
+          allow update: if isSignedIn() && request.auth.uid == userId;
+        }
+
+        // Attendance — members read (their own + choir-wide); Directors write.
+        match /attendance/{userId} {
+          allow read:  if isMemberOf(choirId) || isChoirOwner(choirId);
+          allow write: if isDirectorOf(choirId) || isChoirOwner(choirId);
+        }
+      }
+
+      // Choir-private custom songs
+      match /songs/{songId} {
+        allow read:  if isMemberOf(choirId) || isChoirOwner(choirId);
+        allow write: if isDirectorOf(choirId) || isChoirOwner(choirId);
+      }
+
+      // Announcements
+      match /announcements/{announcementId} {
+        allow read:  if isMemberOf(choirId) || isChoirOwner(choirId);
+        allow write: if isDirectorOf(choirId) || isChoirOwner(choirId);
+      }
+
+      // In-app notifications — any member may create one (e.g. substitution,
+      // voice-part request); recipients read/update their own.
+      match /notifications/{notificationId} {
+        allow read:   if isMemberOf(choirId) &&
+                         (resource.data.userId == request.auth.uid || isDirectorOf(choirId));
+        allow create: if isMemberOf(choirId);
+        allow update: if isMemberOf(choirId) && resource.data.userId == request.auth.uid;
+        allow delete: if isDirectorOf(choirId);
+      }
+
+      // Voice-part change requests — members create their own; Directors read/update.
+      match /voicePartRequests/{requestId} {
+        allow read:   if isDirectorOf(choirId) ||
+                         (isMemberOf(choirId) && resource.data.uid == request.auth.uid);
+        allow create: if isMemberOf(choirId) && request.resource.data.uid == request.auth.uid;
+        allow update: if isDirectorOf(choirId);
+      }
+    }
+
+    // ── Global song library (read-only for authenticated users) ───────────────
+    match /songs/{songId} {
+      allow read:  if isSignedIn();
+      allow write: if false; // seeded via admin SDK only
+    }
+
+    // ── Integration caches (Spotify / Genius) ─────────────────────────────────
+    // Cloud Functions own these; clients may read and mirror cache entries to
+    // avoid repeat lookups. No secrets are ever stored here.
+    match /spotifyCache/{key} {
+      allow read:   if isSignedIn();
+      allow create, update: if isSignedIn();
+    }
+    match /geniusCache/{key} {
+      allow read:   if isSignedIn();
+      allow create, update: if isSignedIn();
     }
   }
 }
