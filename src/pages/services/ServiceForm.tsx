@@ -14,6 +14,9 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
 import { createService, updateService, getService, getSetList, type ServiceInput } from '@/lib/firestore'
 import { createCalendarEvent } from '@/lib/integrations'
+import { SERVICE_TYPE_LABELS, type ServiceType } from '@/types'
+
+const SERVICE_TYPES = Object.entries(SERVICE_TYPE_LABELS) as [ServiceType, string][]
 
 export function ServiceForm() {
   const { serviceId } = useParams<{ serviceId: string }>()
@@ -23,10 +26,13 @@ export function ServiceForm() {
   const { choir } = useChoir()
 
   const [title, setTitle] = useState('')
+  const [serviceType, setServiceType] = useState<ServiceType | ''>('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [theme, setTheme] = useState('')
   const [scriptureRef, setScriptureRef] = useState('')
+  const [availabilityDeadline, setAvailabilityDeadline] = useState('')
+  const [setListDeadline, setSetListDeadline] = useState('')
   const [calendarSync, setCalendarSync] = useState(false)
 
   const [loading, setLoading] = useState(isEditing)
@@ -40,15 +46,35 @@ export function ServiceForm() {
       .then(s => {
         if (!s || !active) return
         setTitle(s.title)
+        setServiceType(s.serviceType ?? '')
         setDate(s.date.toISOString().slice(0, 10))
         setTime(s.time ?? '')
         setTheme(s.theme ?? '')
         setScriptureRef(s.scriptureRef ?? '')
+        if (s.availabilityDeadline) setAvailabilityDeadline(s.availabilityDeadline.toISOString().slice(0, 10))
+        if (s.setListDeadline) setSetListDeadline(s.setListDeadline.toISOString().slice(0, 10))
       })
       .catch(err => console.error('Load service error:', err))
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [isEditing, choir, serviceId])
+
+  // Auto-compute default deadlines when service date changes
+  useEffect(() => {
+    if (!date) return
+    const serviceDate = new Date(date)
+    if (!availabilityDeadline) {
+      const twoMonths = new Date(serviceDate)
+      twoMonths.setMonth(twoMonths.getMonth() - 2)
+      setAvailabilityDeadline(twoMonths.toISOString().slice(0, 10))
+    }
+    if (!setListDeadline) {
+      const oneWeek = new Date(serviceDate)
+      oneWeek.setDate(oneWeek.getDate() - 7)
+      setSetListDeadline(oneWeek.toISOString().slice(0, 10))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date])
 
   const handleSave = async (status: 'draft' | 'published') => {
     if (!choir || !firebaseUser) return
@@ -60,10 +86,13 @@ export function ServiceForm() {
     try {
       const input: ServiceInput = {
         title: title.trim(),
+        serviceType: serviceType || undefined,
         date: new Date(`${date}T${time || '00:00'}`),
         time: time || undefined,
         theme: theme.trim() || undefined,
         scriptureRef: scriptureRef.trim() || undefined,
+        availabilityDeadline: availabilityDeadline ? new Date(availabilityDeadline) : undefined,
+        setListDeadline: setListDeadline ? new Date(setListDeadline) : undefined,
         status,
         calendarSync,
       }
@@ -72,14 +101,12 @@ export function ServiceForm() {
         ? (await updateService(choir.id, serviceId, input), serviceId)
         : await createService(choir.id, firebaseUser.uid, input)
 
-      /* API_POINT: Google Calendar — on publish with sync on, create an event
-         (description lists the set list song titles) and store the shareable link. */
       if (calendarSync && status === 'published') {
         try {
           const setlist = await getSetList(choir.id, targetId)
           const songLines = setlist.map((s, i) => `${i + 1}. ${s.title}${s.artist ? ` — ${s.artist}` : ''}`).join('\n')
           const start = new Date(`${date}T${time || '10:00'}`)
-          const end = new Date(start.getTime() + 2 * 60 * 60 * 1000) // default 2h
+          const end = new Date(start.getTime() + 2 * 60 * 60 * 1000)
           const result = await createCalendarEvent({
             summary: title.trim(),
             description: songLines ? `Set list:\n${songLines}` : 'Set list to be confirmed.',
@@ -87,7 +114,6 @@ export function ServiceForm() {
             endISO: end.toISOString(),
           })
           if (result) {
-            // store calendar refs (best-effort)
             await import('firebase/firestore').then(({ doc, updateDoc }) =>
               updateDoc(doc(db, 'choirs', choir.id, 'services', targetId), {
                 calendarEventId: result.eventId,
@@ -100,7 +126,7 @@ export function ServiceForm() {
         }
       }
 
-      navigate(isEditing ? `/services/${targetId}/setlist` : `/services/${targetId}/setlist`)
+      navigate(`/services/${targetId}/setlist`)
     } catch (err) {
       console.error('Save service error:', err)
       setError('Something went wrong. Please try again.')
@@ -135,6 +161,29 @@ export function ServiceForm() {
               required
             />
 
+            {/* Service type */}
+            <div>
+              <label className="block text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-2">
+                Service type (optional)
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {SERVICE_TYPES.map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setServiceType(v => v === value ? '' : value)}
+                    className={`px-3 py-2 rounded-xl border-2 text-xs font-medium transition-colors text-left ${
+                      serviceType === value
+                        ? 'border-harmonic-primary bg-harmonic-primary/5 text-harmonic-primary'
+                        : 'border-harmonic-border text-harmonic-text hover:border-harmonic-primary/40'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <Input label="Service date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
               <Input label="Service time" type="time" value={time} onChange={e => setTime(e.target.value)} />
@@ -155,7 +204,28 @@ export function ServiceForm() {
               className="min-h-[64px]"
             />
 
-            {/* Google Calendar sync toggle (wired in Phase 4) */}
+            {/* Deadlines */}
+            <div className="bg-harmonic-surface rounded-2xl p-4 flex flex-col gap-4">
+              <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Deadlines</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Availability deadline"
+                  type="date"
+                  value={availabilityDeadline}
+                  onChange={e => setAvailabilityDeadline(e.target.value)}
+                  helperText="Members must confirm by this date"
+                />
+                <Input
+                  label="Set list deadline"
+                  type="date"
+                  value={setListDeadline}
+                  onChange={e => setSetListDeadline(e.target.value)}
+                  helperText="Set list should be finalised by this date"
+                />
+              </div>
+            </div>
+
+            {/* Google Calendar sync toggle */}
             <div className="bg-harmonic-surface rounded-2xl p-4">
               <div className="flex items-start gap-3">
                 <span className="w-9 h-9 rounded-full bg-white flex items-center justify-center flex-shrink-0">

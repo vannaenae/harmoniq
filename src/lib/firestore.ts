@@ -57,11 +57,14 @@ export async function getService(choirId: string, serviceId: string): Promise<Se
 
 export interface ServiceInput {
   title: string
+  serviceType?: import('@/types').ServiceType
   date: Date
   time?: string
   theme?: string
   scriptureRef?: string
   status: Service['status']
+  availabilityDeadline?: Date
+  setListDeadline?: Date
   calendarSync?: boolean
 }
 
@@ -75,11 +78,14 @@ export async function createService(
     id,
     choirId,
     title: input.title,
+    serviceType: input.serviceType ?? null,
     date: input.date,
     time: input.time ?? null,
     theme: input.theme ?? null,
     scriptureRef: input.scriptureRef ?? null,
     status: input.status,
+    availabilityDeadline: input.availabilityDeadline ?? null,
+    setListDeadline: input.setListDeadline ?? null,
     calendarSync: input.calendarSync ?? false,
     createdBy,
     createdAt: serverTimestamp(),

@@ -6,40 +6,50 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { AuthLogo } from '@/components/auth/AuthLogo'
 
-export function SignIn() {
-  const { signInWithGoogle, signInWithEmail, harmonicUser } = useAuth()
+export function SignUp() {
+  const { signUpWithEmail, signInWithGoogle, harmonicUser } = useAuth()
   const navigate = useNavigate()
 
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   if (harmonicUser) {
-    const pendingInvite = localStorage.getItem('harmonic_pending_invite')
-    if (pendingInvite && !harmonicUser.choirId) {
-      navigate(`/join/${pendingInvite}`, { replace: true })
-      return null
-    }
     navigate(harmonicUser.onboardingComplete ? '/dashboard' : '/onboarding/role', { replace: true })
     return null
   }
 
-  const handleEmailSignIn = async (e: React.FormEvent) => {
+  const validate = (): string | null => {
+    if (!name.trim()) return 'Please enter your name.'
+    if (!email.trim()) return 'Please enter your email.'
+    if (password.length < 8) return 'Password must be at least 8 characters.'
+    if (password !== confirmPassword) return 'Passwords do not match.'
+    return null
+  }
+
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim() || !password) return
+    const validationError = validate()
+    if (validationError) { setError(validationError); return }
+
     setError(null)
     setLoading(true)
     try {
-      await signInWithEmail(email.trim(), password)
+      await signUpWithEmail(email.trim(), password, name.trim())
+      navigate('/verify-email', { replace: true })
     } catch (err: unknown) {
       const code = (err as { code?: string }).code
-      if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-        setError('Incorrect email or password. Please try again.')
-      } else if (code === 'auth/too-many-requests') {
-        setError('Too many attempts. Please wait a moment and try again.')
+      if (code === 'auth/email-already-in-use') {
+        setError('An account with this email already exists. Try signing in instead.')
+      } else if (code === 'auth/invalid-email') {
+        setError('Please enter a valid email address.')
+      } else if (code === 'auth/weak-password') {
+        setError('Choose a stronger password (at least 8 characters).')
       } else {
         setError('Something went wrong. Please try again.')
       }
@@ -56,7 +66,7 @@ export function SignIn() {
     } catch (err: unknown) {
       const code = (err as { code?: string }).code
       if (code === 'auth/popup-blocked') {
-        setError('Pop-up was blocked. Please allow pop-ups for this site and try again.')
+        setError('Pop-up was blocked. Please allow pop-ups and try again.')
       } else if (code !== 'auth/popup-closed-by-user') {
         setError('Google sign-in failed. Please try again.')
       }
@@ -65,6 +75,10 @@ export function SignIn() {
     }
   }
 
+  const strengthLevel = password.length === 0 ? 0 : password.length < 8 ? 1 : password.length < 12 ? 2 : 3
+  const strengthLabel = ['', 'Too short', 'Good', 'Strong'][strengthLevel]
+  const strengthColor = ['', 'bg-harmonic-danger', 'bg-yellow-400', 'bg-harmonic-success'][strengthLevel]
+
   return (
     <div className="min-h-screen bg-harmonic-background flex flex-col items-center justify-center px-6 py-12">
       <div className="w-full max-w-sm flex flex-col items-center gap-8">
@@ -72,8 +86,8 @@ export function SignIn() {
 
         <div className="w-full bg-white rounded-card-lg p-6 shadow-card flex flex-col gap-5">
           <div className="text-center">
-            <h2 className="text-lg font-semibold text-harmonic-text">Welcome back</h2>
-            <p className="text-sm text-harmonic-muted mt-0.5">Sign in to your choir workspace</p>
+            <h2 className="text-lg font-semibold text-harmonic-text">Create your account</h2>
+            <p className="text-sm text-harmonic-muted mt-0.5">Join your choir on Harmoniq</p>
           </div>
 
           {error && (
@@ -82,7 +96,16 @@ export function SignIn() {
             </div>
           )}
 
-          <form onSubmit={handleEmailSignIn} className="flex flex-col gap-4" noValidate>
+          <form onSubmit={handleSignUp} className="flex flex-col gap-4" noValidate>
+            <Input
+              label="Your name"
+              placeholder="Grace Adeyemi"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              autoComplete="name"
+              required
+            />
+
             <Input
               type="email"
               label="Email"
@@ -97,10 +120,10 @@ export function SignIn() {
               <Input
                 type={showPassword ? 'text' : 'password'}
                 label="Password"
-                placeholder="Your password"
+                placeholder="Min. 8 characters"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                autoComplete="current-password"
+                autoComplete="new-password"
                 className="pr-11"
                 required
               />
@@ -112,16 +135,38 @@ export function SignIn() {
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
+              {password.length > 0 && (
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="flex-1 h-1 bg-harmonic-surface rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${strengthColor}`}
+                      style={{ width: `${(strengthLevel / 3) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-harmonic-muted">{strengthLabel}</span>
+                </div>
+              )}
             </div>
 
-            <div className="flex justify-end -mt-2">
-              <Link to="/forgot-password" className="text-xs text-harmonic-primary hover:underline font-medium">
-                Forgot password?
-              </Link>
+            <div className="relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                label="Confirm password"
+                placeholder="Repeat your password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                required
+              />
             </div>
 
-            <Button type="submit" variant="primary" fullWidth disabled={loading || !email || !password}>
-              {loading ? 'Signing in…' : 'Sign in'}
+            <Button
+              type="submit"
+              variant="primary"
+              fullWidth
+              disabled={loading || !name || !email || !password || !confirmPassword}
+            >
+              {loading ? 'Creating account…' : 'Create account'}
             </Button>
           </form>
 
@@ -136,7 +181,6 @@ export function SignIn() {
             fullWidth
             onClick={handleGoogleSignIn}
             disabled={googleLoading || loading}
-            aria-label="Continue with Google"
           >
             {!googleLoading && (
               <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
@@ -146,25 +190,22 @@ export function SignIn() {
                 <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
               </svg>
             )}
-            {googleLoading ? 'Signing in…' : 'Continue with Google'}
+            {googleLoading ? 'Signing up…' : 'Sign up with Google'}
           </Button>
 
           <p className="text-center text-sm text-harmonic-muted">
-            Don't have an account?{' '}
-            <Link to="/sign-up" className="font-semibold text-harmonic-primary hover:underline">
-              Sign up
+            Already have an account?{' '}
+            <Link to="/sign-in" className="font-semibold text-harmonic-primary hover:underline">
+              Sign in
             </Link>
           </p>
         </div>
 
         <p className="text-xs text-harmonic-muted text-center">
-          By signing in you agree to our{' '}
+          By creating an account you agree to our{' '}
           <Link to="/terms" className="underline hover:text-harmonic-text">Terms</Link>
           {' '}and{' '}
           <Link to="/privacy" className="underline hover:text-harmonic-text">Privacy Policy</Link>.
-        </p>
-        <p className="text-xs text-harmonic-muted">
-          A <span className="font-semibold" style={{ color: '#560056' }}>SoulSPCE</span> project
         </p>
       </div>
     </div>

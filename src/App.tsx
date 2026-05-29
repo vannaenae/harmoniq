@@ -4,6 +4,9 @@ import { Skeleton } from '@/components/ui/Skeleton'
 
 // Auth
 import { SignIn } from '@/pages/auth/SignIn'
+import { SignUp } from '@/pages/auth/SignUp'
+import { ForgotPassword } from '@/pages/auth/ForgotPassword'
+import { VerifyEmail } from '@/pages/auth/VerifyEmail'
 
 // Onboarding
 import { RoleSelection } from '@/pages/onboarding/RoleSelection'
@@ -40,6 +43,13 @@ import { MyAttendance } from '@/pages/attendance/MyAttendance'
 import { AnnouncementsFeed } from '@/pages/announcements/AnnouncementsFeed'
 import { CreateAnnouncement } from '@/pages/announcements/CreateAnnouncement'
 import { NotificationCentre } from '@/pages/notifications/NotificationCentre'
+
+// Messaging (Phase 7)
+import { MessagesLayout } from '@/pages/messages/MessagesLayout'
+import { ChannelView } from '@/pages/messages/ChannelView'
+
+// Roster (Phase 7)
+import { ServiceRoster } from '@/pages/services/ServiceRoster'
 
 // Profile & settings (Phase 6)
 import { Settings } from '@/pages/settings/Settings'
@@ -105,6 +115,17 @@ export function App() {
             : <SignIn />
         }
       />
+
+      <Route
+        path="/sign-up"
+        element={
+          firebaseUser && harmonicUser?.onboardingComplete
+            ? <Navigate to="/dashboard" replace />
+            : <SignUp />
+        }
+      />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
 
       {/* Onboarding */}
       <Route
@@ -253,6 +274,32 @@ export function App() {
           </RequireAuth>
         }
       />
+      {/* Messages */}
+      <Route
+        path="/messages"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <MessagesLayout />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      >
+        <Route path=":channelId" element={<ChannelView />} />
+      </Route>
+
+      {/* Roster */}
+      <Route
+        path="/services/:serviceId/roster"
+        element={
+          <RequireAuth>
+            <RequireOnboarding>
+              <ServiceRoster />
+            </RequireOnboarding>
+          </RequireAuth>
+        }
+      />
+
       <Route
         path="/members"
         element={

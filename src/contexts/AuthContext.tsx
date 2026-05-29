@@ -8,6 +8,11 @@ import {
 import {
   onAuthStateChanged,
   signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  updateProfile,
   signOut as firebaseSignOut,
   GoogleAuthProvider,
   type User,
@@ -21,11 +26,30 @@ interface AuthContextValue {
   harmonicUser: HarmonicUser | null
   loading: boolean
   signInWithGoogle: () => Promise<void>
+  signInWithEmail: (email: string, password: string) => Promise<void>
+  signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>
+  sendPasswordReset: (email: string) => Promise<void>
   signOut: () => Promise<void>
   refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+
+async function createUserDoc(user: User): Promise<void> {
+  const userRef = doc(db, 'users', user.uid)
+  const snap = await getDoc(userRef)
+  if (!snap.exists()) {
+    await setDoc(userRef, {
+      uid: user.uid,
+      email: user.email ?? '',
+      displayName: user.displayName ?? '',
+      photoURL: user.photoURL ?? '',
+      onboardingComplete: false,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null)
@@ -58,32 +82,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsub
   }, [])
 
-  /* API_POINT: Firebase Auth — Google Sign-In popup */
   const signInWithGoogle = async () => {
     const result = await signInWithPopup(auth, googleProvider)
     const user = result.user
-
-    /* API_POINT: Google Calendar — stash the OAuth access token (calendar scopes)
-       so service publishing can create calendar events this session. */
     const credential = GoogleAuthProvider.credentialFromResult(result)
     if (credential?.accessToken) {
       sessionStorage.setItem('harmonic_google_token', credential.accessToken)
     }
+    await createUserDoc(user)
+  }
 
-    // Create user doc on first sign-in
-    const userRef = doc(db, 'users', user.uid)
-    const snap = await getDoc(userRef)
-    if (!snap.exists()) {
-      await setDoc(userRef, {
-        uid: user.uid,
-        email: user.email ?? '',
-        displayName: user.displayName ?? '',
-        photoURL: user.photoURL ?? '',
-        onboardingComplete: false,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      })
-    }
+  const signInWithEmail = async (email: string, password: string) => {
+    await signInWithEmailAndPassword(auth, email, password)
+  }
+
+  const signUpWithEmail = async (email: string, password: string, displayName: string) => {
+    const result = await createUserWithEmailAndPassword(auth, email, password)
+    await updateProfile(result.user, { displayName })
+    await sendEmailVerification(result.user)
+    await createUserDoc(result.user)
+  }
+
+  const sendPasswordReset = async (email: string) => {
+    await sendPasswordResetEmail(auth, email)
   }
 
   const signOut = async () => {
@@ -94,7 +115,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ firebaseUser, harmonicUser, loading, signInWithGoogle, signOut, refreshUser }}
+      value={{
+        firebaseUser,
+        harmonicUser,
+        loading,
+        signInWithGoogle,
+        signInWithEmail,
+        signUpWithEmail,
+        sendPasswordReset,
+        signOut,
+        refreshUser,
+      }}
     >
       {children}
     </AuthContext.Provider>
