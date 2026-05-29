@@ -116,5 +116,26 @@ function mapSong(id: string, data: Record<string, unknown>, choirId?: string): S
   }
 }
 
+export async function getPracticeNotes(
+  choirId: string,
+  songId: string,
+  userId: string,
+): Promise<string> {
+  const ref = doc(db, 'choirs', choirId, 'practiceNotes', `${userId}_${songId}`)
+  const snap = await getDoc(ref).catch(() => null)
+  if (!snap?.exists()) return ''
+  return (snap.data().notes as string) ?? ''
+}
+
+export async function savePracticeNotes(
+  choirId: string,
+  songId: string,
+  userId: string,
+  notes: string,
+): Promise<void> {
+  const ref = doc(db, 'choirs', choirId, 'practiceNotes', `${userId}_${songId}`)
+  await setDoc(ref, { notes, updatedAt: serverTimestamp() }, { merge: true })
+}
+
 export const ALL_KEYS = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B']
 export const GENRES: SongGenre[] = ['Gospel', 'Contemporary', 'Hymn', 'Modern', 'Anthem', 'Other']

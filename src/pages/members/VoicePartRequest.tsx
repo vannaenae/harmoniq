@@ -13,7 +13,10 @@ import { createNotification } from '@/lib/notifications'
 import { voicePartLabel, cn } from '@/lib/utils'
 import type { VoicePart } from '@/types'
 
-const PARTS: VoicePart[] = ['soprano', 'alto', 'tenor', 'bass', 'unclassified']
+const PARTS: VoicePart[] = [
+  'soprano', 'alto', 'tenor', 'bass', 'unclassified',
+  'keys', 'guitar', 'bass_guitar', 'drums', 'other_instrument',
+]
 
 export function VoicePartRequest() {
   const navigate = useNavigate()

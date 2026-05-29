@@ -38,11 +38,16 @@ export const getInitials = (name: string): string => {
 }
 
 export const voicePartLabel: Record<string, string> = {
-  soprano:      'Soprano',
-  alto:         'Alto',
-  tenor:        'Tenor',
-  bass:         'Bass',
-  unclassified: 'Unclassified',
+  soprano:          'Soprano',
+  alto:             'Alto',
+  tenor:            'Tenor',
+  bass:             'Bass',
+  unclassified:     'Unclassified',
+  keys:             'Keys / Piano',
+  guitar:           'Guitar',
+  bass_guitar:      'Bass Guitar',
+  drums:            'Drums',
+  other_instrument: 'Other Instrument',
 }
 
 export const roleLabel: Record<string, string> = {

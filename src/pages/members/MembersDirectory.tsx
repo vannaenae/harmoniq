@@ -17,11 +17,16 @@ import { availabilityMeta } from '@/lib/status'
 import type { VoicePart, Availability, AvailabilityStatus } from '@/types'
 
 const PART_FILTERS: { id: VoicePart | 'all'; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'soprano', label: 'Soprano' },
-  { id: 'alto', label: 'Alto' },
-  { id: 'tenor', label: 'Tenor' },
-  { id: 'bass', label: 'Bass' },
+  { id: 'all',              label: 'All' },
+  { id: 'soprano',          label: 'Soprano' },
+  { id: 'alto',             label: 'Alto' },
+  { id: 'tenor',            label: 'Tenor' },
+  { id: 'bass',             label: 'Bass' },
+  { id: 'keys',             label: 'Keys' },
+  { id: 'guitar',           label: 'Guitar' },
+  { id: 'bass_guitar',      label: 'Bass Guitar' },
+  { id: 'drums',            label: 'Drums' },
+  { id: 'other_instrument', label: 'Other' },
 ]
 
 export function MembersDirectory() {

@@ -2,7 +2,9 @@
 
 export type UserRole = 'director' | 'member'
 
-export type VoicePart = 'soprano' | 'alto' | 'tenor' | 'bass' | 'unclassified'
+export type VoicePart =
+  | 'soprano' | 'alto' | 'tenor' | 'bass' | 'unclassified'
+  | 'keys' | 'guitar' | 'bass_guitar' | 'drums' | 'other_instrument'
 
 export interface NotificationPrefs {
   serviceUpdates: boolean

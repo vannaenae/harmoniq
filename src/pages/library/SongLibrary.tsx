@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Search, Plus, Music2, ChevronRight } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Search, Plus, Music2, ChevronRight, Heart, Loader2 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -11,14 +11,27 @@ import { AlbumArt } from '@/components/ui/AlbumArt'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
-import { listSongs, GENRES, ALL_KEYS } from '@/lib/songs'
+import { listSongs, addCustomSong, GENRES, ALL_KEYS } from '@/lib/songs'
+import { fetchSpotify, type SpotifyData } from '@/lib/integrations'
 import type { Song } from '@/types'
 
 type Sort = 'recent' | 'title'
 const PAGE_SIZE = 20
 
+interface SpotifyResult {
+  title: string
+  artist: string
+  albumArtUrl: string | null
+  trackId: string | null
+  keyNote: string | null
+  tempo: number | null
+}
+
 export function SongLibrary() {
+  const navigate = useNavigate()
+  const { firebaseUser } = useAuth()
   const { choir, isDirector } = useChoir()
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(true)
@@ -28,6 +41,13 @@ export function SongLibrary() {
   const [keyFilter, setKeyFilter] = useState('')
   const [sort, setSort] = useState<Sort>('recent')
   const [visible, setVisible] = useState(PAGE_SIZE)
+
+  // Spotify discovery
+  const [spotifyResult, setSpotifyResult] = useState<SpotifyResult | null>(null)
+  const [spotifyLoading, setSpotifyLoading] = useState(false)
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
+  const [savingId, setSavingId] = useState<string | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!choir) return
@@ -39,6 +59,54 @@ export function SongLibrary() {
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [choir])
+
+  // Debounced Spotify search
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    const term = search.trim()
+    if (term.length < 3) { setSpotifyResult(null); return }
+
+    debounceRef.current = setTimeout(async () => {
+      setSpotifyLoading(true)
+      try {
+        const data: SpotifyData | null = await fetchSpotify(term)
+        if (data?.trackId) {
+          setSpotifyResult({
+            title: term,
+            artist: '',
+            albumArtUrl: data.albumArtUrl,
+            trackId: data.trackId,
+            keyNote: data.keyNote,
+            tempo: data.tempo,
+          })
+        } else {
+          setSpotifyResult(null)
+        }
+      } catch { setSpotifyResult(null) }
+      finally { setSpotifyLoading(false) }
+    }, 800)
+
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [search])
+
+  const handleSaveToLibrary = async (result: SpotifyResult) => {
+    if (!choir || !firebaseUser || !result.trackId) return
+    setSavingId(result.trackId)
+    try {
+      await addCustomSong(choir.id, firebaseUser.uid, {
+        title: result.title,
+        artist: result.artist || undefined,
+        defaultKey: result.keyNote || undefined,
+      })
+      setSavedIds(prev => new Set([...prev, result.trackId!]))
+      const updated = await listSongs(choir.id)
+      setSongs(updated)
+    } catch (err) {
+      console.error('Save song error:', err)
+    } finally {
+      setSavingId(null)
+    }
+  }
 
   const artists = useMemo(
     () => Array.from(new Set(songs.map(s => s.artist).filter(Boolean))).sort() as string[],
@@ -81,7 +149,7 @@ export function SongLibrary() {
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-harmonic-muted" aria-hidden="true" />
           <Input
             aria-label="Search songs"
-            placeholder="Search by title or artist"
+            placeholder="Search library or discover on Spotify…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-10"
@@ -108,38 +176,102 @@ export function SongLibrary() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
           </div>
-        ) : page.length === 0 ? (
-          <Card className="p-2">
-            <EmptyState
-              icon={Music2}
-              title="No songs match"
-              description="Try a different search or filter — or add a custom song to your library."
-            />
-          </Card>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {page.map(song => (
-                <Link key={song.id} to={`/library/${song.id}`}>
-                  <Card className="p-3 flex items-center gap-3 hover:shadow-card-hover transition-shadow">
-                    <AlbumArt src={song.albumArtUrl} alt={`${song.title} artwork`} className="w-14 h-14 rounded-xl flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-harmonic-text truncate">{song.title}</p>
-                      <p className="text-xs text-harmonic-muted truncate">{song.artist}</p>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        {song.defaultKey && <Badge tone="muted">{song.defaultKey}</Badge>}
-                        {song.genre && <Badge tone="tertiary">{song.genre}</Badge>}
-                        {song.isCustom && <Badge tone="primary">Custom</Badge>}
+            {/* Library results */}
+            {page.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {page.map(song => (
+                  <Link key={song.id} to={`/library/${song.id}`}>
+                    <Card className="p-3 flex items-center gap-3 hover:shadow-card transition-shadow">
+                      <AlbumArt src={song.albumArtUrl} alt={`${song.title} artwork`} className="w-14 h-14 rounded-xl flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-harmonic-text truncate">{song.title}</p>
+                        <p className="text-xs text-harmonic-muted truncate">{song.artist}</p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          {song.defaultKey && <Badge tone="muted">{song.defaultKey}</Badge>}
+                          {song.genre && <Badge tone="tertiary">{song.genre}</Badge>}
+                          {song.isCustom && <Badge tone="primary">Custom</Badge>}
+                        </div>
                       </div>
-                    </div>
-                    <ChevronRight size={16} className="text-harmonic-muted flex-shrink-0" aria-hidden="true" />
-                  </Card>
-                </Link>
-              ))}
-            </div>
+                      <ChevronRight size={16} className="text-harmonic-muted flex-shrink-0" aria-hidden="true" />
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            ) : search.trim().length < 3 ? (
+              <Card className="p-2">
+                <EmptyState
+                  icon={Music2}
+                  title="No songs match"
+                  description="Try a different filter — or search by name to discover songs on Spotify."
+                />
+              </Card>
+            ) : null}
+
             {visible < filtered.length && (
               <div className="flex justify-center mt-5">
                 <Button variant="outlined" size="sm" onClick={() => setVisible(v => v + PAGE_SIZE)}>Load more</Button>
+              </div>
+            )}
+
+            {/* Spotify discovery section */}
+            {search.trim().length >= 3 && (
+              <div className="mt-6">
+                <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3">
+                  Discover on Spotify
+                </p>
+
+                {spotifyLoading ? (
+                  <Card className="p-4 flex items-center gap-3">
+                    <Loader2 size={20} className="text-harmonic-muted animate-spin" />
+                    <p className="text-sm text-harmonic-muted">Searching Spotify…</p>
+                  </Card>
+                ) : spotifyResult ? (
+                  <Card className="p-3 flex items-center gap-3">
+                    <AlbumArt src={spotifyResult.albumArtUrl} alt={spotifyResult.title} className="w-14 h-14 rounded-xl flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-harmonic-text truncate">{search.trim()}</p>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        {spotifyResult.keyNote && <Badge tone="muted">{spotifyResult.keyNote}</Badge>}
+                        {spotifyResult.tempo && <Badge tone="muted">{spotifyResult.tempo} BPM</Badge>}
+                        <Badge tone="tertiary">Spotify</Badge>
+                      </div>
+                    </div>
+                    {isDirector && spotifyResult.trackId && (
+                      savedIds.has(spotifyResult.trackId) ? (
+                        <Button variant="secondary" size="sm" disabled>
+                          <Heart size={14} className="fill-current" /> Saved
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outlined"
+                          size="sm"
+                          onClick={() => handleSaveToLibrary(spotifyResult)}
+                          disabled={savingId === spotifyResult.trackId}
+                        >
+                          {savingId === spotifyResult.trackId
+                            ? <Loader2 size={14} className="animate-spin" />
+                            : <Heart size={14} />}
+                          Save
+                        </Button>
+                      )
+                    )}
+                    {spotifyResult.trackId && (
+                      <button
+                        onClick={() => navigate(`/library/spotify-${spotifyResult.trackId}`)}
+                        className="text-harmonic-muted hover:text-harmonic-text"
+                        aria-label="View song"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    )}
+                  </Card>
+                ) : (
+                  <Card className="p-4">
+                    <p className="text-sm text-harmonic-muted text-center">No Spotify match found for "{search.trim()}"</p>
+                  </Card>
+                )}
               </div>
             )}
           </>
