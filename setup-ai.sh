@@ -58,7 +58,12 @@ fi
 cd "$REPO"
 echo "    Using repo: $REPO"
 
-# 4. Set the OpenAI key -------------------------------------------------------
+# 4. Install functions dependencies ------------------------------------------
+echo ""
+echo "==> Installing functions dependencies (needed for the TypeScript build)…"
+npm --prefix "$REPO/functions" install
+
+# 5. Set the OpenAI key -------------------------------------------------------
 echo ""
 echo "==> Setting the OpenAI key."
 echo "    When it asks 'Enter a value for OPENAI_API_KEY', paste your key and press Enter."
@@ -66,7 +71,7 @@ echo "    (Get a fresh key at https://platform.openai.com/api-keys — revoke an
 echo ""
 firebase functions:secrets:set OPENAI_API_KEY
 
-# 5. Deploy -------------------------------------------------------------------
+# 6. Deploy -------------------------------------------------------------------
 echo ""
 echo "==> Deploying functions… (this can take a couple minutes)"
 npm --prefix "$REPO/functions" run deploy
