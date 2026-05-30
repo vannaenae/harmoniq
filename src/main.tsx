@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ChoirProvider } from '@/contexts/ChoirContext'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { App } from '@/App'
 import './index.css'
 
@@ -11,12 +12,14 @@ if (!root) throw new Error('Root element not found')
 
 createRoot(root).render(
   <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <ChoirProvider>
-          <App />
-        </ChoirProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <ChoirProvider>
+            <App />
+          </ChoirProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>
 )

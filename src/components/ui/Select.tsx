@@ -17,6 +17,13 @@ interface SelectProps {
   className?: string
 }
 
+// Radix's <Select.Item /> throws if given an empty-string value (it reserves
+// "" to clear the selection). Callers use "" to mean "All / none", so map it
+// to a sentinel internally and translate back at the boundary.
+const EMPTY = '__select_empty__'
+const toRadix = (v: string) => (v === '' ? EMPTY : v)
+const fromRadix = (v: string) => (v === EMPTY ? '' : v)
+
 export function Select({
   value,
   onValueChange,
@@ -29,7 +36,10 @@ export function Select({
   return (
     <div className="flex flex-col gap-1.5">
       {label && <span className="text-sm font-medium text-harmonic-text">{label}</span>}
-      <RadixSelect.Root value={value} onValueChange={onValueChange}>
+      <RadixSelect.Root
+        value={value === undefined ? undefined : toRadix(value)}
+        onValueChange={v => onValueChange(fromRadix(v))}
+      >
         <RadixSelect.Trigger
           aria-label={ariaLabel ?? label ?? placeholder}
           className={cn(
@@ -54,7 +64,7 @@ export function Select({
               {options.map(opt => (
                 <RadixSelect.Item
                   key={opt.value}
-                  value={opt.value}
+                  value={toRadix(opt.value)}
                   className="relative flex items-center px-8 py-2 text-sm rounded-lg cursor-pointer
                              text-harmonic-text outline-none data-[highlighted]:bg-harmonic-surface
                              data-[state=checked]:font-medium select-none"
