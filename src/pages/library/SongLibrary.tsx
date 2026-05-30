@@ -127,7 +127,8 @@ export function SongLibrary() {
   }, [songs, search, genre, artist, keyFilter, sort])
 
   const isSearching = search.trim().length >= 3
-  const page = filtered.slice(0, visible)
+  const SEARCH_CAP = 5
+  const page = isSearching ? filtered.slice(0, SEARCH_CAP) : filtered.slice(0, visible)
 
   return (
     <AppLayout>
@@ -219,7 +220,14 @@ export function SongLibrary() {
                 </Card>
               )}
 
-              {visible < filtered.length && (
+              {isSearching && filtered.length > SEARCH_CAP && (
+                <div className="flex justify-center mt-3">
+                  <Button variant="outlined" size="sm" onClick={() => setVisible(filtered.length)}>
+                    Show all {filtered.length} library results
+                  </Button>
+                </div>
+              )}
+              {!isSearching && visible < filtered.length && (
                 <div className="flex justify-center mt-4">
                   <Button variant="outlined" size="sm" onClick={() => setVisible(v => v + PAGE_SIZE)}>Load more</Button>
                 </div>
@@ -241,7 +249,7 @@ export function SongLibrary() {
                   </Card>
                 ) : spotifyResults.length > 0 ? (
                   <div className="flex flex-col gap-2">
-                    {spotifyResults.map(track => (
+                    {spotifyResults.slice(0, SEARCH_CAP).map(track => (
                       <Card key={track.trackId} className="p-3 flex items-center gap-3">
                         <AlbumArt src={track.albumArtUrl} alt={track.title} className="w-14 h-14 rounded-xl flex-shrink-0" />
                         <div className="flex-1 min-w-0">
@@ -291,6 +299,17 @@ export function SongLibrary() {
                       </Card>
                     ))}
                   </div>
+                    <a
+                      href={`https://open.spotify.com/search/${encodeURIComponent(search.trim())}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex justify-center pt-1"
+                    >
+                      <Button variant="outlined" size="sm">
+                        <ExternalLink size={13} /> See all on Spotify
+                      </Button>
+                    </a>
+                  </div>
                 ) : (
                   <Card className="p-4 text-center">
                     <p className="text-sm text-harmonic-muted">No Spotify results for "{search.trim()}"</p>
@@ -314,7 +333,7 @@ export function SongLibrary() {
                   </Card>
                 ) : youtubeResults.length > 0 ? (
                   <div className="flex flex-col gap-2">
-                    {youtubeResults.map(video => (
+                    {youtubeResults.slice(0, SEARCH_CAP).map(video => (
                       <a
                         key={video.videoId}
                         href={`https://www.youtube.com/watch?v=${video.videoId}`}
@@ -344,6 +363,16 @@ export function SongLibrary() {
                         </Card>
                       </a>
                     ))}
+                    <a
+                      href={`https://www.youtube.com/results?search_query=${encodeURIComponent(search.trim())}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex justify-center pt-1"
+                    >
+                      <Button variant="outlined" size="sm">
+                        <ExternalLink size={13} /> See all on YouTube
+                      </Button>
+                    </a>
                   </div>
                 ) : (
                   <Card className="p-4 text-center">
