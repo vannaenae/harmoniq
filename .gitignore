@@ -16,6 +16,11 @@ build/
 # TypeScript build cache
 *.tsbuildinfo
 
+# Playwright
+test-results/
+playwright-report/
+.playwright/
+
 # macOS
 .DS_Store
 
