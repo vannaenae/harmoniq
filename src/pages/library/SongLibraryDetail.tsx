@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { ExternalLink, Plus, Check, ChevronUp, ChevronDown, Save, Music2, Youtube } from 'lucide-react'
-import { AppLayout } from '@/components/layout/AppLayout'
+import { ExternalLink, Plus, Check, ChevronUp, ChevronDown, Save, Music2, Youtube, ArrowLeft } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
-import { AlbumArt } from '@/components/ui/AlbumArt'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ServiceSelect } from '@/components/ServiceSelect'
+import { AppLayout } from '@/components/layout/AppLayout'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
 import { getSong, getPracticeNotes, savePracticeNotes } from '@/lib/songs'
@@ -133,175 +132,232 @@ export function SongLibraryDetail() {
   const artUrl = spotify?.albumArtUrl ?? song?.albumArtUrl ?? null
   const chords = KEY_CHORDS[selectedKey] ?? null
 
+  const songQuery = encodeURIComponent(`${song?.title ?? ''} ${song?.artist ?? ''}`.trim())
+
   return (
     <AppLayout>
-      <div className="px-6 py-8 max-w-2xl mx-auto md:px-8">
-        <PageHeader title="Song" back="/library" />
-
-        {loading ? (
-          <Card className="p-6 space-y-4">
-            <Skeleton className="h-44 w-full rounded-card" />
-            <Skeleton className="h-6 w-2/3" />
-            <Skeleton className="h-4 w-1/2" />
-          </Card>
-        ) : !song ? (
+      {loading ? (
+        <div className="max-w-2xl mx-auto">
+          <Skeleton className="h-72 w-full" />
+          <div className="px-6 py-6 space-y-4">
+            <Skeleton className="h-7 w-2/3" />
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-36 w-full rounded-xl" />
+          </div>
+        </div>
+      ) : !song ? (
+        <div className="px-6 py-8 max-w-2xl mx-auto">
+          <PageHeader title="Song" back="/library" />
           <Card className="p-2"><EmptyState title="Song not found" description="It may have been removed from the library." /></Card>
-        ) : (
-          <div className="space-y-4">
-            <Card className="overflow-hidden">
-              <AlbumArt src={artUrl} alt={`${song.title} artwork`} className="h-48 w-full" iconSize={48} />
+        </div>
+      ) : (
+        <div className="max-w-2xl mx-auto pb-10">
 
-              <div className="p-6 space-y-5">
-                <div>
-                  <h2 className="text-xl font-bold text-harmonic-text">{song.title}</h2>
-                  {song.artist && <p className="text-sm text-harmonic-muted mt-0.5">{song.artist}</p>}
-                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                    {song.genre && <Badge tone="tertiary">{song.genre}</Badge>}
-                    {song.isCustom && <Badge tone="primary">Custom</Badge>}
-                    {spotify?.tempo && <Badge tone="muted">{spotify.tempo} BPM</Badge>}
-                  </div>
-                </div>
+          {/* ── Hero banner ──────────────────────────────────────── */}
+          <div className="relative h-72 overflow-hidden">
+            {/* Blurred wallpaper background */}
+            {artUrl ? (
+              <img
+                src={artUrl}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover scale-110"
+                style={{ filter: 'blur(28px) brightness(0.45) saturate(1.4)' }}
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-harmonic-primary/80 to-purple-900" />
+            )}
+            {/* Bottom gradient fade into page */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
-                {/* Key transposer */}
-                <div>
-                  <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3">Key & chords</p>
-                  <div className="flex items-center gap-4 mb-3">
-                    <button
-                      onClick={() => setSelectedKey(k => transposeKey(k, -1))}
-                      className="w-9 h-9 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors"
-                      aria-label="Transpose down"
-                    >
-                      <ChevronDown size={18} className="text-harmonic-text" />
-                    </button>
-                    <div className="flex-1 text-center">
-                      <p className="text-3xl font-bold text-harmonic-primary">{selectedKey}</p>
-                      {song.defaultKey && toChromaticKey(song.defaultKey) !== selectedKey && (
-                        <p className="text-xs text-harmonic-muted mt-0.5">
-                          Original: {song.defaultKey}
-                          {' · '}
-                          <button
-                            className="underline hover:no-underline"
-                            onClick={() => setSelectedKey(toChromaticKey(song.defaultKey!))}
-                          >
-                            Reset
-                          </button>
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setSelectedKey(k => transposeKey(k, 1))}
-                      className="w-9 h-9 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors"
-                      aria-label="Transpose up"
-                    >
-                      <ChevronUp size={18} className="text-harmonic-text" />
-                    </button>
-                  </div>
+            {/* Back button */}
+            <Link
+              to="/library"
+              className="absolute top-4 left-4 z-10 w-9 h-9 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/50 transition-colors"
+              aria-label="Back to library"
+            >
+              <ArrowLeft size={18} />
+            </Link>
 
-                  {/* Common chords */}
-                  {chords && (
-                    <div className="grid grid-cols-4 gap-2">
-                      {(['I', 'IV', 'V', 'vi'] as const).map((numeral, i) => (
-                        <div key={numeral} className="flex flex-col items-center bg-harmonic-surface rounded-xl py-2.5 px-1">
-                          <p className="text-[10px] font-semibold text-harmonic-muted uppercase tracking-widest">{numeral}</p>
-                          <p className="text-sm font-bold text-harmonic-text mt-0.5">{chords[i]}</p>
-                        </div>
-                      ))}
-                    </div>
+            {/* Floating album art + text */}
+            <div className="absolute inset-x-0 bottom-0 flex items-end gap-4 px-5 pb-5 z-10">
+              {artUrl && (
+                <img
+                  src={artUrl}
+                  alt={`${song.title} artwork`}
+                  className="w-24 h-24 rounded-2xl object-cover shadow-2xl flex-shrink-0 border border-white/10"
+                />
+              )}
+              <div className="flex-1 min-w-0 pb-1">
+                <h2 className="text-xl font-bold text-white leading-tight truncate">{song.title}</h2>
+                {song.artist && <p className="text-sm text-white/70 mt-0.5 truncate">{song.artist}</p>}
+                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                  {song.genre && (
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/20 text-white backdrop-blur-sm">
+                      {song.genre}
+                    </span>
                   )}
-
-                  {/* All keys quick-select */}
-                  <div className="flex flex-wrap gap-1.5 mt-3">
-                    {CHROMATIC.map(k => (
-                      <button
-                        key={k}
-                        onClick={() => setSelectedKey(k)}
-                        className={
-                          selectedKey === k
-                            ? 'px-2.5 py-1 rounded-pill text-xs font-semibold bg-harmonic-primary text-white'
-                            : 'px-2.5 py-1 rounded-pill text-xs font-medium bg-harmonic-surface text-harmonic-muted hover:bg-harmonic-border transition-colors'
-                        }
-                      >
-                        {k}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Listen section */}
-                <div>
-                  <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3">Listen</p>
-
-                  {mediaError && (
-                    <div className="bg-harmonic-surface rounded-xl px-4 py-3 text-sm text-harmonic-muted mb-3">
-                      Song details couldn't load. You can still use the song.
-                    </div>
+                  {spotify?.tempo && (
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/20 text-white backdrop-blur-sm">
+                      {spotify.tempo} BPM
+                    </span>
                   )}
-
-                  {trackId && (
-                    <iframe
-                      title={`Spotify preview of ${song.title}`}
-                      src={spotifyEmbedUrl(trackId)}
-                      width="100%"
-                      height="152"
-                      frameBorder="0"
-                      allow="encrypted-media"
-                      className="rounded-xl mb-3"
-                    />
+                  {song.isCustom && (
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-harmonic-primary/80 text-white">
+                      Custom
+                    </span>
                   )}
-
-                  <div className="flex gap-2">
-                    <a
-                      href={
-                        trackId
-                          ? `https://open.spotify.com/track/${trackId}`
-                          : `https://open.spotify.com/search/${encodeURIComponent(`${song.title} ${song.artist ?? ''}`.trim())}`
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1"
-                    >
-                      <Button variant="outlined" fullWidth>
-                        <Music2 size={16} className="text-[#1DB954]" />
-                        {trackId ? 'Open in Spotify' : 'Search Spotify'}
-                      </Button>
-                    </a>
-                    <a
-                      href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${song.title} ${song.artist ?? ''}`.trim())}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1"
-                    >
-                      <Button variant="outlined" fullWidth>
-                        <Youtube size={16} className="text-[#FF0000]" />
-                        Search YouTube
-                      </Button>
-                    </a>
-                  </div>
                 </div>
+              </div>
+            </div>
+          </div>
 
-                {/* Lyrics section */}
-                {lyricsUrl && (
-                  <div>
-                    <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3">Lyrics</p>
-                    <a href={lyricsUrl} target="_blank" rel="noopener noreferrer">
-                      <Button variant="outlined" fullWidth>
-                        <ExternalLink size={16} /> View lyrics on Genius
-                      </Button>
-                    </a>
-                  </div>
-                )}
+          <div className="px-5 space-y-4 mt-4">
 
-                {isDirector && (
-                  <Button variant="primary" fullWidth onClick={() => setAddOpen(true)}>
-                    <Plus size={16} /> Add to set list
+            {/* ── Spotify in-app player ─────────────────────────── */}
+            <div className="space-y-2">
+              {trackId ? (
+                <>
+                  <iframe
+                    title={`Play ${song.title} on Spotify`}
+                    src={`${spotifyEmbedUrl(trackId)}?utm_source=generator&theme=0`}
+                    width="100%"
+                    height="152"
+                    frameBorder="0"
+                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                    loading="lazy"
+                    className="rounded-2xl shadow-md"
+                  />
+                  <a
+                    href={`https://open.spotify.com/track/${trackId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 py-2 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
+                  >
+                    <Music2 size={12} className="text-[#1DB954]" /> Open full song in Spotify
+                  </a>
+                </>
+              ) : (
+                <div className="flex gap-2">
+                  <a
+                    href={`https://open.spotify.com/search/${songQuery}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1"
+                  >
+                    <Button variant="outlined" fullWidth>
+                      <Music2 size={15} className="text-[#1DB954]" /> Search Spotify
+                    </Button>
+                  </a>
+                  <a
+                    href={`https://www.youtube.com/results?search_query=${songQuery}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1"
+                  >
+                    <Button variant="outlined" fullWidth>
+                      <Youtube size={15} className="text-[#FF0000]" /> Search YouTube
+                    </Button>
+                  </a>
+                </div>
+              )}
+
+              {/* YouTube search always available as secondary action when Spotify loaded */}
+              {trackId && (
+                <a
+                  href={`https://www.youtube.com/results?search_query=${songQuery}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 py-2 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
+                >
+                  <Youtube size={12} className="text-[#FF0000]" /> Search on YouTube
+                </a>
+              )}
+            </div>
+
+            {/* ── Actions ───────────────────────────────────────── */}
+            <div className="flex flex-col gap-2">
+              {lyricsUrl && (
+                <a href={lyricsUrl} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outlined" fullWidth>
+                    <ExternalLink size={15} /> View lyrics on Genius
                   </Button>
-                )}
+                </a>
+              )}
+              {isDirector && (
+                <Button variant="primary" fullWidth onClick={() => setAddOpen(true)}>
+                  <Plus size={15} /> Add to set list
+                </Button>
+              )}
+            </div>
 
-                <UsageHistory choirId={choir!.id} songId={song.id} />
+            {/* ── Key & chords ──────────────────────────────────── */}
+            <Card className="p-5 space-y-4">
+              <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Key & chords</p>
+
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setSelectedKey(k => transposeKey(k, -1))}
+                  className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors"
+                  aria-label="Transpose down"
+                >
+                  <ChevronDown size={18} className="text-harmonic-text" />
+                </button>
+                <div className="flex-1 text-center">
+                  <p className="text-4xl font-bold text-harmonic-primary">{selectedKey}</p>
+                  {song.defaultKey && toChromaticKey(song.defaultKey) !== selectedKey && (
+                    <p className="text-xs text-harmonic-muted mt-1">
+                      Original: {song.defaultKey}
+                      {' · '}
+                      <button className="underline hover:no-underline" onClick={() => setSelectedKey(toChromaticKey(song.defaultKey!))}>
+                        Reset
+                      </button>
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => setSelectedKey(k => transposeKey(k, 1))}
+                  className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors"
+                  aria-label="Transpose up"
+                >
+                  <ChevronUp size={18} className="text-harmonic-text" />
+                </button>
+              </div>
+
+              {chords && (
+                <div className="grid grid-cols-4 gap-2">
+                  {(['I', 'IV', 'V', 'vi'] as const).map((numeral, i) => (
+                    <div key={numeral} className="flex flex-col items-center bg-harmonic-surface rounded-xl py-3 px-1">
+                      <p className="text-[10px] font-semibold text-harmonic-muted uppercase tracking-widest">{numeral}</p>
+                      <p className="text-sm font-bold text-harmonic-text mt-0.5">{chords[i]}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-1.5">
+                {CHROMATIC.map(k => (
+                  <button
+                    key={k}
+                    onClick={() => setSelectedKey(k)}
+                    className={
+                      selectedKey === k
+                        ? 'px-2.5 py-1 rounded-pill text-xs font-semibold bg-harmonic-primary text-white'
+                        : 'px-2.5 py-1 rounded-pill text-xs font-medium bg-harmonic-surface text-harmonic-muted hover:bg-harmonic-border transition-colors'
+                    }
+                  >
+                    {k}
+                  </button>
+                ))}
               </div>
             </Card>
 
-            {/* Practice notes */}
+            {/* ── Usage history ─────────────────────────────────── */}
+            <Card className="px-5 py-4">
+              <UsageHistory choirId={choir!.id} songId={song.id} />
+            </Card>
+
+            {/* ── Practice notes ────────────────────────────────── */}
             <Card className="p-5">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">My practice notes</p>
@@ -326,8 +382,8 @@ export function SongLibraryDetail() {
               )}
             </Card>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {song && choir && (
         <AddToSetListModal open={addOpen} onOpenChange={setAddOpen} choirId={choir.id} song={song} />
