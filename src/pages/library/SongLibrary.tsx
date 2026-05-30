@@ -32,7 +32,7 @@ interface SpotifyResult {
 export function SongLibrary() {
   const navigate = useNavigate()
   const { firebaseUser } = useAuth()
-  const { choir, isDirector } = useChoir()
+  const { choir, loading: choirLoading, isDirector } = useChoir()
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -50,7 +50,8 @@ export function SongLibrary() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (!choir) return
+    if (choirLoading) return
+    if (!choir) { setLoading(false); return }
     let active = true
     setLoading(true)
     listSongs(choir.id)
@@ -58,7 +59,7 @@ export function SongLibrary() {
       .catch(err => console.error('Load songs error:', err))
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [choir])
+  }, [choir, choirLoading])
 
   // Debounced Spotify search
   useEffect(() => {
