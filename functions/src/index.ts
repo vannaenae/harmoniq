@@ -7,7 +7,7 @@
  *   firebase functions:secrets:set SPOTIFY_CLIENT_SECRET
  *   firebase functions:secrets:set GENIUS_TOKEN
  *   firebase functions:secrets:set YOUTUBE_API_KEY     ← YouTube Data API v3 key
- *   firebase functions:secrets:set ANTHROPIC_API_KEY   ← Claude API key (song context)
+ *   firebase functions:secrets:set OPENAI_API_KEY       ← OpenAI API key (song context)
  *
  * Deploy:  npm --prefix functions run deploy
  */
@@ -23,7 +23,7 @@ const SPOTIFY_CLIENT_ID     = defineSecret('SPOTIFY_CLIENT_ID')
 const SPOTIFY_CLIENT_SECRET = defineSecret('SPOTIFY_CLIENT_SECRET')
 const GENIUS_TOKEN          = defineSecret('GENIUS_TOKEN')
 const YOUTUBE_API_KEY       = defineSecret('YOUTUBE_API_KEY')
-const ANTHROPIC_API_KEY     = defineSecret('ANTHROPIC_API_KEY')
+const OPENAI_API_KEY        = defineSecret('OPENAI_API_KEY')
 
 // ── Spotify: Client Credentials token (cached in memory per instance) ──────
 let cachedToken: { value: string; expiresAt: number } | null = null
@@ -181,7 +181,7 @@ export const fetchLyrics = onCall(async (request) => {
 // Use Claude (Haiku) to generate a structured knowledge card about the song:
 // what it's about, key themes, and why it resonates. Cached in /songContextCache.
 // Requires ANTHROPIC_API_KEY secret.
-export const getSongContext = onCall({ secrets: [ANTHROPIC_API_KEY] }, async (request) => {
+export const getSongContext = onCall({ secrets: [OPENAI_API_KEY] }, async (request) => {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required')
   const { title, artist } = request.data as { title: string; artist?: string }
   if (!title) throw new HttpsError('invalid-argument', 'title is required')
@@ -206,24 +206,22 @@ If you don't know the song, make a reasonable inference from the title and artis
   const empty = { about: null as string | null, themes: [] as string[], resonance: null as string | null }
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'x-api-key': ANTHROPIC_API_KEY.value(),
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY.value()}`,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'gpt-4o-mini',
         max_tokens: 400,
         messages: [{ role: 'user', content: prompt }],
       }),
     })
 
     if (res.ok) {
-      const json = (await res.json()) as { content: Array<{ type: string; text: string }> }
-      const text = json.content.find(c => c.type === 'text')?.text?.trim() ?? ''
-      // Strip any markdown code fences if Claude adds them
+      const json = (await res.json()) as { choices: Array<{ message: { content: string } }> }
+      const text = json.choices[0]?.message?.content?.trim() ?? ''
       const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
       try {
         const parsed = JSON.parse(cleaned) as typeof empty
