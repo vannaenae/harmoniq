@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Input } from '@/components/ui/Input'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { SkeletonCard } from '@/components/ui/Skeleton'
 import { useChoir } from '@/contexts/ChoirContext'
 import { listServices } from '@/lib/firestore'
 import { getServiceAvailability } from '@/lib/availability'
@@ -30,7 +31,7 @@ const PART_FILTERS: { id: VoicePart | 'all'; label: string }[] = [
 ]
 
 export function MembersDirectory() {
-  const { choir, members, isDirector } = useChoir()
+  const { choir, members, loading: choirLoading, isDirector } = useChoir()
   const [search, setSearch] = useState('')
   const [part, setPart] = useState<VoicePart | 'all'>('all')
   const [nextAvail, setNextAvail] = useState<Record<string, Availability>>({})
@@ -105,7 +106,11 @@ export function MembersDirectory() {
           ))}
         </div>
 
-        {members.length === 0 ? (
+        {choirLoading ? (
+          <div className="flex flex-col gap-3">
+            <SkeletonCard /><SkeletonCard /><SkeletonCard />
+          </div>
+        ) : members.length === 0 ? (
           <Card className="p-2">
             <EmptyState
               icon={UserPlus}

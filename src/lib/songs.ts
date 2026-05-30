@@ -69,7 +69,7 @@ export async function addCustomSong(
     defaultKey: input.defaultKey ?? null,
     genre: input.genre ?? 'Other',
     lyricsUrl: input.lyricsUrl ?? null,
-    geniusUrl: input.lyricsUrl ?? null,
+    geniusUrl: null,
     notes: input.notes ?? null,
     sheetMusicUrl: input.sheetMusicUrl ?? null,
     isCustom: true,
