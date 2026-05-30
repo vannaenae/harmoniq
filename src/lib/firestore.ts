@@ -3,55 +3,16 @@ import {
   doc,
   getDoc,
   getDocs,
-  getDocFromCache,
-  getDocsFromCache,
   setDoc,
   updateDoc,
   deleteDoc,
   query,
   orderBy,
   serverTimestamp,
-  type Query,
-  type DocumentReference,
-  type QuerySnapshot,
-  type DocumentSnapshot,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { generateId } from '@/lib/utils'
 import type { Service, SetListItem } from '@/types'
-
-// ── Cache-first reads ───────────────────────────────────────────────────────
-// With persistent local cache enabled, these return previously-loaded data
-// from IndexedDB instantly (no network round-trip, no blocking skeleton on
-// revisit) and kick off a background server fetch so the cache is fresh for
-// the next navigation. Own writes update the cache immediately, so edits the
-// user just made are reflected right away.
-
-async function cachedGetDocs(q: Query): Promise<QuerySnapshot> {
-  try {
-    const cached = await getDocsFromCache(q)
-    if (!cached.empty) {
-      getDocs(q).catch(() => {}) // revalidate in background
-      return cached
-    }
-  } catch {
-    /* nothing cached yet — fall through to server */
-  }
-  return getDocs(q)
-}
-
-async function cachedGetDoc(ref: DocumentReference): Promise<DocumentSnapshot> {
-  try {
-    const cached = await getDocFromCache(ref)
-    if (cached.exists()) {
-      getDoc(ref).catch(() => {}) // revalidate in background
-      return cached
-    }
-  } catch {
-    /* nothing cached yet — fall through to server */
-  }
-  return getDoc(ref)
-}
 
 /** Normalise a Firestore Timestamp/Date/string into a Date */
 export function toDate(v: unknown): Date {
@@ -68,7 +29,7 @@ export function toDate(v: unknown): Date {
 const servicesCol = (choirId: string) => collection(db, 'choirs', choirId, 'services')
 
 export async function listServices(choirId: string): Promise<Service[]> {
-  const snap = await cachedGetDocs(query(servicesCol(choirId), orderBy('date', 'asc')))
+  const snap = await getDocs(query(servicesCol(choirId), orderBy('date', 'asc')))
   return snap.docs.map(d => {
     const data = d.data()
     return {
@@ -84,7 +45,7 @@ export async function listServices(choirId: string): Promise<Service[]> {
 }
 
 export async function getService(choirId: string, serviceId: string): Promise<Service | null> {
-  const snap = await cachedGetDoc(doc(db, 'choirs', choirId, 'services', serviceId))
+  const snap = await getDoc(doc(db, 'choirs', choirId, 'services', serviceId))
   if (!snap.exists()) return null
   const data = snap.data()
   return {
@@ -158,7 +119,7 @@ const setlistCol = (choirId: string, serviceId: string) =>
   collection(db, 'choirs', choirId, 'services', serviceId, 'setlist')
 
 export async function getSetList(choirId: string, serviceId: string): Promise<SetListItem[]> {
-  const snap = await cachedGetDocs(query(setlistCol(choirId, serviceId), orderBy('order', 'asc')))
+  const snap = await getDocs(query(setlistCol(choirId, serviceId), orderBy('order', 'asc')))
   return snap.docs.map(d => ({ ...d.data(), songId: d.id }) as SetListItem)
 }
 

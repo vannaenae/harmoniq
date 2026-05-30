@@ -1,11 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
-import {
-  initializeFirestore,
-  getFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
-} from 'firebase/firestore'
+import { getFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 import { getFunctions } from 'firebase/functions'
 
@@ -22,25 +17,8 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
 
-export const auth = getAuth(app)
-
-// Persistent IndexedDB cache so revisited pages render instantly from local
-// data while Firestore revalidates in the background. Falls back to the
-// default in-memory cache if IndexedDB is unavailable (private browsing,
-// storage quota exceeded, or a double-init from HMR).
-function buildFirestore() {
-  try {
-    return initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager(),
-      }),
-    })
-  } catch {
-    return getFirestore(app)
-  }
-}
-export const db = buildFirestore()
-
+export const auth      = getAuth(app)
+export const db        = getFirestore(app)
 export const storage   = getStorage(app)
 export const functions = getFunctions(app)
 export const googleProvider = new GoogleAuthProvider()
