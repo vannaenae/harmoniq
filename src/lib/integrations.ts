@@ -87,6 +87,53 @@ export async function fetchGenius(title: string, artist?: string): Promise<Geniu
 export const spotifyEmbedUrl = (trackId: string) =>
   `https://open.spotify.com/embed/track/${trackId}`
 
+export interface SpotifyTrackResult {
+  trackId: string
+  title: string
+  artist: string
+  albumArtUrl: string | null
+  previewUrl: string | null
+  durationSec: number | null
+}
+
+export interface YoutubeVideoResult {
+  videoId: string
+  title: string
+  channelTitle: string
+  thumbnailUrl: string | null
+}
+
+/** Search Spotify for up to 5 tracks matching a free-text query. */
+export async function fetchSpotifyResults(query: string): Promise<SpotifyTrackResult[]> {
+  try {
+    const call = httpsCallable<{ query: string }, { results: SpotifyTrackResult[] }>(
+      functions,
+      'spotifyMultiSearch',
+    )
+    const { data } = await call({ query })
+    return data.results ?? []
+  } catch (err) {
+    console.warn('[spotifyMulti] search failed:', err)
+    return []
+  }
+}
+
+/** Search YouTube for up to 5 videos matching a free-text query.
+ *  Returns [] if YOUTUBE_API_KEY secret is not configured. */
+export async function fetchYoutubeResults(query: string): Promise<YoutubeVideoResult[]> {
+  try {
+    const call = httpsCallable<{ query: string }, { results: YoutubeVideoResult[] }>(
+      functions,
+      'youtubeSearch',
+    )
+    const { data } = await call({ query })
+    return data.results ?? []
+  } catch (err) {
+    console.warn('[youtube] search failed (set YOUTUBE_API_KEY secret to enable):', err)
+    return []
+  }
+}
+
 /** Create a Google Calendar event for a published service. */
 export async function createCalendarEvent(params: {
   summary: string
