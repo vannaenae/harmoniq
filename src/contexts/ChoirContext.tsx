@@ -6,7 +6,7 @@ import {
   useCallback,
   type ReactNode,
 } from 'react'
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
+import { doc, getDoc, collection, getDocs, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 import { countUnread } from '@/lib/notifications'
@@ -81,16 +81,71 @@ export function ChoirProvider({ children }: { children: ReactNode }) {
     )
   }, [choirId])
 
+  // Live subscriptions for the app-wide shell. With persistent cache enabled,
+  // the first callback fires synchronously from IndexedDB (instant paint on
+  // every navigation) and subsequent callbacks stream live server updates —
+  // no blocking network round-trip and no full re-fetch on each page.
   useEffect(() => {
-    let active = true
-    setLoading(true)
-    Promise.all([refreshChoir(), refreshMembers(), refreshUnread()]).finally(() => {
-      if (active) setLoading(false)
-    })
-    return () => {
-      active = false
+    if (!choirId) {
+      setChoir(null)
+      setMembers([])
+      setLoading(false)
+      return
     }
-  }, [refreshChoir, refreshMembers, refreshUnread])
+
+    setLoading(true)
+    let gotChoir = false
+    let gotMembers = false
+    const settle = () => {
+      if (gotChoir && gotMembers) setLoading(false)
+    }
+
+    const unsubChoir = onSnapshot(
+      doc(db, 'choirs', choirId),
+      snap => {
+        if (snap.exists()) {
+          const data = snap.data()
+          setChoir({
+            ...data,
+            id: snap.id,
+            createdAt: coerceDate(data.createdAt),
+            updatedAt: coerceDate(data.updatedAt),
+            inviteExpiry: coerceDate(data.inviteExpiry),
+          } as Choir)
+        } else {
+          setChoir(null)
+        }
+        gotChoir = true
+        settle()
+      },
+      () => { gotChoir = true; settle() },
+    )
+
+    const unsubMembers = onSnapshot(
+      collection(db, 'choirs', choirId, 'members'),
+      snap => {
+        setMembers(
+          snap.docs.map(d => {
+            const data = d.data()
+            return { ...data, uid: d.id, joinedAt: coerceDate(data.joinedAt) } as ChoirMember
+          })
+        )
+        gotMembers = true
+        settle()
+      },
+      () => { gotMembers = true; settle() },
+    )
+
+    return () => {
+      unsubChoir()
+      unsubMembers()
+    }
+  }, [choirId])
+
+  // Keep the unread badge fresh alongside the live subscriptions.
+  useEffect(() => {
+    refreshUnread()
+  }, [refreshUnread])
 
   return (
     <ChoirContext.Provider
