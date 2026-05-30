@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { ExternalLink, Plus, Check, ChevronUp, ChevronDown, Save } from 'lucide-react'
+import { ExternalLink, Plus, Check, ChevronUp, ChevronDown, Save, Music2, Youtube } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -227,42 +227,75 @@ export function SongLibraryDetail() {
                   </div>
                 </div>
 
-                {mediaError && (
-                  <div className="bg-harmonic-surface rounded-xl px-4 py-3 text-sm text-harmonic-muted">
-                    Song details couldn't load. You can still use the song.
-                  </div>
-                )}
+                {/* Listen section */}
+                <div>
+                  <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3">Listen</p>
 
-                {trackId ? (
-                  <iframe
-                    title={`Spotify preview of ${song.title}`}
-                    src={spotifyEmbedUrl(trackId)}
-                    width="100%"
-                    height="152"
-                    frameBorder="0"
-                    allow="encrypted-media"
-                    className="rounded-xl"
-                  />
-                ) : !mediaError && (
-                  <div className="bg-harmonic-surface rounded-xl h-20 flex items-center justify-center">
-                    <p className="text-sm text-harmonic-muted">No Spotify match found</p>
-                  </div>
-                )}
+                  {mediaError && (
+                    <div className="bg-harmonic-surface rounded-xl px-4 py-3 text-sm text-harmonic-muted mb-3">
+                      Song details couldn't load. You can still use the song.
+                    </div>
+                  )}
 
-                <div className="flex flex-col gap-2">
-                  {lyricsUrl && (
+                  {trackId && (
+                    <iframe
+                      title={`Spotify preview of ${song.title}`}
+                      src={spotifyEmbedUrl(trackId)}
+                      width="100%"
+                      height="152"
+                      frameBorder="0"
+                      allow="encrypted-media"
+                      className="rounded-xl mb-3"
+                    />
+                  )}
+
+                  <div className="flex gap-2">
+                    <a
+                      href={
+                        trackId
+                          ? `https://open.spotify.com/track/${trackId}`
+                          : `https://open.spotify.com/search/${encodeURIComponent(`${song.title} ${song.artist ?? ''}`.trim())}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1"
+                    >
+                      <Button variant="outlined" fullWidth>
+                        <Music2 size={16} className="text-[#1DB954]" />
+                        {trackId ? 'Open in Spotify' : 'Search Spotify'}
+                      </Button>
+                    </a>
+                    <a
+                      href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${song.title} ${song.artist ?? ''}`.trim())}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1"
+                    >
+                      <Button variant="outlined" fullWidth>
+                        <Youtube size={16} className="text-[#FF0000]" />
+                        Search YouTube
+                      </Button>
+                    </a>
+                  </div>
+                </div>
+
+                {/* Lyrics section */}
+                {lyricsUrl && (
+                  <div>
+                    <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3">Lyrics</p>
                     <a href={lyricsUrl} target="_blank" rel="noopener noreferrer">
                       <Button variant="outlined" fullWidth>
                         <ExternalLink size={16} /> View lyrics on Genius
                       </Button>
                     </a>
-                  )}
-                  {isDirector && (
-                    <Button variant="primary" fullWidth onClick={() => setAddOpen(true)}>
-                      <Plus size={16} /> Add to set list
-                    </Button>
-                  )}
-                </div>
+                  </div>
+                )}
+
+                {isDirector && (
+                  <Button variant="primary" fullWidth onClick={() => setAddOpen(true)}>
+                    <Plus size={16} /> Add to set list
+                  </Button>
+                )}
 
                 <UsageHistory choirId={choir!.id} songId={song.id} />
               </div>
