@@ -1,21 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Save,
   Music2, Youtube, ExternalLink, ChevronDown as ChevronExpand,
-  Sparkles,
+  Sparkles, Pencil, Trash2,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
+import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ServiceSelect } from '@/components/ServiceSelect'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
-import { getSong, getPracticeNotes, savePracticeNotes } from '@/lib/songs'
+import { getSong, getPracticeNotes, savePracticeNotes, updateCustomSong, deleteCustomSong, ALL_KEYS, GENRES } from '@/lib/songs'
 import {
   fetchSpotify, fetchGenius, fetchLyricsData, fetchSongContext,
   spotifyEmbedUrl,
@@ -50,6 +52,7 @@ function fmtDuration(sec: number) {
 // ── Component ─────────────────────────────────────────────────────────────────
 export function SongLibraryDetail() {
   const { songId } = useParams<{ songId: string }>()
+  const navigate = useNavigate()
   const { firebaseUser } = useAuth()
   const { choir, isDirector } = useChoir()
 
@@ -64,6 +67,18 @@ export function SongLibraryDetail() {
   const [contextLoading, setContextLoading] = useState(true)
   const [lyricsExpanded, setLyricsExpanded] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
+
+  // Edit / delete (custom songs, director only)
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editArtist, setEditArtist] = useState('')
+  const [editKey, setEditKey] = useState('')
+  const [editGenre, setEditGenre] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Key transposer
   const [selectedKey, setSelectedKey] = useState('')
@@ -158,6 +173,49 @@ export function SongLibraryDetail() {
   const lyrics   = lyricsData?.lyrics ?? null
   const chords   = KEY_CHORDS[selectedKey] ?? null
   const songQuery = encodeURIComponent(`${song?.title ?? ''} ${song?.artist ?? ''}`.trim())
+
+  const openEdit = () => {
+    if (!song) return
+    setEditTitle(song.title)
+    setEditArtist(song.artist ?? '')
+    setEditKey(song.defaultKey ?? '')
+    setEditGenre(song.genre ?? '')
+    setEditNotes(song.notes ?? '')
+    setEditError(null)
+    setEditOpen(true)
+  }
+
+  const handleEditSave = async () => {
+    if (!choir || !songId || !editTitle.trim()) return
+    setEditSaving(true)
+    setEditError(null)
+    try {
+      await updateCustomSong(choir.id, songId, {
+        title: editTitle.trim(),
+        artist: editArtist.trim() || undefined,
+        defaultKey: editKey || undefined,
+        genre: editGenre as Song['genre'] || undefined,
+        notes: editNotes.trim() || undefined,
+      })
+      setSong(prev => prev ? { ...prev, title: editTitle.trim(), artist: editArtist.trim() || undefined, defaultKey: editKey || undefined, genre: editGenre as Song['genre'] || undefined, notes: editNotes.trim() || undefined } : prev)
+      setEditOpen(false)
+    } catch {
+      setEditError('Save failed. Please try again.')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!choir || !songId) return
+    setDeleting(true)
+    try {
+      await deleteCustomSong(choir.id, songId)
+      navigate('/library', { replace: true })
+    } catch {
+      setDeleting(false)
+    }
+  }
 
   // ── Render ──────────────────────────────────────────────────────────────────
   if (loading) {
@@ -304,11 +362,23 @@ export function SongLibraryDetail() {
             </div>
           )}
 
-          {/* ── Add to set list ─────────────────────────────────────────── */}
+          {/* ── Director actions ────────────────────────────────────────── */}
           {isDirector && (
-            <Button variant="primary" fullWidth onClick={() => setAddOpen(true)}>
-              <Plus size={15} /> Add to set list
-            </Button>
+            <div className="space-y-2">
+              <Button variant="primary" fullWidth onClick={() => setAddOpen(true)}>
+                <Plus size={15} /> Add to set list
+              </Button>
+              {song.isCustom && (
+                <div className="flex gap-2">
+                  <Button variant="outlined" fullWidth onClick={openEdit}>
+                    <Pencil size={15} /> Edit song
+                  </Button>
+                  <Button variant="danger" fullWidth onClick={() => setDeleteOpen(true)}>
+                    <Trash2 size={15} /> Delete
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
 
           {/* ── AI Knowledge card ───────────────────────────────────────── */}
@@ -523,6 +593,54 @@ export function SongLibraryDetail() {
       {song && choir && (
         <AddToSetListModal open={addOpen} onOpenChange={setAddOpen} choirId={choir.id} song={song} />
       )}
+
+      {/* Edit modal (custom songs only) */}
+      <Modal
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        title="Edit song"
+        footer={
+          <>
+            <Button variant="outlined" onClick={() => setEditOpen(false)} disabled={editSaving}>Cancel</Button>
+            <Button variant="primary" onClick={handleEditSave} disabled={!editTitle.trim() || editSaving}>
+              {editSaving ? 'Saving…' : 'Save changes'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input label="Title" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
+          <Input label="Artist" value={editArtist} onChange={e => setEditArtist(e.target.value)} />
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Key" value={editKey} onValueChange={setEditKey}
+              options={ALL_KEYS.map(k => ({ value: k, label: k }))} placeholder="Key…" />
+            <Select label="Genre" value={editGenre} onValueChange={setEditGenre}
+              options={GENRES.map(g => ({ value: g, label: g }))} placeholder="Genre…" />
+          </div>
+          <Input label="Notes" value={editNotes} onChange={e => setEditNotes(e.target.value)} />
+          {editError && <p role="alert" className="text-sm text-harmonic-danger">{editError}</p>}
+        </div>
+      </Modal>
+
+      {/* Delete confirmation modal */}
+      <Modal
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Delete "${song?.title}"?`}
+        description="This removes the song from your choir's library. It cannot be undone."
+        footer={
+          <>
+            <Button variant="outlined" onClick={() => setDeleteOpen(false)} disabled={deleting}>Cancel</Button>
+            <Button variant="danger" onClick={handleDelete} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete song'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-harmonic-muted">
+          This only removes the custom song from {choir?.name}. Global songs cannot be deleted.
+        </p>
+      </Modal>
     </AppLayout>
   )
 }

@@ -4,6 +4,7 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  deleteDoc,
   onSnapshot,
   serverTimestamp,
   type Unsubscribe,
@@ -107,6 +108,22 @@ export async function addCustomSong(
     updatedAt: serverTimestamp(),
   })
   return id
+}
+
+export async function updateCustomSong(
+  choirId: string,
+  songId: string,
+  input: Partial<CustomSongInput>,
+): Promise<void> {
+  await setDoc(
+    doc(db, 'choirs', choirId, 'songs', songId),
+    { ...input, updatedAt: serverTimestamp() },
+    { merge: true },
+  )
+}
+
+export async function deleteCustomSong(choirId: string, songId: string): Promise<void> {
+  await deleteDoc(doc(db, 'choirs', choirId, 'songs', songId))
 }
 
 /** Persist resolved Spotify/Genius data back onto a custom song to avoid repeat calls. */
