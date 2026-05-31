@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
-import { Mic2, Music2 } from 'lucide-react'
+import { Mic2, Music2, Loader2 } from 'lucide-react'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/Button'
@@ -28,9 +28,11 @@ export function RoleSelection() {
   const navigate = useNavigate()
   const [selected, setSelected] = useState<UserRole | null>(null)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleContinue = async () => {
     if (!selected || !firebaseUser) return
+    setError(null)
     setSaving(true)
     try {
       await updateDoc(doc(db, 'users', firebaseUser.uid), {
@@ -41,6 +43,7 @@ export function RoleSelection() {
       navigate('/onboarding/choir')
     } catch (err) {
       console.error('Role save error:', err)
+      setError('Something went wrong. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -61,6 +64,12 @@ export function RoleSelection() {
             This helps us set up the right experience for you.
           </p>
         </div>
+
+        {error && (
+          <div role="alert" className="bg-red-50 border border-harmonic-danger/20 rounded-xl px-4 py-3 text-sm text-harmonic-danger">
+            {error}
+          </div>
+        )}
 
         <div className="flex flex-col gap-3">
           {roles.map(({ id, title, description, icon: Icon }) => (
@@ -102,6 +111,7 @@ export function RoleSelection() {
           onClick={handleContinue}
           disabled={!selected || saving}
         >
+          {saving && <Loader2 size={16} className="animate-spin" />}
           {saving ? 'Saving…' : 'Continue'}
         </Button>
       </div>

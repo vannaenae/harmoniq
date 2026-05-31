@@ -11,7 +11,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { PlusCircle, LogIn, Upload } from 'lucide-react'
+import { PlusCircle, LogIn, Upload, Loader2 } from 'lucide-react'
 import { db, storage } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/Button'
@@ -247,6 +247,7 @@ export function CreateOrJoinChoir() {
               onClick={handleCreateChoir}
               disabled={!choirName.trim() || saving}
             >
+              {saving && <Loader2 size={16} className="animate-spin" />}
               {saving ? 'Creating your choir…' : 'Create choir'}
             </Button>
           </div>
@@ -277,6 +278,7 @@ export function CreateOrJoinChoir() {
               onClick={handleJoinChoir}
               disabled={inviteCode.trim().length < 6 || saving}
             >
+              {saving && <Loader2 size={16} className="animate-spin" />}
               {saving ? 'Joining…' : 'Join choir'}
             </Button>
           </div>

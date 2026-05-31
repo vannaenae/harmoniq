@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { doc, getDoc, updateDoc, serverTimestamp, type PartialWithFieldValue } from 'firebase/firestore'
-import { Mic2, Music4 } from 'lucide-react'
+import { Mic2, Music4, Loader2 } from 'lucide-react'
 import { db } from '@/lib/firebase'
 import type { HarmonicUser, VoicePart } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
@@ -67,6 +67,7 @@ export function VoicePart() {
   const [selected, setSelected] = useState<VoicePart | null>(null)
   const [preferredName, setPreferredName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleCategorySelect = (c: Category) => {
     setCategory(c)
@@ -75,6 +76,7 @@ export function VoicePart() {
 
   const handleSave = async () => {
     if (!selected || !firebaseUser) return
+    setError(null)
     setSaving(true)
     try {
       const updates: PartialWithFieldValue<HarmonicUser> = {
@@ -99,6 +101,7 @@ export function VoicePart() {
       navigate('/dashboard')
     } catch (err) {
       console.error('Voice part save error:', err)
+      setError('Something went wrong. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -117,6 +120,12 @@ export function VoicePart() {
             Your director can always update this later.
           </p>
         </div>
+
+        {error && (
+          <div role="alert" className="bg-red-50 border border-harmonic-danger/20 rounded-xl px-4 py-3 text-sm text-harmonic-danger">
+            {error}
+          </div>
+        )}
 
         {/* Category selector */}
         <div className="grid grid-cols-2 gap-3">
@@ -194,6 +203,7 @@ export function VoicePart() {
           onClick={handleSave}
           disabled={!selected || saving}
         >
+          {saving && <Loader2 size={16} className="animate-spin" />}
           {saving ? 'Saving…' : 'Save and continue'}
         </Button>
       </div>
