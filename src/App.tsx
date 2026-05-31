@@ -51,6 +51,7 @@ const MyProfile         = lazy(() => import('@/pages/settings/MyProfile').then(m
 const ChoirSettings     = lazy(() => import('@/pages/settings/ChoirSettings').then(m => ({ default: m.ChoirSettings })))
 const NotificationSettings = lazy(() => import('@/pages/settings/NotificationSettings').then(m => ({ default: m.NotificationSettings })))
 const DeleteAccount     = lazy(() => import('@/pages/settings/DeleteAccount').then(m => ({ default: m.DeleteAccount })))
+const RolePermissions   = lazy(() => import('@/pages/settings/RolePermissions').then(m => ({ default: m.RolePermissions })))
 const PrivacyPolicy     = lazy(() => import('@/pages/settings/LegalPage').then(m => ({ default: m.PrivacyPolicy })))
 const TermsOfService    = lazy(() => import('@/pages/settings/LegalPage').then(m => ({ default: m.TermsOfService })))
 
@@ -171,6 +172,7 @@ export function App() {
 
       <Route path="/settings" element={<RequireAuth><RequireOnboarding><S><Settings /></S></RequireOnboarding></RequireAuth>} />
       <Route path="/settings/choir" element={<RequireAuth><RequireOnboarding><S><ChoirSettings /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/settings/roles" element={<RequireAuth><RequireOnboarding><S><RolePermissions /></S></RequireOnboarding></RequireAuth>} />
       <Route path="/settings/notifications" element={<RequireAuth><RequireOnboarding><S><NotificationSettings /></S></RequireOnboarding></RequireAuth>} />
       <Route path="/settings/delete" element={<RequireAuth><RequireOnboarding><S><DeleteAccount /></S></RequireOnboarding></RequireAuth>} />
 

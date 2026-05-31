@@ -9,6 +9,7 @@ import {
   LogOut,
   Trash2,
   ChevronRight,
+  Users,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
@@ -34,6 +35,7 @@ export function Settings() {
   const rows = [
     { to: '/profile', label: 'My profile', icon: User, show: true },
     { to: '/settings/choir', label: 'Choir settings', icon: Music4, show: isDirector },
+    { to: '/settings/roles', label: 'Role permissions', icon: Users, show: isDirector },
     { to: '/settings/notifications', label: 'Notification settings', icon: Bell, show: true },
     { to: '/privacy', label: 'Privacy policy', icon: Shield, show: true },
     { to: '/terms', label: 'Terms of service', icon: FileText, show: true },
