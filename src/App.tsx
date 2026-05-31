@@ -23,6 +23,7 @@ const SetListBuilder    = lazy(() => import('@/pages/services/SetListBuilder').t
 const SetListDetail     = lazy(() => import('@/pages/services/SetListDetail').then(m => ({ default: m.SetListDetail })))
 const SongDetail        = lazy(() => import('@/pages/services/SongDetail').then(m => ({ default: m.SongDetail })))
 const ServiceRoster     = lazy(() => import('@/pages/services/ServiceRoster').then(m => ({ default: m.ServiceRoster })))
+const LiveServiceMode   = lazy(() => import('@/pages/services/LiveServiceMode').then(m => ({ default: m.LiveServiceMode })))
 
 const MarkAvailability  = lazy(() => import('@/pages/availability/MarkAvailability').then(m => ({ default: m.MarkAvailability })))
 const AvailabilityOverview = lazy(() => import('@/pages/availability/AvailabilityOverview').then(m => ({ default: m.AvailabilityOverview })))
@@ -142,6 +143,7 @@ export function App() {
       <Route path="/services/:serviceId/songs/:songId" element={<RequireAuth><RequireOnboarding><S><SongDetail /></S></RequireOnboarding></RequireAuth>} />
       <Route path="/services/:serviceId/availability" element={<RequireAuth><RequireOnboarding><S><MarkAvailability /></S></RequireOnboarding></RequireAuth>} />
       <Route path="/services/:serviceId/roster" element={<RequireAuth><RequireOnboarding><S><ServiceRoster /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/services/:serviceId/live" element={<RequireAuth><RequireOnboarding><S><LiveServiceMode /></S></RequireOnboarding></RequireAuth>} />
       <Route path="/services/:serviceId" element={<RequireAuth><RequireOnboarding><S><SetListDetail /></S></RequireOnboarding></RequireAuth>} />
 
       <Route path="/availability" element={<RequireAuth><RequireOnboarding><S><AvailabilityOverview /></S></RequireOnboarding></RequireAuth>} />

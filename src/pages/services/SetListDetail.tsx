@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { Music2, Play, ChevronRight, CalendarClock, CheckCircle2, Users } from 'lucide-react'
+import { Music2, Play, ChevronRight, CalendarClock, CheckCircle2, Users, Radio } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -73,6 +73,9 @@ export function SetListDetail() {
           actions={
             isDirector ? (
               <div className="flex gap-2">
+                <Link to={`/services/${serviceId}/live`}>
+                  <Button variant="primary" size="sm"><Radio size={14} /> Live</Button>
+                </Link>
                 <Link to={`/services/${serviceId}/roster`}>
                   <Button variant="outlined" size="sm">Roster</Button>
                 </Link>
