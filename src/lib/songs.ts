@@ -4,7 +4,9 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  onSnapshot,
   serverTimestamp,
+  type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { generateId } from '@/lib/utils'
@@ -31,6 +33,32 @@ export async function listSongs(choirId: string): Promise<Song[]> {
     : []
 
   return [...custom, ...global]
+}
+
+/** Real-time listener for all songs (global + custom). Global songs are loaded
+ *  once and then merged with the live custom-songs stream. */
+export function subscribeSongs(
+  choirId: string,
+  callback: (songs: Song[]) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  // Load global songs once (they rarely change)
+  let globalSongs: Song[] | null = null
+  getDocs(collection(db, 'songs'))
+    .then(snap => {
+      globalSongs = snap.empty ? seedCatalogueAsSongs() : snap.docs.map(d => mapSong(d.id, d.data()))
+    })
+    .catch(() => { globalSongs = seedCatalogueAsSongs() })
+
+  const unsub = onSnapshot(
+    collection(db, 'choirs', choirId, 'songs'),
+    snap => {
+      const custom = snap.docs.map(d => mapSong(d.id, d.data(), choirId))
+      callback([...custom, ...(globalSongs ?? seedCatalogueAsSongs())])
+    },
+    onError,
+  )
+  return unsub
 }
 
 export async function getSong(choirId: string, songId: string): Promise<Song | null> {

@@ -9,10 +9,10 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ServiceSelect } from '@/components/ServiceSelect'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
-import { listServices } from '@/lib/firestore'
-import { getServiceAvailability } from '@/lib/availability'
+import { subscribeServices } from '@/lib/firestore'
+import { subscribeAvailability } from '@/lib/availability'
 import {
-  getServiceAttendance,
+  subscribeAttendance,
   setAttendance,
   isAttendanceLocked,
   defaultFromAvailability,
@@ -31,31 +31,42 @@ export function AttendanceTracker() {
 
   useEffect(() => {
     if (!choir) return
-    listServices(choir.id).then(s => {
+    const unsub = subscribeServices(choir.id, s => {
       const past = s.filter(x => x.date < new Date()).sort((a, b) => +b.date - +a.date)
       const list = past.length ? past : s
       setServices(list)
-      if (list[0]) setServiceId(list[0].id)
+      setServiceId(prev => prev || (list[0]?.id ?? ''))
       setLoadingServices(false)
     })
+    return unsub
   }, [choir])
 
-  // Load attendance, pre-populating from availability where no record exists
+  // Real-time attendance + availability, pre-populating from availability where no record exists
   useEffect(() => {
     if (!choir || !serviceId) return
-    let active = true
     setLoading(true)
-    Promise.all([getServiceAttendance(choir.id, serviceId), getServiceAvailability(choir.id, serviceId)])
-      .then(([att, avail]) => {
-        if (!active) return
-        const next: Record<string, AttendanceStatus> = {}
-        members.forEach(m => {
-          next[m.uid] = att[m.uid]?.status ?? defaultFromAvailability(avail[m.uid]?.status)
-        })
-        setStatuses(next)
+    let att: Record<string, { status: AttendanceStatus }> = {}
+    let avail: Record<string, { status?: string }> = {}
+    let gotAtt = false
+    let gotAvail = false
+
+    const merge = () => {
+      if (!gotAtt || !gotAvail) return
+      const next: Record<string, AttendanceStatus> = {}
+      members.forEach(m => {
+        next[m.uid] = att[m.uid]?.status ?? defaultFromAvailability(avail[m.uid]?.status)
       })
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
+      setStatuses(next)
+      setLoading(false)
+    }
+
+    const unsubAtt = subscribeAttendance(choir.id, serviceId, a => {
+      att = a; gotAtt = true; merge()
+    })
+    const unsubAvail = subscribeAvailability(choir.id, serviceId, a => {
+      avail = a; gotAvail = true; merge()
+    })
+    return () => { unsubAtt(); unsubAvail() }
   }, [choir, serviceId, members])
 
   const service = services.find(s => s.id === serviceId)

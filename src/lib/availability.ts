@@ -4,7 +4,9 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  onSnapshot,
   serverTimestamp,
+  type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { toDate } from '@/lib/firestore'
@@ -30,6 +32,32 @@ export async function getServiceAvailability(
     } as Availability
   })
   return map
+}
+
+/** Real-time listener for availability on a service. */
+export function subscribeAvailability(
+  choirId: string,
+  serviceId: string,
+  callback: (avail: Record<string, Availability>) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    availCol(choirId, serviceId),
+    snap => {
+      const map: Record<string, Availability> = {}
+      snap.docs.forEach(d => {
+        const data = d.data()
+        map[d.id] = {
+          ...data,
+          id: d.id,
+          userId: d.id,
+          updatedAt: toDate(data.updatedAt),
+        } as Availability
+      })
+      callback(map)
+    },
+    onError,
+  )
 }
 
 export async function getMyAvailability(

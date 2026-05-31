@@ -12,8 +12,8 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ServiceSelect } from '@/components/ServiceSelect'
 import { SubstitutionModal } from '@/pages/availability/SubstitutionModal'
 import { useChoir } from '@/contexts/ChoirContext'
-import { listServices } from '@/lib/firestore'
-import { getServiceAvailability } from '@/lib/availability'
+import { subscribeServices } from '@/lib/firestore'
+import { subscribeAvailability } from '@/lib/availability'
 import { availabilityMeta } from '@/lib/status'
 import { downloadCsv, voicePartLabel } from '@/lib/utils'
 import type { Service, Availability, AvailabilityStatus, ChoirMember } from '@/types'
@@ -29,23 +29,28 @@ export function AvailabilityOverview() {
 
   useEffect(() => {
     if (!choir) return
-    listServices(choir.id).then(s => {
+    const unsub = subscribeServices(choir.id, s => {
       setServices(s)
-      const now = new Date()
-      const next = s.find(x => x.date >= now) ?? s[s.length - 1]
-      if (next) setServiceId(next.id)
+      setServiceId(prev => {
+        if (prev) return prev
+        const now = new Date()
+        const next = s.find(x => x.date >= now) ?? s[s.length - 1]
+        return next?.id ?? ''
+      })
       setLoadingServices(false)
     })
+    return unsub
   }, [choir])
 
   useEffect(() => {
     if (!choir || !serviceId) return
-    let active = true
     setLoadingAvail(true)
-    getServiceAvailability(choir.id, serviceId)
-      .then(a => { if (active) setAvailability(a) })
-      .finally(() => { if (active) setLoadingAvail(false) })
-    return () => { active = false }
+    const unsub = subscribeAvailability(
+      choir.id,
+      serviceId,
+      a => { setAvailability(a); setLoadingAvail(false) },
+    )
+    return unsub
   }, [choir, serviceId])
 
   const statusFor = (uid: string): AvailabilityStatus => availability[uid]?.status ?? 'no_response'

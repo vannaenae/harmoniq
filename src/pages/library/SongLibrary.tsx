@@ -13,7 +13,7 @@ import { SkeletonCard } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
-import { listSongs, addCustomSong, GENRES, ALL_KEYS } from '@/lib/songs'
+import { subscribeSongs, addCustomSong, GENRES, ALL_KEYS } from '@/lib/songs'
 import {
   fetchSpotifyResults,
   fetchYoutubeResults,
@@ -54,13 +54,13 @@ export function SongLibrary() {
   useEffect(() => {
     if (choirLoading) return
     if (!choir) { setLoading(false); return }
-    let active = true
     setLoading(true)
-    listSongs(choir.id)
-      .then(s => { if (active) setSongs(s) })
-      .catch(err => console.error('Load songs error:', err))
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
+    const unsub = subscribeSongs(
+      choir.id,
+      s => { setSongs(s); setLoading(false) },
+      err => { console.error('Load songs error:', err); setLoading(false) },
+    )
+    return unsub
   }, [choir, choirLoading])
 
   // Debounced external search (Spotify + YouTube)
@@ -98,8 +98,6 @@ export function SongLibrary() {
         artist: track.artist || undefined,
       })
       setSavedIds(prev => new Set([...prev, track.trackId]))
-      const updated = await listSongs(choir.id)
-      setSongs(updated)
     } catch (err) {
       console.error('Save song error:', err)
     } finally {

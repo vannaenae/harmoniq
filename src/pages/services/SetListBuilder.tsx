@@ -30,7 +30,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
 import { getService, getSetList, saveSetList } from '@/lib/firestore'
-import { listSongs } from '@/lib/songs'
+import { subscribeSongs } from '@/lib/songs'
 import { generateId } from '@/lib/utils'
 import type { SetListItem, Service, Song } from '@/types'
 
@@ -56,17 +56,23 @@ export function SetListBuilder() {
     if (!choir || !serviceId) return
     let active = true
     setLoading(true)
-    Promise.all([getService(choir.id, serviceId), getSetList(choir.id, serviceId), listSongs(choir.id)])
-      .then(([svc, list, lib]) => {
+    Promise.all([getService(choir.id, serviceId), getSetList(choir.id, serviceId)])
+      .then(([svc, list]) => {
         if (!active) return
         setService(svc)
         setItems(list)
-        setSongs(lib)
       })
       .catch(err => console.error('Load set list error:', err))
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [choir, serviceId])
+
+  // Real-time song library subscription
+  useEffect(() => {
+    if (!choir) return
+    const unsub = subscribeSongs(choir.id, setSongs)
+    return unsub
+  }, [choir])
 
   const memberOptions = [
     { value: '', label: 'Unassigned' },

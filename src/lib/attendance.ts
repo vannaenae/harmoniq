@@ -3,7 +3,9 @@ import {
   doc,
   getDocs,
   setDoc,
+  onSnapshot,
   serverTimestamp,
+  type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { toDate, listServices } from '@/lib/firestore'
@@ -23,6 +25,27 @@ export async function getServiceAttendance(
     map[d.id] = { ...data, id: d.id, userId: d.id, updatedAt: toDate(data.updatedAt) } as AttendanceRecord
   })
   return map
+}
+
+/** Real-time listener for attendance on a service. */
+export function subscribeAttendance(
+  choirId: string,
+  serviceId: string,
+  callback: (att: Record<string, AttendanceRecord>) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    attCol(choirId, serviceId),
+    snap => {
+      const map: Record<string, AttendanceRecord> = {}
+      snap.docs.forEach(d => {
+        const data = d.data()
+        map[d.id] = { ...data, id: d.id, userId: d.id, updatedAt: toDate(data.updatedAt) } as AttendanceRecord
+      })
+      callback(map)
+    },
+    onError,
+  )
 }
 
 export async function setAttendance(

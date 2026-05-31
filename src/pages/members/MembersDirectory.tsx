@@ -11,8 +11,8 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import { useChoir } from '@/contexts/ChoirContext'
-import { listServices } from '@/lib/firestore'
-import { getServiceAvailability } from '@/lib/availability'
+import { subscribeServices } from '@/lib/firestore'
+import { subscribeAvailability } from '@/lib/availability'
 import { voicePartLabel, cn } from '@/lib/utils'
 import { availabilityMeta } from '@/lib/status'
 import type { VoicePart, Availability, AvailabilityStatus } from '@/types'
@@ -37,14 +37,23 @@ export function MembersDirectory() {
   const [nextAvail, setNextAvail] = useState<Record<string, Availability>>({})
 
   // Load availability for the next upcoming service to show per-member status
+  const [nextServiceId, setNextServiceId] = useState<string | null>(null)
+
   useEffect(() => {
     if (!choir) return
-    listServices(choir.id).then(services => {
+    const unsub = subscribeServices(choir.id, services => {
       const now = new Date()
       const next = services.find(s => s.date >= now)
-      if (next) getServiceAvailability(choir.id, next.id).then(setNextAvail)
+      setNextServiceId(next?.id ?? null)
     })
+    return unsub
   }, [choir])
+
+  useEffect(() => {
+    if (!choir || !nextServiceId) return
+    const unsub = subscribeAvailability(choir.id, nextServiceId, setNextAvail)
+    return unsub
+  }, [choir, nextServiceId])
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()

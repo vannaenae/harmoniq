@@ -5,7 +5,9 @@ import {
   setDoc,
   updateDoc,
   arrayUnion,
+  onSnapshot,
   serverTimestamp,
+  type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { generateId } from '@/lib/utils'
@@ -74,6 +76,41 @@ export async function listAnnouncements(
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
       return +b.createdAt - +a.createdAt
     })
+}
+
+/** Real-time listener for announcements, with client-side filtering/sorting. */
+export function subscribeAnnouncements(
+  choirId: string,
+  voicePart: VoicePart | undefined,
+  callback: (items: AnnouncementWithRead[]) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    annCol(choirId),
+    snap => {
+      const items = snap.docs
+        .map(d => {
+          const data = d.data()
+          return {
+            ...data,
+            id: d.id,
+            readBy: (data.readBy as string[]) ?? [],
+            createdAt: toDate(data.createdAt),
+            updatedAt: toDate(data.updatedAt),
+          } as AnnouncementWithRead
+        })
+        .filter(a => {
+          if (!a.targetVoiceParts || a.targetVoiceParts.length === 0) return true
+          return voicePart ? a.targetVoiceParts.includes(voicePart) : true
+        })
+        .sort((a, b) => {
+          if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
+          return +b.createdAt - +a.createdAt
+        })
+      callback(items)
+    },
+    onError,
+  )
 }
 
 export async function markAnnouncementRead(

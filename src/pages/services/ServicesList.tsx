@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useChoir } from '@/contexts/ChoirContext'
-import { listServices } from '@/lib/firestore'
+import { subscribeServices } from '@/lib/firestore'
 import { formatDate } from '@/lib/utils'
 import { serviceStatusMeta } from '@/lib/status'
 import { cn } from '@/lib/utils'
@@ -34,13 +34,13 @@ export function ServicesList() {
 
   useEffect(() => {
     if (!choir) return
-    let active = true
     setLoading(true)
-    listServices(choir.id)
-      .then(s => { if (active) setServices(s) })
-      .catch(err => console.error('Load services error:', err))
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
+    const unsub = subscribeServices(
+      choir.id,
+      s => { setServices(s); setLoading(false) },
+      err => { console.error('Load services error:', err); setLoading(false) },
+    )
+    return unsub
   }, [choir])
 
   const now = new Date()

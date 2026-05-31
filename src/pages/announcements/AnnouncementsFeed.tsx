@@ -9,7 +9,7 @@ import { SkeletonCard } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
-import { listAnnouncements, markAnnouncementRead, type AnnouncementWithRead } from '@/lib/announcements'
+import { subscribeAnnouncements, markAnnouncementRead, type AnnouncementWithRead } from '@/lib/announcements'
 import { sanitizeHtml, htmlToText } from '@/lib/sanitize'
 import { formatShortDate, cn } from '@/lib/utils'
 
@@ -22,13 +22,14 @@ export function AnnouncementsFeed() {
 
   useEffect(() => {
     if (!choir) return
-    let active = true
     setLoading(true)
-    listAnnouncements(choir.id, harmonicUser?.voicePart)
-      .then(a => { if (active) setItems(a) })
-      .catch(err => console.error('Load announcements error:', err))
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
+    const unsub = subscribeAnnouncements(
+      choir.id,
+      harmonicUser?.voicePart,
+      a => { setItems(a); setLoading(false) },
+      err => { console.error('Load announcements error:', err); setLoading(false) },
+    )
+    return unsub
   }, [choir, harmonicUser?.voicePart])
 
   const handleExpand = (id: string) => {
