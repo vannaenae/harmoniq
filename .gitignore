@@ -32,3 +32,7 @@ yarn-error.*
 # editor
 .vscode/
 .idea/
+
+# stale Expo cruft (old stack)
+.expo/
+expo-env.d.ts
