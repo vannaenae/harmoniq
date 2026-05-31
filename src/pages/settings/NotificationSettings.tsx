@@ -18,6 +18,7 @@ export function NotificationSettings() {
   )
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const set = <K extends keyof NotificationPrefs>(key: K, value: NotificationPrefs[K]) =>
     setPrefs(p => ({ ...p, [key]: value }))
@@ -25,6 +26,7 @@ export function NotificationSettings() {
   const handleSave = async () => {
     if (!firebaseUser) return
     setSaving(true)
+    setError(null)
     try {
       await updateDoc(doc(db, 'users', firebaseUser.uid), {
         notificationPrefs: prefs,
@@ -35,6 +37,7 @@ export function NotificationSettings() {
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
       console.error('Save notification prefs error:', err)
+      setError('Something went wrong. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -90,6 +93,9 @@ export function NotificationSettings() {
           </div>
         </Card>
 
+        {error && (
+          <p role="alert" className="text-sm text-harmonic-danger text-right mb-3">{error}</p>
+        )}
         <div className="flex justify-end">
           <Button variant="primary" onClick={handleSave} disabled={saving}>
             {saved ? <><Check size={16} /> Saved</> : saving ? 'Saving…' : 'Save settings'}

@@ -28,6 +28,7 @@ export function AttendanceTracker() {
   const [statuses, setStatuses] = useState<Record<string, AttendanceStatus>>({})
   const [loadingServices, setLoadingServices] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!choir) return
@@ -75,12 +76,17 @@ export function AttendanceTracker() {
 
   const toggle = async (uid: string) => {
     if (!choir || !firebaseUser || locked) return
-    const next: AttendanceStatus = statuses[uid] === 'present' ? 'absent' : 'present'
+    const prev_status = statuses[uid]
+    const next: AttendanceStatus = prev_status === 'present' ? 'absent' : 'present'
     setStatuses(prev => ({ ...prev, [uid]: next }))
+    setSaveError(null)
     try {
       await setAttendance(choir.id, serviceId, uid, next, firebaseUser.uid)
     } catch (err) {
       console.error('Save attendance error:', err)
+      // Revert optimistic update on failure
+      setStatuses(prev => ({ ...prev, [uid]: prev_status }))
+      setSaveError('Failed to save. Please try again.')
     }
   }
 
@@ -116,6 +122,10 @@ export function AttendanceTracker() {
               <div role="alert" className="bg-harmonic-surface rounded-xl px-4 py-3 text-sm text-harmonic-muted mb-5">
                 This service was more than 24 hours ago, so attendance is locked.
               </div>
+            )}
+
+            {saveError && (
+              <p role="alert" className="text-sm text-harmonic-danger mb-4">{saveError}</p>
             )}
 
             {loading ? (
