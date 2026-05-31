@@ -9,7 +9,7 @@ import {
 import { doc, getDoc, collection, getDocs, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
-import { countUnread } from '@/lib/notifications'
+import { subscribeUnreadCount } from '@/lib/notifications'
 import type { Choir, ChoirMember } from '@/types'
 
 interface ChoirContextValue {
@@ -43,11 +43,8 @@ export function ChoirProvider({ children }: { children: ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
-  const refreshUnread = useCallback(async () => {
-    if (!choirId || !firebaseUser) { setUnreadCount(0); return }
-    try { setUnreadCount(await countUnread(choirId, firebaseUser.uid)) }
-    catch { setUnreadCount(0) }
-  }, [choirId, firebaseUser])
+  // no-op kept for API compatibility — live subscription drives the count now
+  const refreshUnread = useCallback(async () => {}, [])
 
   const refreshChoir = useCallback(async () => {
     if (!choirId) {
@@ -142,10 +139,12 @@ export function ChoirProvider({ children }: { children: ReactNode }) {
     }
   }, [choirId])
 
-  // Keep the unread badge fresh alongside the live subscriptions.
+  // Live unread badge — updates instantly when new notifications arrive.
   useEffect(() => {
-    refreshUnread()
-  }, [refreshUnread])
+    if (!choirId || !firebaseUser) { setUnreadCount(0); return }
+    const unsub = subscribeUnreadCount(choirId, firebaseUser.uid, setUnreadCount, () => setUnreadCount(0))
+    return unsub
+  }, [choirId, firebaseUser])
 
   return (
     <ChoirContext.Provider

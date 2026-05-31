@@ -8,7 +8,7 @@ import { SkeletonCard } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
-import { listMyNotifications, markNotificationRead, markAllRead } from '@/lib/notifications'
+import { subscribeMyNotifications, markNotificationRead, markAllRead } from '@/lib/notifications'
 import { cn } from '@/lib/utils'
 import type { AppNotification, NotificationCategory } from '@/types'
 
@@ -32,19 +32,20 @@ function timeAgo(date: Date): string {
 export function NotificationCentre() {
   const navigate = useNavigate()
   const { firebaseUser } = useAuth()
-  const { choir, refreshUnread } = useChoir()
+  const { choir } = useChoir()
   const [items, setItems] = useState<AppNotification[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!choir || !firebaseUser) return
-    let active = true
     setLoading(true)
-    listMyNotifications(choir.id, firebaseUser.uid)
-      .then(n => { if (active) setItems(n) })
-      .catch(err => console.error('Load notifications error:', err))
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
+    const unsub = subscribeMyNotifications(
+      choir.id,
+      firebaseUser.uid,
+      n => { setItems(n); setLoading(false) },
+      err => { console.error('Load notifications error:', err); setLoading(false) },
+    )
+    return unsub
   }, [choir, firebaseUser])
 
   const hasUnread = items.some(n => !n.read)
@@ -52,8 +53,7 @@ export function NotificationCentre() {
   const handleClick = async (n: AppNotification) => {
     if (choir && !n.read) {
       await markNotificationRead(choir.id, n.id)
-      setItems(prev => prev.map(x => (x.id === n.id ? { ...x, read: true } : x)))
-      refreshUnread()
+      // onSnapshot will update items + badge automatically
     }
     if (n.deepLink) navigate(n.deepLink)
   }
@@ -61,8 +61,7 @@ export function NotificationCentre() {
   const handleMarkAll = async () => {
     if (!choir || !firebaseUser) return
     await markAllRead(choir.id, firebaseUser.uid)
-    setItems(prev => prev.map(x => ({ ...x, read: true })))
-    refreshUnread()
+    // onSnapshot will clear unread badge automatically
   }
 
   return (

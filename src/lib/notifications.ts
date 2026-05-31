@@ -2,12 +2,14 @@ import {
   collection,
   doc,
   getDocs,
+  onSnapshot,
   setDoc,
   updateDoc,
   writeBatch,
   query,
   where,
   serverTimestamp,
+  type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { generateId } from '@/lib/utils'
@@ -86,4 +88,40 @@ export async function countUnread(choirId: string, userId: string): Promise<numb
     query(notifCol(choirId), where('userId', '==', userId), where('read', '==', false)),
   )
   return snap.size
+}
+
+/** Real-time listener for this user's notifications, sorted newest-first. */
+export function subscribeMyNotifications(
+  choirId: string,
+  userId: string,
+  callback: (notifications: AppNotification[]) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    query(notifCol(choirId), where('userId', '==', userId)),
+    snap => {
+      const items = snap.docs
+        .map(d => {
+          const data = d.data()
+          return { ...data, id: d.id, createdAt: toDate(data.createdAt) } as AppNotification
+        })
+        .sort((a, b) => +b.createdAt - +a.createdAt)
+      callback(items)
+    },
+    onError,
+  )
+}
+
+/** Real-time listener for the unread notification count. */
+export function subscribeUnreadCount(
+  choirId: string,
+  userId: string,
+  callback: (count: number) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    query(notifCol(choirId), where('userId', '==', userId), where('read', '==', false)),
+    snap => callback(snap.size),
+    onError,
+  )
 }
