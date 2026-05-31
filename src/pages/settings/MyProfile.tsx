@@ -26,12 +26,14 @@ export function MyProfile() {
   )
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const name = harmonicUser?.displayName ?? firebaseUser?.displayName ?? ''
 
   const handleSave = async () => {
     if (!firebaseUser) return
     setSaving(true)
+    setError(null)
     try {
       await updateDoc(doc(db, 'users', firebaseUser.uid), {
         preferredName: preferredName.trim() || null,
@@ -43,6 +45,7 @@ export function MyProfile() {
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
       console.error('Save profile error:', err)
+      setError('Something went wrong. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -92,6 +95,10 @@ export function MyProfile() {
               description="Get notified when your director posts an announcement."
             />
           </div>
+
+          {error && (
+            <p role="alert" className="text-sm text-harmonic-danger">{error}</p>
+          )}
 
           <div className="flex justify-end">
             <Button variant="primary" onClick={handleSave} disabled={saving}>

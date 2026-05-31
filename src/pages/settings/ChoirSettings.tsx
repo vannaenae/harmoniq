@@ -30,6 +30,7 @@ export function ChoirSettings() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const [archiveOpen, setArchiveOpen] = useState(false)
   const [transferOpen, setTransferOpen] = useState(false)
@@ -41,6 +42,7 @@ export function ChoirSettings() {
   const handleSave = async () => {
     if (!name.trim()) return
     setSaving(true)
+    setError(null)
     try {
       let logoURL = choir.logoURL
       if (logoFile) {
@@ -60,6 +62,7 @@ export function ChoirSettings() {
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
       console.error('Save choir error:', err)
+      setError('Something went wrong. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -87,6 +90,7 @@ export function ChoirSettings() {
       setTransferOpen(false)
     } catch (err) {
       console.error('Transfer ownership error:', err)
+      setError('Transfer failed. Please try again.')
     } finally { setWorking(false) }
   }
 
@@ -120,6 +124,10 @@ export function ChoirSettings() {
           <Input label="Choir name" value={name} onChange={e => setName(e.target.value)} />
           <Input label="Church name" value={churchName} onChange={e => setChurchName(e.target.value)} />
           <Textarea label="Description" placeholder="A short description of your choir" value={description} onChange={e => setDescription(e.target.value)} />
+
+          {error && (
+            <p role="alert" className="text-sm text-harmonic-danger">{error}</p>
+          )}
 
           <div className="flex justify-end">
             <Button variant="primary" onClick={handleSave} disabled={!name.trim() || saving}>
