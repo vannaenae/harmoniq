@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Save,
-  Music2, Youtube, ExternalLink, Loader2, ChevronDown as ChevronExpand,
+  Music2, Youtube, ExternalLink, ChevronDown as ChevronExpand,
   Sparkles,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
