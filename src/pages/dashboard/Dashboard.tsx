@@ -9,6 +9,8 @@ import {
   ChevronRight,
   Sparkles,
 } from 'lucide-react'
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -17,29 +19,72 @@ import { SkeletonCard } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
-import { listServices } from '@/lib/firestore'
+import { subscribeServices, toDate } from '@/lib/firestore'
 import { formatDate } from '@/lib/utils'
 import { serviceStatusMeta } from '@/lib/status'
-import type { Service } from '@/types'
+import type { Service, Announcement, Availability, Song } from '@/types'
 
 export function Dashboard() {
   const { harmonicUser, firebaseUser } = useAuth()
-  const { choir, isDirector } = useChoir()
+  const { choir, members, isDirector } = useChoir()
   const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(true)
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [announcementsLoading, setAnnouncementsLoading] = useState(true)
+  const [availabilityCounts, setAvailabilityCounts] = useState<{
+    confirmed: number; pending: number; unavailable: number
+  } | null>(null)
+  const [featuredSong, setFeaturedSong] = useState<Pick<Song, 'title' | 'artist' | 'defaultKey'> | null>(null)
 
   const name =
     harmonicUser?.preferredName ?? harmonicUser?.displayName ?? firebaseUser?.displayName ?? 'there'
 
   useEffect(() => {
     if (!choir) return
-    let active = true
     setLoading(true)
-    listServices(choir.id)
-      .then(s => { if (active) setServices(s) })
-      .catch(err => console.error('Load services error:', err))
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
+    const unsub = subscribeServices(
+      choir.id,
+      s => { setServices(s); setLoading(false) },
+      err => { console.error('Load services error:', err); setLoading(false) },
+    )
+    return unsub
+  }, [choir])
+
+  // Real-time announcements (latest 3)
+  useEffect(() => {
+    if (!choir) { setAnnouncements([]); setAnnouncementsLoading(false); return }
+    setAnnouncementsLoading(true)
+    const q = query(
+      collection(db, 'choirs', choir.id, 'announcements'),
+      orderBy('createdAt', 'desc'),
+      limit(3),
+    )
+    const unsub = onSnapshot(q, snap => {
+      setAnnouncements(
+        snap.docs.map(d => {
+          const data = d.data()
+          return { ...data, id: d.id, createdAt: toDate(data.createdAt), updatedAt: toDate(data.updatedAt) } as Announcement
+        }),
+      )
+      setAnnouncementsLoading(false)
+    }, () => { setAnnouncementsLoading(false) })
+    return unsub
+  }, [choir])
+
+  // Featured song — latest song added to the choir library
+  useEffect(() => {
+    if (!choir) { setFeaturedSong(null); return }
+    const q = query(
+      collection(db, 'choirs', choir.id, 'songs'),
+      orderBy('createdAt', 'desc'),
+      limit(1),
+    )
+    const unsub = onSnapshot(q, snap => {
+      if (snap.empty) { setFeaturedSong(null); return }
+      const data = snap.docs[0].data()
+      setFeaturedSong({ title: data.title, artist: data.artist ?? undefined, defaultKey: data.defaultKey ?? data.key ?? undefined })
+    }, () => { setFeaturedSong(null) })
+    return unsub
   }, [choir])
 
   const now = new Date()
@@ -47,6 +92,32 @@ export function Dashboard() {
     .filter(s => s.date >= now && (s.status === 'published' || isDirector))
     .slice(0, 3)
   const nextService = upcoming[0]
+
+  // Real-time availability counts for the next service
+  useEffect(() => {
+    if (!choir || !nextService) { setAvailabilityCounts(null); return }
+    const unsub = onSnapshot(
+      collection(db, 'choirs', choir.id, 'services', nextService.id, 'availability'),
+      snap => {
+        let confirmed = 0
+        let pending = 0
+        let unavailable = 0
+        snap.docs.forEach(d => {
+          const status = (d.data() as Availability).status
+          if (status === 'available') confirmed++
+          else if (status === 'unavailable') unavailable++
+          else pending++
+        })
+        // Members who haven't responded count as pending
+        const responded = snap.docs.length
+        const totalMembers = members.length
+        if (totalMembers > responded) pending += totalMembers - responded
+        setAvailabilityCounts({ confirmed, pending, unavailable })
+      },
+      () => { setAvailabilityCounts(null) },
+    )
+    return unsub
+  }, [choir, nextService?.id, members.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <AppLayout>
@@ -73,7 +144,7 @@ export function Dashboard() {
           {loading ? (
             <SkeletonCard />
           ) : nextService ? (
-            <NextServiceCard service={nextService} isDirector={isDirector} />
+            <NextServiceCard service={nextService} isDirector={isDirector} availabilityCounts={availabilityCounts} />
           ) : (
             <Card className="p-6">
               <EmptyState
@@ -129,29 +200,32 @@ export function Dashboard() {
           </section>
         )}
 
-        {/* Member: song of the week (optional pinned) */}
-        {!isDirector && (
+        {/* Member: featured song (latest added to library) */}
+        {!isDirector && featuredSong && (
           <section aria-labelledby="sotw-heading" className="mb-6">
             <h2
               id="sotw-heading"
               className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3"
             >
-              Song of the week
+              Featured song
             </h2>
-            <Card className="p-4 flex items-center gap-4">
-              <span
-                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg, #18005F 0%, #560056 100%)' }}
-                aria-hidden="true"
-              >
-                <Sparkles size={20} className="text-white" />
-              </span>
-              <div className="min-w-0">
-                {/* API_POINT: Firestore — pinned song of the week (mock for now) */}
-                <p className="font-semibold text-sm text-harmonic-text truncate">Way Maker</p>
-                <p className="text-xs text-harmonic-muted">Sinach · Key of E</p>
-              </div>
-            </Card>
+            <Link to="/library">
+              <Card className="p-4 flex items-center gap-4 hover:shadow-card-hover transition-shadow">
+                <span
+                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #18005F 0%, #560056 100%)' }}
+                  aria-hidden="true"
+                >
+                  <Sparkles size={20} className="text-white" />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm text-harmonic-text truncate">{featuredSong.title}</p>
+                  <p className="text-xs text-harmonic-muted">
+                    {[featuredSong.artist, featuredSong.defaultKey ? `Key of ${featuredSong.defaultKey}` : ''].filter(Boolean).join(' \u00B7 ') || 'View in library'}
+                  </p>
+                </div>
+              </Card>
+            </Link>
           </section>
         )}
 
@@ -203,30 +277,65 @@ export function Dashboard() {
           )}
         </section>
 
-        {/* Recent activity (Director) / Latest announcement (Member) */}
+        {/* Recent announcements */}
         <section aria-labelledby="activity-heading">
-          <h2
-            id="activity-heading"
-            className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3"
-          >
-            {isDirector ? 'Recent activity' : 'Latest announcement'}
-          </h2>
-          <Card className="p-4">
-            {/* API_POINT: Firestore — activity feed / announcements wired in Phase 5 */}
-            <p className="font-semibold text-sm text-harmonic-text">Welcome to Harmonic 🎵</p>
-            <p className="text-harmonic-muted text-xs mt-1 leading-relaxed">
-              {isDirector
-                ? 'Activity from your team will show up here once things get going.'
-                : 'Messages from your director will appear here.'}
-            </p>
-          </Card>
+          <div className="flex items-center justify-between mb-3">
+            <h2
+              id="activity-heading"
+              className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest"
+            >
+              {isDirector ? 'Recent activity' : 'Latest announcements'}
+            </h2>
+            <Link
+              to="/announcements"
+              className="text-xs font-medium text-harmonic-primary hover:opacity-80"
+            >
+              See all
+            </Link>
+          </div>
+
+          {announcementsLoading ? (
+            <SkeletonCard />
+          ) : announcements.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              {announcements.map(a => (
+                <Link key={a.id} to="/announcements">
+                  <Card className="p-4 hover:shadow-card-hover transition-shadow">
+                    <div className="flex items-start gap-3">
+                      <span className="w-8 h-8 rounded-full bg-harmonic-surface flex items-center justify-center flex-shrink-0">
+                        <Megaphone size={14} className="text-harmonic-primary" aria-hidden="true" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-sm text-harmonic-text truncate">{a.title}</p>
+                        <p className="text-harmonic-muted text-xs mt-0.5 truncate">
+                          {a.authorName} &middot; {formatDate(a.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <Card className="p-4">
+              <p className="text-sm text-harmonic-muted text-center">
+                {isDirector
+                  ? 'Activity from your team will show up here once things get going.'
+                  : 'Messages from your director will appear here.'}
+              </p>
+            </Card>
+          )}
         </section>
       </div>
     </AppLayout>
   )
 }
 
-function NextServiceCard({ service, isDirector }: { service: Service; isDirector: boolean }) {
+function NextServiceCard({ service, isDirector, availabilityCounts }: {
+  service: Service
+  isDirector: boolean
+  availabilityCounts: { confirmed: number; pending: number; unavailable: number } | null
+}) {
   return (
     <Card className="p-5">
       <div className="flex items-start gap-4">
@@ -243,12 +352,13 @@ function NextServiceCard({ service, isDirector }: { service: Service; isDirector
             {formatDate(service.date)}
             {service.time ? ` · ${service.time}` : ''}
           </p>
-          {/* API_POINT: Firestore — live availability summary wired in Phase 3 */}
-          <div className="flex gap-3 mt-2 flex-wrap">
-            <span className="text-xs font-medium text-harmonic-success">— confirmed</span>
-            <span className="text-xs font-medium text-harmonic-warning">— pending</span>
-            <span className="text-xs font-medium text-harmonic-danger">— unavailable</span>
-          </div>
+          {availabilityCounts && (
+            <div className="flex gap-3 mt-2 flex-wrap">
+              <span className="text-xs font-medium text-harmonic-success">{availabilityCounts.confirmed} confirmed</span>
+              <span className="text-xs font-medium text-harmonic-warning">{availabilityCounts.pending} pending</span>
+              <span className="text-xs font-medium text-harmonic-danger">{availabilityCounts.unavailable} unavailable</span>
+            </div>
+          )}
         </div>
       </div>
 

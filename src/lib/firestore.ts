@@ -8,7 +8,9 @@ import {
   deleteDoc,
   query,
   orderBy,
+  onSnapshot,
   serverTimestamp,
+  type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { generateId } from '@/lib/utils'
@@ -42,6 +44,35 @@ export async function listServices(choirId: string): Promise<Service[]> {
       updatedAt: toDate(data.updatedAt),
     } as Service
   })
+}
+
+/** Real-time listener for the services collection. Returns unsubscribe function. */
+export function subscribeServices(
+  choirId: string,
+  callback: (services: Service[]) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  const q = query(servicesCol(choirId), orderBy('date', 'asc'))
+  return onSnapshot(
+    q,
+    snap => {
+      callback(
+        snap.docs.map(d => {
+          const data = d.data()
+          return {
+            ...data,
+            id: d.id,
+            date: toDate(data.date),
+            availabilityDeadline: data.availabilityDeadline ? toDate(data.availabilityDeadline) : undefined,
+            setListDeadline: data.setListDeadline ? toDate(data.setListDeadline) : undefined,
+            createdAt: toDate(data.createdAt),
+            updatedAt: toDate(data.updatedAt),
+          } as Service
+        }),
+      )
+    },
+    onError,
+  )
 }
 
 export async function getService(choirId: string, serviceId: string): Promise<Service | null> {
