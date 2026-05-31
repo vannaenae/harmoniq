@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { Music2, Play, ChevronRight, CalendarClock, CheckCircle2 } from 'lucide-react'
+import { Music2, Play, ChevronRight, CalendarClock, CheckCircle2, Users } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -114,6 +115,31 @@ export function SetListDetail() {
               </Link>
             </Card>
           )
+        )}
+
+        {/* Confirmed roster */}
+        {service?.rosteredMemberIds && service.rosteredMemberIds.length > 0 && (
+          <Card className="p-4 mb-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Users size={16} className="text-harmonic-primary" aria-hidden="true" />
+              <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">
+                Roster ({service.rosteredMemberIds.length})
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {service.rosteredMemberIds.map(uid => {
+                const m = members.find(x => x.uid === uid)
+                if (!m) return null
+                const name = m.preferredName || m.displayName
+                return (
+                  <div key={uid} className="flex items-center gap-1.5 bg-harmonic-surface rounded-full pl-1 pr-3 py-1">
+                    <Avatar src={m.photoURL} name={name} size="sm" />
+                    <span className="text-xs font-medium text-harmonic-text">{name}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
         )}
 
         {service?.theme && (
