@@ -298,7 +298,6 @@ export function SongLibrary() {
                         </div>
                       </Card>
                     ))}
-                  </div>
                     <a
                       href={`https://open.spotify.com/search/${encodeURIComponent(search.trim())}`}
                       target="_blank"
