@@ -11,7 +11,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
 import { subscribeAnnouncements, markAnnouncementRead, type AnnouncementWithRead } from '@/lib/announcements'
 import { sanitizeHtml, htmlToText } from '@/lib/sanitize'
-import { formatShortDate, cn } from '@/lib/utils'
+import { formatRelativeTime, cn } from '@/lib/utils'
+import { Avatar } from '@/components/ui/Avatar'
 
 export function AnnouncementsFeed() {
   const { firebaseUser, harmonicUser } = useAuth()
@@ -86,10 +87,11 @@ export function AnnouncementsFeed() {
                     aria-expanded={isOpen}
                     className="w-full text-left p-4 hover:bg-harmonic-surface/50 transition-colors"
                   >
-                    <div className="flex items-start gap-2">
-                      {a.pinned && <Pin size={14} className="text-harmonic-secondary mt-1 flex-shrink-0" aria-label="Pinned" />}
+                    <div className="flex items-start gap-3">
+                      <Avatar name={a.authorName || 'Unknown'} size="sm" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
+                          {a.pinned && <Pin size={14} className="text-harmonic-secondary flex-shrink-0" aria-label="Pinned" />}
                           <p className={cn('text-sm text-harmonic-text', unread ? 'font-bold' : 'font-medium')}>
                             {a.title}
                           </p>
@@ -105,7 +107,7 @@ export function AnnouncementsFeed() {
                           <p className="text-sm text-harmonic-muted mt-1 line-clamp-2">{htmlToText(a.body)}</p>
                         )}
                         <p className="text-xs text-harmonic-muted mt-2">
-                          {a.authorName} · {formatShortDate(a.createdAt)}
+                          {a.authorName} · {formatRelativeTime(a.createdAt)}
                         </p>
                       </div>
                     </div>
