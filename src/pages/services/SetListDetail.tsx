@@ -1,28 +1,40 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { Music2, Play, ChevronRight, CalendarClock } from 'lucide-react'
+import { Music2, Play, ChevronRight, CalendarClock, CheckCircle2 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
 import { getService, getSetList } from '@/lib/firestore'
+import { getMyAvailability } from '@/lib/availability'
 import { formatDate } from '@/lib/utils'
-import type { Service, SetListItem } from '@/types'
+import type { Service, SetListItem, AvailabilityStatus } from '@/types'
+
+const availBadgeTone: Partial<Record<AvailabilityStatus, 'success' | 'warning' | 'danger'>> = {
+  available: 'success',
+  unavailable: 'danger',
+  not_sure: 'warning',
+}
+const availLabel: Partial<Record<AvailabilityStatus, string>> = {
+  available: 'Going',
+  unavailable: 'Not going',
+  not_sure: 'Not sure',
+}
 
 export function SetListDetail() {
   const { serviceId } = useParams<{ serviceId: string }>()
   const navigate = useNavigate()
+  const { firebaseUser } = useAuth()
   const { choir, members, isDirector } = useChoir()
   const [service, setService] = useState<Service | null>(null)
   const [items, setItems] = useState<SetListItem[]>([])
   const [loading, setLoading] = useState(true)
-
-  /* API_POINT: Firestore — has the current member marked availability for this service?
-     Wired in Phase 3. Defaulting to "not marked" so the prompt shows. */
-  const [availabilityMarked] = useState(false)
+  const [myAvailStatus, setMyAvailStatus] = useState<AvailabilityStatus | null>(null)
 
   useEffect(() => {
     if (!choir || !serviceId) return
@@ -34,6 +46,15 @@ export function SetListDetail() {
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [choir, serviceId])
+
+  useEffect(() => {
+    if (!choir || !serviceId || !firebaseUser || isDirector) return
+    let active = true
+    getMyAvailability(choir.id, serviceId, firebaseUser.uid)
+      .then(avail => { if (active) setMyAvailStatus(avail?.status ?? null) })
+      .catch(() => {})
+    return () => { active = false }
+  }, [choir, serviceId, firebaseUser, isDirector])
 
   const nameFor = (uid?: string) => {
     if (!uid) return null
@@ -62,20 +83,37 @@ export function SetListDetail() {
           }
         />
 
-        {/* Availability prompt for members */}
-        {!isDirector && !availabilityMarked && (
-          <Card className="p-4 mb-5 flex items-center gap-3 border-2 border-harmonic-warning/30">
-            <span className="w-10 h-10 rounded-full bg-harmonic-warning/10 flex items-center justify-center flex-shrink-0">
-              <CalendarClock size={18} className="text-harmonic-warning" aria-hidden="true" />
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-harmonic-text">Can you make it?</p>
-              <p className="text-xs text-harmonic-muted">Let your director know your availability.</p>
-            </div>
-            <Link to={`/services/${serviceId}/availability`}>
-              <Button variant="primary" size="sm">Mark it</Button>
-            </Link>
-          </Card>
+        {/* Availability prompt / status for members */}
+        {!isDirector && (
+          myAvailStatus ? (
+            <Card className="p-4 mb-5 flex items-center gap-3 border-2 border-harmonic-border">
+              <span className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 size={18} className="text-harmonic-primary" aria-hidden="true" />
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-harmonic-text">Availability recorded</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <Badge tone={availBadgeTone[myAvailStatus] ?? 'muted'}>{availLabel[myAvailStatus] ?? myAvailStatus}</Badge>
+                </div>
+              </div>
+              <Link to={`/services/${serviceId}/availability`}>
+                <Button variant="outlined" size="sm">Change</Button>
+              </Link>
+            </Card>
+          ) : (
+            <Card className="p-4 mb-5 flex items-center gap-3 border-2 border-harmonic-warning/30">
+              <span className="w-10 h-10 rounded-full bg-harmonic-warning/10 flex items-center justify-center flex-shrink-0">
+                <CalendarClock size={18} className="text-harmonic-warning" aria-hidden="true" />
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-harmonic-text">Can you make it?</p>
+                <p className="text-xs text-harmonic-muted">Let your director know your availability.</p>
+              </div>
+              <Link to={`/services/${serviceId}/availability`}>
+                <Button variant="primary" size="sm">Mark it</Button>
+              </Link>
+            </Card>
+          )
         )}
 
         {service?.theme && (
