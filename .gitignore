@@ -36,3 +36,6 @@ yarn-error.*
 # stale Expo cruft (old stack)
 .expo/
 expo-env.d.ts
+
+# claude specific files
+.claude/
