@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Save,
   Music2, Youtube, ExternalLink, ChevronDown as ChevronExpand,
-  Sparkles, Pencil, Trash2,
+  Sparkles, Pencil, Trash2, RotateCcw,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
@@ -15,6 +15,7 @@ import { Select } from '@/components/ui/Select'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ServiceSelect } from '@/components/ServiceSelect'
+import { LyricSheet } from '@/components/LyricSheet'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
 import { getSong, getPracticeNotes, savePracticeNotes, updateCustomSong, deleteCustomSong, ALL_KEYS, GENRES } from '@/lib/songs'
@@ -24,6 +25,7 @@ import {
   type SpotifyData, type GeniusData, type LyricsData, type SongContextData,
 } from '@/lib/integrations'
 import { listServices, getSetList, saveSetList } from '@/lib/firestore'
+import { semitoneDelta, inferPreference } from '@/lib/transpose'
 import type { Song, Service } from '@/types'
 
 // ── Key / chord utilities ─────────────────────────────────────────────────────
@@ -82,6 +84,7 @@ export function SongLibraryDetail() {
 
   // Key transposer
   const [selectedKey, setSelectedKey] = useState('')
+  const [transposeDelta, setTransposeDelta] = useState(0)
 
   // Practice notes
   const [notes,       setNotes]       = useState('')
@@ -423,7 +426,16 @@ export function SongLibraryDetail() {
           <Card className="p-5">
             <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-4">Lyrics</p>
 
-            {lyricsLoading ? (
+            {/* Structured lyrics via LyricSheet (rev-2 schema) */}
+            {song.lyrics && song.lyrics.length > 0 ? (
+              <LyricSheet
+                sections={song.lyrics}
+                translations={song.translations}
+                showChords
+                transposeDelta={transposeDelta}
+                accidentalPreference={inferPreference(selectedKey)}
+              />
+            ) : lyricsLoading ? (
               <div className="space-y-2">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <Skeleton key={i} className={`h-4 ${i % 4 === 3 ? 'w-1/3' : i % 2 === 0 ? 'w-full' : 'w-5/6'}`} />
@@ -503,7 +515,10 @@ export function SongLibraryDetail() {
 
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setSelectedKey(k => transposeKey(k, -1))}
+                onClick={() => {
+                  setSelectedKey(k => transposeKey(k, -1))
+                  setTransposeDelta(d => d - 1)
+                }}
                 className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors"
                 aria-label="Transpose down"
               >
@@ -514,20 +529,38 @@ export function SongLibraryDetail() {
                 {song.defaultKey && toChromaticKey(song.defaultKey) !== selectedKey && (
                   <p className="text-xs text-harmonic-muted mt-1">
                     Original: {song.defaultKey}{' · '}
-                    <button className="underline hover:no-underline" onClick={() => setSelectedKey(toChromaticKey(song.defaultKey!))}>
-                      Reset
-                    </button>
+                    {transposeDelta !== 0 && (
+                      <span className="text-harmonic-primary font-medium">
+                        {transposeDelta > 0 ? `+${transposeDelta}` : transposeDelta}
+                      </span>
+                    )}
                   </p>
                 )}
               </div>
               <button
-                onClick={() => setSelectedKey(k => transposeKey(k, 1))}
+                onClick={() => {
+                  setSelectedKey(k => transposeKey(k, 1))
+                  setTransposeDelta(d => d + 1)
+                }}
                 className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors"
                 aria-label="Transpose up"
               >
                 <ChevronUp size={18} />
               </button>
             </div>
+
+            {/* Reset to default key */}
+            {transposeDelta !== 0 && song.defaultKey && (
+              <button
+                onClick={() => {
+                  setSelectedKey(toChromaticKey(song.defaultKey!))
+                  setTransposeDelta(0)
+                }}
+                className="flex items-center gap-1.5 mx-auto text-xs font-medium text-harmonic-primary hover:underline"
+              >
+                <RotateCcw size={12} /> Reset to default key
+              </button>
+            )}
 
             {chords && (
               <div className="grid grid-cols-4 gap-2">
@@ -541,19 +574,25 @@ export function SongLibraryDetail() {
             )}
 
             <div className="flex flex-wrap gap-1.5">
-              {CHROMATIC.map(k => (
-                <button
-                  key={k}
-                  onClick={() => setSelectedKey(k)}
-                  className={
-                    selectedKey === k
-                      ? 'px-2.5 py-1 rounded-full text-xs font-semibold bg-harmonic-primary text-white'
-                      : 'px-2.5 py-1 rounded-full text-xs font-medium bg-harmonic-surface text-harmonic-muted hover:bg-harmonic-border transition-colors'
-                  }
-                >
-                  {k}
-                </button>
-              ))}
+              {CHROMATIC.map(k => {
+                const delta = semitoneDelta(toChromaticKey(song.defaultKey ?? 'C'), k)
+                return (
+                  <button
+                    key={k}
+                    onClick={() => {
+                      setSelectedKey(k)
+                      setTransposeDelta(delta)
+                    }}
+                    className={
+                      selectedKey === k
+                        ? 'px-2.5 py-1 rounded-full text-xs font-semibold bg-harmonic-primary text-white'
+                        : 'px-2.5 py-1 rounded-full text-xs font-medium bg-harmonic-surface text-harmonic-muted hover:bg-harmonic-border transition-colors'
+                    }
+                  >
+                    {k}
+                  </button>
+                )
+              })}
             </div>
           </Card>
 
