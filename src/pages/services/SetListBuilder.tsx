@@ -32,13 +32,14 @@ import { useChoir } from '@/contexts/ChoirContext'
 import { getService, getSetList, saveSetList } from '@/lib/firestore'
 import { subscribeSongs } from '@/lib/songs'
 import { generateId } from '@/lib/utils'
+import { SuggestionsRail } from '@/components/suggestions/SuggestionsRail'
 import type { SetListItem, Service, Song } from '@/types'
 
 export function SetListBuilder() {
   const { serviceId } = useParams<{ serviceId: string }>()
   const navigate = useNavigate()
   const { firebaseUser } = useAuth()
-  const { choir, members } = useChoir()
+  const { choir, members, isDirector } = useChoir()
 
   const [service, setService] = useState<Service | null>(null)
   const [items, setItems] = useState<SetListItem[]>([])
@@ -182,6 +183,20 @@ export function SetListBuilder() {
         <Button variant="secondary" fullWidth onClick={() => setSearchOpen(true)} className="mb-5">
           <Plus size={16} /> Add song
         </Button>
+
+        {isDirector && service && !loading && (
+          <SuggestionsRail
+            choirId={choir!.id}
+            choirName={choir!.name}
+            serviceDate={service.date instanceof Date ? service.date.toISOString() : String(service.date)}
+            serviceType={service.serviceType}
+            theme={service.theme}
+            scriptureRef={service.scriptureRef}
+            existingSongIds={items.map(i => i.songId)}
+            songs={songs}
+            onAddSong={addSong}
+          />
+        )}
 
         {loading ? (
           <div className="space-y-3">
