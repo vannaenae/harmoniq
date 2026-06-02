@@ -162,6 +162,12 @@ service cloud.firestore {
         allow read:  if isMemberOf(choirId) || isChoirOwner(choirId);
         allow write: if isDirectorOf(choirId) || isChoirOwner(choirId);
       }
+
+      // Suggestion feedback — members record accept/reject/replace events.
+      match /suggestionFeedback/{feedbackId} {
+        allow read:  if isDirectorOf(choirId) || isChoirOwner(choirId);
+        allow create: if isMemberOf(choirId);
+      }
     }
 
     // ── Users — offline song markers ───────────────────────────────────────────

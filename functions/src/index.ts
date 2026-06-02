@@ -24,6 +24,7 @@ const SPOTIFY_CLIENT_SECRET = defineSecret('SPOTIFY_CLIENT_SECRET')
 const GENIUS_TOKEN          = defineSecret('GENIUS_TOKEN')
 const YOUTUBE_API_KEY       = defineSecret('YOUTUBE_API_KEY')
 const OPENAI_API_KEY        = defineSecret('OPENAI_API_KEY')
+const ANTHROPIC_API_KEY     = defineSecret('ANTHROPIC_API_KEY')
 
 // ── Spotify: Client Credentials token (cached in memory per instance) ──────
 let cachedToken: { value: string; expiresAt: number } | null = null
@@ -344,4 +345,69 @@ export const createCalendarEvent = onCall(async (request) => {
   if (!res.ok) throw new HttpsError('internal', 'Calendar event creation failed')
   const json = (await res.json()) as { id: string; htmlLink: string }
   return { eventId: json.id, calendarLink: json.htmlLink }
+})
+
+// ── Song Suggestions ─────────────────────────────────────────────────────────
+// POST /suggestions/songs — returns ranked song suggestions for a service.
+// Uses retrieval scoring + Claude Haiku re-ranker via AI gateway.
+
+import { suggestSongs, recordSuggestionFeedback } from './suggestions/suggest.js'
+
+export const getSongSuggestions = onCall(
+  { secrets: [ANTHROPIC_API_KEY] },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required')
+
+    const { choirId, serviceDate, serviceType, theme, scriptureRef, existingSongIds, choirName } =
+      request.data as {
+        choirId: string
+        serviceDate: string
+        serviceType?: string
+        theme?: string
+        scriptureRef?: string
+        existingSongIds?: string[]
+        choirName?: string
+      }
+
+    if (!choirId || !serviceDate) {
+      throw new HttpsError('invalid-argument', 'choirId and serviceDate are required')
+    }
+
+    // Verify caller is a member of the choir
+    const memberSnap = await db.collection('choirs').doc(choirId)
+      .collection('members').doc(request.auth.uid).get()
+    if (!memberSnap.exists) {
+      throw new HttpsError('permission-denied', 'You are not a member of this choir')
+    }
+
+    const result = await suggestSongs({
+      choirId,
+      serviceDate,
+      serviceType,
+      theme,
+      scriptureRef,
+      existingSongIds,
+      choirName,
+    })
+
+    return result
+  },
+)
+
+export const submitSuggestionFeedback = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required')
+
+  const { choirId, songId, action, serviceId } = request.data as {
+    choirId: string
+    songId: string
+    action: 'accept' | 'reject' | 'replace'
+    serviceId?: string
+  }
+
+  if (!choirId || !songId || !action) {
+    throw new HttpsError('invalid-argument', 'choirId, songId, and action are required')
+  }
+
+  await recordSuggestionFeedback(choirId, songId, action, request.auth.uid, serviceId)
+  return { ok: true }
 })
