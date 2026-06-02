@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Save,
   Music2, Youtube, ExternalLink, ChevronDown as ChevronExpand,
-  Sparkles, Pencil, Trash2, RotateCcw,
+  Sparkles, Pencil, Trash2, RotateCcw, Lock, Unlock, Archive, ArchiveRestore,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
@@ -18,7 +18,8 @@ import { ServiceSelect } from '@/components/ServiceSelect'
 import { LyricSheet } from '@/components/LyricSheet'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
-import { getSong, getPracticeNotes, savePracticeNotes, updateCustomSong, deleteCustomSong, ALL_KEYS, GENRES } from '@/lib/songs'
+import { getSong, getPracticeNotes, savePracticeNotes, updateCustomSong, deleteCustomSong, subscribeSongOverride, saveSongOverride, ALL_KEYS, GENRES } from '@/lib/songs'
+import type { SongOverride } from '@/types'
 import {
   fetchSpotify, fetchGenius, fetchLyricsData, fetchSongContext,
   spotifyEmbedUrl,
@@ -86,6 +87,10 @@ export function SongLibraryDetail() {
   const [selectedKey, setSelectedKey] = useState('')
   const [transposeDelta, setTransposeDelta] = useState(0)
 
+  // Song override (per-choir)
+  const [override, setOverride] = useState<SongOverride | null>(null)
+  const [overrideSaving, setOverrideSaving] = useState(false)
+
   // Practice notes
   const [notes,       setNotes]       = useState('')
   const [notesLoading, setNotesLoading] = useState(false)
@@ -140,6 +145,23 @@ export function SongLibraryDetail() {
     return () => { active = false }
   }, [choir, songId])
 
+  // Song override subscription (real-time)
+  useEffect(() => {
+    if (!choir || !songId) return
+    return subscribeSongOverride(choir.id, songId, setOverride)
+  }, [choir, songId])
+
+  // When override has a performanceKey, apply it as the selected key
+  useEffect(() => {
+    if (override?.performanceKey && override.keyLocked) {
+      const chromatic = toChromaticKey(override.performanceKey)
+      setSelectedKey(chromatic)
+      if (song?.defaultKey) {
+        setTransposeDelta(semitoneDelta(toChromaticKey(song.defaultKey), chromatic))
+      }
+    }
+  }, [override?.performanceKey, override?.keyLocked, song?.defaultKey])
+
   // Practice notes
   useEffect(() => {
     if (!choir || !songId || !firebaseUser) return
@@ -169,6 +191,32 @@ export function SongLibraryDetail() {
       }
     }, 1000)
   }
+
+  const handleOverrideSave = async (input: Parameters<typeof saveSongOverride>[3]) => {
+    if (!choir || !songId || !firebaseUser) return
+    setOverrideSaving(true)
+    try {
+      await saveSongOverride(choir.id, songId, firebaseUser.uid, input)
+    } catch (err) {
+      console.error('Save override error:', err)
+    } finally {
+      setOverrideSaving(false)
+    }
+  }
+
+  const handleToggleKeyLock = () => {
+    const newLocked = !override?.keyLocked
+    handleOverrideSave({
+      keyLocked: newLocked,
+      ...(newLocked ? { performanceKey: selectedKey } : {}),
+    })
+  }
+
+  const handleToggleArchive = () => {
+    handleOverrideSave({ archived: !override?.archived })
+  }
+
+  const keyIsLocked = override?.keyLocked ?? false
 
   const trackId  = spotify?.trackId  ?? song?.spotifyTrackId ?? null
   const artUrl   = spotify?.albumArtUrl ?? song?.albumArtUrl ?? null
@@ -364,12 +412,50 @@ export function SongLibraryDetail() {
             </div>
           )}
 
+          {/* ── Archived banner ─────────────────────────────────────────── */}
+          {override?.archived && (
+            <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+              <Archive size={16} className="flex-shrink-0" />
+              <span>This song is archived for your choir.</span>
+              {isDirector && (
+                <button
+                  onClick={handleToggleArchive}
+                  disabled={overrideSaving}
+                  className="ml-auto text-xs font-semibold text-amber-700 hover:underline"
+                >
+                  Restore
+                </button>
+              )}
+            </div>
+          )}
+
           {/* ── Director actions ────────────────────────────────────────── */}
           {isDirector && (
             <div className="space-y-2">
               <Button variant="primary" fullWidth onClick={() => setAddOpen(true)}>
                 <Plus size={15} /> Add to set list
               </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant={keyIsLocked ? 'secondary' : 'outlined'}
+                  fullWidth
+                  onClick={handleToggleKeyLock}
+                  disabled={overrideSaving}
+                >
+                  {keyIsLocked ? <Lock size={15} /> : <Unlock size={15} />}
+                  {keyIsLocked ? 'Key locked' : 'Lock key for choir'}
+                </Button>
+                {!override?.archived && (
+                  <Button variant="outlined" fullWidth onClick={handleToggleArchive} disabled={overrideSaving}>
+                    <Archive size={15} /> Archive
+                  </Button>
+                )}
+                {override?.archived && (
+                  <Button variant="outlined" fullWidth onClick={handleToggleArchive} disabled={overrideSaving}>
+                    <ArchiveRestore size={15} /> Restore
+                  </Button>
+                )}
+              </div>
               {song.isCustom && (
                 <div className="flex gap-2">
                   <Button variant="outlined" fullWidth onClick={openEdit}>
@@ -511,19 +597,30 @@ export function SongLibraryDetail() {
 
           {/* ── Key & chords ────────────────────────────────────────────── */}
           <Card className="p-5 space-y-4">
-            <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Key & chords</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Key & chords</p>
+              {keyIsLocked && !isDirector && (
+                <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                  <Lock size={12} /> Key locked by director
+                </span>
+              )}
+            </div>
 
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => {
-                  setSelectedKey(k => transposeKey(k, -1))
-                  setTransposeDelta(d => d - 1)
-                }}
-                className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors"
-                aria-label="Transpose down"
-              >
-                <ChevronDown size={18} />
-              </button>
+              {/* Transpose down — hidden for members when locked */}
+              {(isDirector || !keyIsLocked) ? (
+                <button
+                  onClick={() => {
+                    setSelectedKey(k => transposeKey(k, -1))
+                    setTransposeDelta(d => d - 1)
+                  }}
+                  className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors"
+                  aria-label="Transpose down"
+                >
+                  <ChevronDown size={18} />
+                </button>
+              ) : <div className="w-10" />}
+
               <div className="flex-1 text-center">
                 <p className="text-4xl font-bold text-harmonic-primary">{selectedKey}</p>
                 {song.defaultKey && toChromaticKey(song.defaultKey) !== selectedKey && (
@@ -537,20 +634,24 @@ export function SongLibraryDetail() {
                   </p>
                 )}
               </div>
-              <button
-                onClick={() => {
-                  setSelectedKey(k => transposeKey(k, 1))
-                  setTransposeDelta(d => d + 1)
-                }}
-                className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors"
-                aria-label="Transpose up"
-              >
-                <ChevronUp size={18} />
-              </button>
+
+              {/* Transpose up — hidden for members when locked */}
+              {(isDirector || !keyIsLocked) ? (
+                <button
+                  onClick={() => {
+                    setSelectedKey(k => transposeKey(k, 1))
+                    setTransposeDelta(d => d + 1)
+                  }}
+                  className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors"
+                  aria-label="Transpose up"
+                >
+                  <ChevronUp size={18} />
+                </button>
+              ) : <div className="w-10" />}
             </div>
 
-            {/* Reset to default key */}
-            {transposeDelta !== 0 && song.defaultKey && (
+            {/* Reset to default key — hidden for members when locked */}
+            {transposeDelta !== 0 && song.defaultKey && (isDirector || !keyIsLocked) && (
               <button
                 onClick={() => {
                   setSelectedKey(toChromaticKey(song.defaultKey!))
@@ -573,27 +674,30 @@ export function SongLibraryDetail() {
               </div>
             )}
 
-            <div className="flex flex-wrap gap-1.5">
-              {CHROMATIC.map(k => {
-                const delta = semitoneDelta(toChromaticKey(song.defaultKey ?? 'C'), k)
-                return (
-                  <button
-                    key={k}
-                    onClick={() => {
-                      setSelectedKey(k)
-                      setTransposeDelta(delta)
-                    }}
-                    className={
-                      selectedKey === k
-                        ? 'px-2.5 py-1 rounded-full text-xs font-semibold bg-harmonic-primary text-white'
-                        : 'px-2.5 py-1 rounded-full text-xs font-medium bg-harmonic-surface text-harmonic-muted hover:bg-harmonic-border transition-colors'
-                    }
-                  >
-                    {k}
-                  </button>
-                )
-              })}
-            </div>
+            {/* Chromatic key selector — hidden for members when locked */}
+            {(isDirector || !keyIsLocked) && (
+              <div className="flex flex-wrap gap-1.5">
+                {CHROMATIC.map(k => {
+                  const delta = semitoneDelta(toChromaticKey(song.defaultKey ?? 'C'), k)
+                  return (
+                    <button
+                      key={k}
+                      onClick={() => {
+                        setSelectedKey(k)
+                        setTransposeDelta(delta)
+                      }}
+                      className={
+                        selectedKey === k
+                          ? 'px-2.5 py-1 rounded-full text-xs font-semibold bg-harmonic-primary text-white'
+                          : 'px-2.5 py-1 rounded-full text-xs font-medium bg-harmonic-surface text-harmonic-muted hover:bg-harmonic-border transition-colors'
+                      }
+                    >
+                      {k}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </Card>
 
           {/* ── Usage history ────────────────────────────────────────────── */}

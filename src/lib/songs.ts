@@ -8,12 +8,13 @@ import {
   onSnapshot,
   serverTimestamp,
   type Unsubscribe,
+  type DocumentData,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { generateId } from '@/lib/utils'
 import { toDate } from '@/lib/firestore'
 import { seedCatalogueAsSongs } from '@/lib/seedCatalogue'
-import type { Song, SongGenre } from '@/types'
+import type { Song, SongGenre, SongOverride, Language } from '@/types'
 
 /** All songs available to a choir: the global library plus that choir's custom songs.
  *  Falls back to the bundled curated catalogue if the global /songs collection is
@@ -210,3 +211,79 @@ export const GENRES: SongGenre[] = [
   'Anthem', 'Chorale', 'Spiritual',
   'Yoruba', 'Igbo', 'Hausa', 'Pidgin', 'Other',
 ]
+
+// ── Song Overrides (per-choir) ──────────────────────────────────────────────
+
+function overrideRef(choirId: string, songId: string) {
+  return doc(db, 'choirs', choirId, 'songOverrides', songId)
+}
+
+function mapOverride(songId: string, data: DocumentData, choirId: string): SongOverride {
+  return {
+    songId,
+    choirId,
+    performanceKey: (data.performanceKey as string) ?? undefined,
+    keyLocked: (data.keyLocked as boolean) ?? false,
+    rehearsalNotes: (data.rehearsalNotes as string) ?? undefined,
+    capoHint: (data.capoHint as number) ?? undefined,
+    archived: (data.archived as boolean) ?? false,
+    preferredLanguage: (data.preferredLanguage as Language) ?? undefined,
+    updatedBy: (data.updatedBy as string) ?? '',
+    updatedAt: data.updatedAt ? toDate(data.updatedAt) : new Date(),
+  }
+}
+
+export async function getSongOverride(
+  choirId: string,
+  songId: string,
+): Promise<SongOverride | null> {
+  const snap = await getDoc(overrideRef(choirId, songId)).catch(() => null)
+  if (!snap?.exists()) return null
+  return mapOverride(songId, snap.data(), choirId)
+}
+
+export function subscribeSongOverride(
+  choirId: string,
+  songId: string,
+  callback: (override: SongOverride | null) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    overrideRef(choirId, songId),
+    snap => callback(snap.exists() ? mapOverride(songId, snap.data(), choirId) : null),
+    onError,
+  )
+}
+
+export function subscribeSongOverrides(
+  choirId: string,
+  callback: (overrides: Map<string, SongOverride>) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    collection(db, 'choirs', choirId, 'songOverrides'),
+    snap => {
+      const map = new Map<string, SongOverride>()
+      snap.docs.forEach(d => map.set(d.id, mapOverride(d.id, d.data(), choirId)))
+      callback(map)
+    },
+    onError,
+  )
+}
+
+export type SongOverrideInput = Partial<
+  Pick<SongOverride, 'performanceKey' | 'keyLocked' | 'rehearsalNotes' | 'capoHint' | 'archived' | 'preferredLanguage'>
+>
+
+export async function saveSongOverride(
+  choirId: string,
+  songId: string,
+  userId: string,
+  input: SongOverrideInput,
+): Promise<void> {
+  await setDoc(
+    overrideRef(choirId, songId),
+    { ...input, updatedBy: userId, updatedAt: serverTimestamp() },
+    { merge: true },
+  )
+}

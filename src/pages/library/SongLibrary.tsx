@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, Plus, Music2, ChevronRight, Heart, Loader2, Youtube, ExternalLink } from 'lucide-react'
+import { Search, Plus, Music2, ChevronRight, Heart, Loader2, Youtube, ExternalLink, Archive } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -13,7 +13,8 @@ import { SkeletonCard } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
-import { subscribeSongs, addCustomSong, GENRES, ALL_KEYS } from '@/lib/songs'
+import { subscribeSongs, addCustomSong, subscribeSongOverrides, GENRES, ALL_KEYS } from '@/lib/songs'
+import type { SongOverride } from '@/types'
 import {
   fetchSpotifyResults,
   fetchYoutubeResults,
@@ -41,6 +42,8 @@ export function SongLibrary() {
   const [keyFilter, setKeyFilter] = useState('')
   const [sort, setSort] = useState<Sort>('recent')
   const [visible, setVisible] = useState(PAGE_SIZE)
+  const [showArchived, setShowArchived] = useState(false)
+  const [overrides, setOverrides] = useState<Map<string, SongOverride>>(new Map())
 
   // External search results
   const [spotifyResults, setSpotifyResults] = useState<SpotifyTrackResult[]>([])
@@ -61,6 +64,12 @@ export function SongLibrary() {
       err => { console.error('Load songs error:', err); setLoading(false) },
     )
     return unsub
+  }, [choir, choirLoading])
+
+  // Subscribe to song overrides (for archive filtering)
+  useEffect(() => {
+    if (choirLoading || !choir) return
+    return subscribeSongOverrides(choir.id, setOverrides)
   }, [choir, choirLoading])
 
   // Debounced external search (Spotify + YouTube)
@@ -117,12 +126,20 @@ export function SongLibrary() {
       const matchGenre = !genre || s.genre === genre
       const matchArtist = !artist || s.artist === artist
       const matchKey = !keyFilter || s.defaultKey === keyFilter
-      return matchSearch && matchGenre && matchArtist && matchKey
+      const isArchived = overrides.get(s.id)?.archived ?? false
+      const matchArchive = showArchived || !isArchived
+      return matchSearch && matchGenre && matchArtist && matchKey && matchArchive
     })
     if (sort === 'title') list.sort((a, b) => a.title.localeCompare(b.title))
     else list.sort((a, b) => +b.createdAt - +a.createdAt)
     return list
-  }, [songs, search, genre, artist, keyFilter, sort])
+  }, [songs, search, genre, artist, keyFilter, sort, showArchived, overrides])
+
+  const archivedCount = useMemo(() => {
+    let count = 0
+    overrides.forEach(o => { if (o.archived) count++ })
+    return count
+  }, [overrides])
 
   const isSearching = search.trim().length >= 3
   const SEARCH_CAP = 5
@@ -157,19 +174,30 @@ export function SongLibrary() {
 
         {/* Filters — only shown when not in external-search mode */}
         {!isSearching && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-5">
-            <Select ariaLabel="Filter by genre" value={genre} onValueChange={setGenre}
-              options={[{ value: '', label: 'All genres' }, ...GENRES.map(g => ({ value: g, label: g }))]}
-              placeholder="Genre" />
-            <Select ariaLabel="Filter by artist" value={artist} onValueChange={setArtist}
-              options={[{ value: '', label: 'All artists' }, ...artists.map(a => ({ value: a, label: a }))]}
-              placeholder="Artist" />
-            <Select ariaLabel="Filter by key" value={keyFilter} onValueChange={setKeyFilter}
-              options={[{ value: '', label: 'Any key' }, ...ALL_KEYS.map(k => ({ value: k, label: k }))]}
-              placeholder="Key" />
-            <Select ariaLabel="Sort songs" value={sort} onValueChange={v => setSort(v as Sort)}
-              options={[{ value: 'recent', label: 'Recently added' }, { value: 'title', label: 'Title A–Z' }]}
-              placeholder="Sort" />
+          <div className="space-y-2 mb-5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <Select ariaLabel="Filter by genre" value={genre} onValueChange={setGenre}
+                options={[{ value: '', label: 'All genres' }, ...GENRES.map(g => ({ value: g, label: g }))]}
+                placeholder="Genre" />
+              <Select ariaLabel="Filter by artist" value={artist} onValueChange={setArtist}
+                options={[{ value: '', label: 'All artists' }, ...artists.map(a => ({ value: a, label: a }))]}
+                placeholder="Artist" />
+              <Select ariaLabel="Filter by key" value={keyFilter} onValueChange={setKeyFilter}
+                options={[{ value: '', label: 'Any key' }, ...ALL_KEYS.map(k => ({ value: k, label: k }))]}
+                placeholder="Key" />
+              <Select ariaLabel="Sort songs" value={sort} onValueChange={v => setSort(v as Sort)}
+                options={[{ value: 'recent', label: 'Recently added' }, { value: 'title', label: 'Title A–Z' }]}
+                placeholder="Sort" />
+            </div>
+            {isDirector && archivedCount > 0 && (
+              <button
+                onClick={() => setShowArchived(v => !v)}
+                className="flex items-center gap-1.5 text-xs font-medium text-harmonic-muted hover:text-harmonic-text transition-colors"
+              >
+                <Archive size={13} />
+                {showArchived ? 'Hide archived' : `Show archived (${archivedCount})`}
+              </button>
+            )}
           </div>
         )}
 
@@ -199,6 +227,7 @@ export function SongLibrary() {
                             {song.defaultKey && <Badge tone="muted">{song.defaultKey}</Badge>}
                             {song.genre && <Badge tone="tertiary">{song.genre}</Badge>}
                             {song.isCustom && <Badge tone="primary">Custom</Badge>}
+                            {overrides.get(song.id)?.archived && <Badge tone="muted">Archived</Badge>}
                           </div>
                         </div>
                         <ChevronRight size={16} className="text-harmonic-muted flex-shrink-0" aria-hidden="true" />
