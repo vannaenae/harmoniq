@@ -352,6 +352,14 @@ export const createCalendarEvent = onCall(async (request) => {
 // Uses retrieval scoring + Claude Haiku re-ranker via AI gateway.
 
 import { suggestSongs, recordSuggestionFeedback } from './suggestions/suggest.js'
+import { aiGateway } from './ai/gateway.js'
+import {
+  buildTranslationPrompt,
+  parseTranslationOutput,
+  SUPPORTED_TRANSLATION_LANGUAGES,
+  type Language,
+  type LyricSectionInput,
+} from './ai/prompts/song-translations/v1.js'
 
 // ── Song Media (Storage trigger) ────────────────────────────────────────────
 export { onSongMediaUploaded } from './songMedia.js'
@@ -413,4 +421,199 @@ export const submitSuggestionFeedback = onCall(async (request) => {
 
   await recordSuggestionFeedback(choirId, songId, action, request.auth.uid, serviceId)
   return { ok: true }
+})
+
+// ── Song Translation ────────────────────────────────────────────────────────
+// AI-powered translation of worship songs. Gated to public-domain +
+// director-uploaded songs. Rate-limited to 50 translations/choir/month.
+
+const TRANSLATION_MODEL = 'claude-sonnet-4-6-20250514'
+const MONTHLY_TRANSLATION_LIMIT = 50
+
+export const translateSong = onCall(
+  { secrets: [ANTHROPIC_API_KEY] },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required')
+
+    const { songId, targetLanguage, choirId } = request.data as {
+      songId: string
+      targetLanguage: Language
+      choirId: string
+    }
+
+    if (!songId || !targetLanguage || !choirId) {
+      throw new HttpsError('invalid-argument', 'songId, targetLanguage, and choirId are required')
+    }
+
+    // Validate target language
+    if (!SUPPORTED_TRANSLATION_LANGUAGES.includes(targetLanguage)) {
+      throw new HttpsError(
+        'invalid-argument',
+        `Unsupported language: ${targetLanguage}. Supported: ${SUPPORTED_TRANSLATION_LANGUAGES.join(', ')}`,
+      )
+    }
+
+    // Director-only: verify caller is a director of this choir
+    const memberSnap = await db.collection('choirs').doc(choirId)
+      .collection('members').doc(request.auth.uid).get()
+    if (!memberSnap.exists) {
+      throw new HttpsError('permission-denied', 'You are not a member of this choir')
+    }
+    const memberData = memberSnap.data() as { role?: string }
+    if (memberData.role !== 'director') {
+      throw new HttpsError('permission-denied', 'Only directors can request translations')
+    }
+
+    // Load the song
+    const songRef = db.collection('songs').doc(songId)
+    const songSnap = await songRef.get()
+    if (!songSnap.exists) {
+      throw new HttpsError('not-found', 'Song not found')
+    }
+    const song = songSnap.data() as {
+      title: string
+      artist?: string
+      origin?: string
+      lyrics?: LyricSectionInput[]
+      rights?: { status?: string }
+      addedBy?: string
+      choirId?: string
+    }
+
+    // Legal gate: only public-domain or director-uploaded custom songs
+    const isPublicDomain = song.rights?.status === 'public_domain'
+    const isDirectorUploaded = song.origin === 'custom'
+    if (!isPublicDomain && !isDirectorUploaded) {
+      throw new HttpsError(
+        'permission-denied',
+        'Translation requires hosted lyrics. Only public-domain and director-uploaded songs can be translated.',
+      )
+    }
+
+    if (!song.lyrics || song.lyrics.length === 0) {
+      throw new HttpsError('failed-precondition', 'Song has no lyrics to translate')
+    }
+
+    // Check cache first
+    const cacheKey = `${songId}_${targetLanguage}`
+    const cacheRef = db.collection('songTranslationCache').doc(cacheKey)
+    const cached = await cacheRef.get()
+    if (cached.exists) {
+      return cached.data()
+    }
+
+    // Monthly rate limit: 50 translations per choir per month
+    const now = new Date()
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const usageRef = db.collection('translationUsage').doc(`${choirId}_${monthKey}`)
+    const usageSnap = await usageRef.get()
+    const currentCount = usageSnap.exists
+      ? ((usageSnap.data() as { count?: number }).count ?? 0)
+      : 0
+
+    if (currentCount >= MONTHLY_TRANSLATION_LIMIT) {
+      throw new HttpsError(
+        'resource-exhausted',
+        `Monthly translation limit reached (${MONTHLY_TRANSLATION_LIMIT}/month). Upgrade your plan for more translations.`,
+      )
+    }
+
+    // Set API key on gateway
+    aiGateway.setApiKey('ANTHROPIC_API_KEY', ANTHROPIC_API_KEY.value())
+
+    // Build prompt and call AI gateway
+    const prompt = buildTranslationPrompt(
+      song.title,
+      song.artist,
+      song.lyrics,
+      targetLanguage,
+    )
+
+    const result = await aiGateway.callModel({
+      feature: 'song-translation',
+      promptVersion: 'v1',
+      model: TRANSLATION_MODEL,
+      prompt,
+      params: { maxTokens: 4000, temperature: 0.3 },
+      choirId,
+    })
+
+    // Parse and validate
+    const translatedSections = parseTranslationOutput(result.text, song.lyrics.length)
+    if (!translatedSections) {
+      throw new HttpsError('internal', 'Translation failed: could not parse AI response')
+    }
+
+    // Build translation record
+    const translation = {
+      songId,
+      language: targetLanguage,
+      sections: translatedSections.map(s => ({
+        kind: s.kind,
+        number: s.number ?? undefined,
+        lines: s.lines,
+        language: s.language,
+      })),
+      translator: 'ai' as const,
+      aiModel: result.model,
+      reviewedBy: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+
+    // Write to cache and increment usage counter in parallel
+    await Promise.all([
+      cacheRef.set(translation),
+      usageRef.set(
+        { count: (currentCount + 1), choirId, month: monthKey, updatedAt: new Date().toISOString() },
+        { merge: true },
+      ),
+    ])
+
+    return translation
+  },
+)
+
+// ── Approve Translation ─────────────────────────────────────────────────────
+// Director marks an AI translation as reviewed. Updates the cache record
+// with reviewedBy + updatedAt.
+
+export const approveTranslation = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required')
+
+  const { songId, targetLanguage, choirId } = request.data as {
+    songId: string
+    targetLanguage: Language
+    choirId: string
+  }
+
+  if (!songId || !targetLanguage || !choirId) {
+    throw new HttpsError('invalid-argument', 'songId, targetLanguage, and choirId are required')
+  }
+
+  // Director-only
+  const memberSnap = await db.collection('choirs').doc(choirId)
+    .collection('members').doc(request.auth.uid).get()
+  if (!memberSnap.exists) {
+    throw new HttpsError('permission-denied', 'You are not a member of this choir')
+  }
+  const memberData = memberSnap.data() as { role?: string }
+  if (memberData.role !== 'director') {
+    throw new HttpsError('permission-denied', 'Only directors can approve translations')
+  }
+
+  // Update cache record
+  const cacheKey = `${songId}_${targetLanguage}`
+  const cacheRef = db.collection('songTranslationCache').doc(cacheKey)
+  const cacheSnap = await cacheRef.get()
+  if (!cacheSnap.exists) {
+    throw new HttpsError('not-found', 'Translation not found')
+  }
+
+  await cacheRef.update({
+    reviewedBy: request.auth.uid,
+    updatedAt: new Date().toISOString(),
+  })
+
+  return { ok: true, reviewedBy: request.auth.uid }
 })

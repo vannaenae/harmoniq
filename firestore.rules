@@ -188,6 +188,11 @@ service cloud.firestore {
       allow write: if false; // written by Cloud Functions only
     }
 
+    // ── Translation usage counters (server-only) ────────────────────────────
+    match /translationUsage/{key} {
+      allow read, write: if false; // Cloud Functions only
+    }
+
     // ── Integration caches (Spotify / Genius) ─────────────────────────────────
     // Cloud Functions own these; clients may read and mirror cache entries to
     // avoid repeat lookups. No secrets are ever stored here.
