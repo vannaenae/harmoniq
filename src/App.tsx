@@ -38,6 +38,7 @@ const SongLibrary       = lazy(() => import('@/pages/library/SongLibrary').then(
 const SongLibraryDetail = lazy(() => import('@/pages/library/SongLibraryDetail').then(m => ({ default: m.SongLibraryDetail })))
 const AddCustomSong     = lazy(() => import('@/pages/library/AddCustomSong').then(m => ({ default: m.AddCustomSong })))
 const PdfViewer         = lazy(() => import('@/pages/library/PdfViewer').then(m => ({ default: m.PdfViewer })))
+const TranslationReviewer = lazy(() => import('@/pages/library/TranslationReviewer').then(m => ({ default: m.TranslationReviewer })))
 
 const AttendanceTracker = lazy(() => import('@/pages/attendance/AttendanceTracker').then(m => ({ default: m.AttendanceTracker })))
 const MyAttendance      = lazy(() => import('@/pages/attendance/MyAttendance').then(m => ({ default: m.MyAttendance })))
@@ -152,6 +153,7 @@ export function App() {
       <Route path="/library/add" element={<RequireAuth><RequireOnboarding><S><AddCustomSong /></S></RequireOnboarding></RequireAuth>} />
       <Route path="/library/:songId" element={<RequireAuth><RequireOnboarding><S><SongLibraryDetail /></S></RequireOnboarding></RequireAuth>} />
       <Route path="/library/:songId/pdf/:kind" element={<RequireAuth><RequireOnboarding><S><PdfViewer /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/library/:songId/translate/:lang" element={<RequireAuth><RequireOnboarding><S><TranslationReviewer /></S></RequireOnboarding></RequireAuth>} />
 
       <Route path="/members" element={<RequireAuth><RequireOnboarding><S><MembersDirectory /></S></RequireOnboarding></RequireAuth>} />
       <Route path="/members/invite" element={<RequireAuth><RequireOnboarding><S><InviteMembers /></S></RequireOnboarding></RequireAuth>} />

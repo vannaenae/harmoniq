@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { transposeChordLine, type AccidentalPreference } from '@/lib/transpose'
-import type { Language, LyricSection } from '@/types'
+import type { Language, LyricSection, SongTranslation } from '@/types'
 
 // ── Section heading labels ──────────────────────────────────────────────────
 
@@ -35,7 +35,7 @@ const SCALE_CLASSES: Record<FontScale, { text: string; chord: string; heading: s
 
 interface LyricSheetProps {
   sections: LyricSection[]
-  translations?: { language: Language; sections: LyricSection[] }[]
+  translations?: (Pick<SongTranslation, 'language' | 'sections' | 'translator' | 'reviewedBy'>)[]
   languageOverride?: Language
   showChords?: boolean
   transposeDelta?: number
@@ -109,20 +109,27 @@ export function LyricSheet({
           <span className="text-[10px] font-semibold text-harmonic-muted uppercase tracking-widest mr-1">
             Language
           </span>
-          {availableLanguages.map(lang => (
-            <button
-              key={lang}
-              onClick={() => handleLangChange(lang)}
-              className={cn(
-                'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
-                (selectedLang ?? sections[0]?.language) === lang
-                  ? 'bg-harmonic-primary text-white'
-                  : 'bg-harmonic-surface text-harmonic-muted hover:bg-harmonic-border',
-              )}
-            >
-              {lang.toUpperCase()}
-            </button>
-          ))}
+          {availableLanguages.map(lang => {
+            const trans = translations?.find(t => t.language === lang)
+            const isAiUnreviewed = trans?.translator === 'ai' && !trans?.reviewedBy
+            return (
+              <button
+                key={lang}
+                onClick={() => handleLangChange(lang)}
+                className={cn(
+                  'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                  (selectedLang ?? sections[0]?.language) === lang
+                    ? 'bg-harmonic-primary text-white'
+                    : 'bg-harmonic-surface text-harmonic-muted hover:bg-harmonic-border',
+                )}
+              >
+                {lang.toUpperCase()}
+                {isAiUnreviewed && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+                )}
+              </button>
+            )
+          })}
         </div>
       )}
 
@@ -189,7 +196,7 @@ export function LyricSheet({
 
 function resolveSections(
   primary: LyricSection[],
-  translations: { language: Language; sections: LyricSection[] }[] | undefined,
+  translations: Pick<SongTranslation, 'language' | 'sections'>[] | undefined,
   languageOverride?: Language,
 ): LyricSection[] {
   if (!languageOverride) return primary
@@ -200,7 +207,7 @@ function resolveSections(
 
 function useAvailableLanguages(
   sections: LyricSection[],
-  translations?: { language: Language; sections: LyricSection[] }[],
+  translations?: Pick<SongTranslation, 'language' | 'sections'>[],
 ): Language[] {
   const langs = new Set<Language>()
   if (sections[0]?.language) langs.add(sections[0].language)
