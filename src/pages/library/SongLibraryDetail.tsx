@@ -27,7 +27,7 @@ import { getSong, getPracticeNotes, savePracticeNotes, updateCustomSong, deleteC
 import type { SongOverride } from '@/types'
 import {
   fetchSpotify, fetchGenius, fetchLyricsData, fetchSongContext,
-  spotifyEmbedUrl,
+  spotifyEmbedUrl, youtubeEmbedUrl,
   type SpotifyData, type GeniusData, type LyricsData, type SongContextData,
 } from '@/lib/integrations'
 import { listServices, getSetList, saveSetList } from '@/lib/firestore'
@@ -224,12 +224,21 @@ export function SongLibraryDetail() {
 
   const keyIsLocked = override?.keyLocked ?? false
 
-  const trackId  = spotify?.trackId  ?? song?.spotifyTrackId ?? null
+  const trackId  = spotify?.trackId  ?? song?.media?.spotifyTrackId ?? song?.spotifyTrackId ?? null
   const artUrl   = spotify?.albumArtUrl ?? song?.albumArtUrl ?? null
   const lyricsUrl = genius?.url ?? song?.geniusUrl ?? song?.lyricsUrl ?? null
   const lyrics   = lyricsData?.lyrics ?? null
   const chords   = KEY_CHORDS[selectedKey] ?? null
   const songQuery = encodeURIComponent(`${song?.title ?? ''} ${song?.artist ?? ''}`.trim())
+
+  // YouTube video IDs from media links
+  const ytVideoId = song?.media?.youtubeVideoId ?? null
+  const ytOfficialAudioId = song?.media?.youtubeOfficialAudioId ?? null
+  const hasBothYt = Boolean(ytVideoId && ytOfficialAudioId)
+  const [ytMode, setYtMode] = useState<'video' | 'audio'>('video')
+  const activeYtId = hasBothYt
+    ? (ytMode === 'video' ? ytVideoId : ytOfficialAudioId)
+    : (ytVideoId ?? ytOfficialAudioId)
 
   const openEdit = () => {
     if (!song) return
@@ -378,37 +387,97 @@ export function SongLibraryDetail() {
 
         <div className="px-5 space-y-4 mt-3">
 
-          {/* ── Spotify in-app player ───────────────────────────────────── */}
+          {/* ── Listen: Spotify + YouTube in-app embeds ──────────────── */}
           {mediaLoading ? (
             <Skeleton className="h-[152px] w-full rounded-2xl" />
-          ) : trackId ? (
-            <div className="space-y-1">
-              <iframe
-                title={`Play ${song.title} on Spotify`}
-                src={spotifyEmbedUrl(trackId)}
-                width="100%"
-                height="152"
-                frameBorder="0"
-                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                loading="lazy"
-                className="rounded-2xl shadow-card"
-              />
+          ) : (trackId || activeYtId) ? (
+            <div className="space-y-3">
+              {/* Spotify embed */}
+              {trackId && (
+                <div className="space-y-1">
+                  <iframe
+                    title={`Play ${song.title} on Spotify`}
+                    src={spotifyEmbedUrl(trackId)}
+                    width="100%"
+                    height="152"
+                    frameBorder="0"
+                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                    loading="lazy"
+                    className="rounded-2xl shadow-card"
+                  />
+                </div>
+              )}
+
+              {/* YouTube embed */}
+              {activeYtId && (
+                <div className="space-y-1.5">
+                  {hasBothYt && (
+                    <div className="flex items-center gap-1 bg-harmonic-surface rounded-xl p-1">
+                      <button
+                        onClick={() => setYtMode('video')}
+                        className={`flex-1 text-xs font-medium py-1.5 px-3 rounded-lg transition-colors ${
+                          ytMode === 'video'
+                            ? 'bg-white text-harmonic-text shadow-sm'
+                            : 'text-harmonic-muted hover:text-harmonic-text'
+                        }`}
+                      >
+                        Lyric Video
+                      </button>
+                      <button
+                        onClick={() => setYtMode('audio')}
+                        className={`flex-1 text-xs font-medium py-1.5 px-3 rounded-lg transition-colors ${
+                          ytMode === 'audio'
+                            ? 'bg-white text-harmonic-text shadow-sm'
+                            : 'text-harmonic-muted hover:text-harmonic-text'
+                        }`}
+                      >
+                        Official Audio
+                      </button>
+                    </div>
+                  )}
+                  <iframe
+                    title={`Watch ${song.title} on YouTube`}
+                    src={youtubeEmbedUrl(activeYtId)}
+                    width="100%"
+                    height="200"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    loading="lazy"
+                    className="rounded-2xl shadow-card"
+                  />
+                </div>
+              )}
+
+              {/* Links row */}
               <div className="flex items-center justify-center gap-4 pt-1">
-                <a
-                  href={`https://open.spotify.com/track/${trackId}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
-                >
-                  <Music2 size={12} className="text-[#1DB954]" /> Open in Spotify
-                </a>
-                <span className="text-harmonic-border">·</span>
-                <a
-                  href={`https://www.youtube.com/results?search_query=${songQuery}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
-                >
-                  <Youtube size={12} className="text-[#FF0000]" /> Search YouTube
-                </a>
+                {trackId && (
+                  <a
+                    href={`https://open.spotify.com/track/${trackId}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
+                  >
+                    <Music2 size={12} className="text-[#1DB954]" /> Open in Spotify
+                  </a>
+                )}
+                {trackId && activeYtId && <span className="text-harmonic-border">·</span>}
+                {activeYtId ? (
+                  <a
+                    href={`https://www.youtube.com/watch?v=${activeYtId}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
+                  >
+                    <Youtube size={12} className="text-[#FF0000]" /> Open on YouTube
+                  </a>
+                ) : (
+                  <a
+                    href={`https://www.youtube.com/results?search_query=${songQuery}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
+                  >
+                    <Youtube size={12} className="text-[#FF0000]" /> Search YouTube
+                  </a>
+                )}
               </div>
             </div>
           ) : (

@@ -88,6 +88,9 @@ export interface CustomSongInput {
   leadSheetUrl?: string
   satbParts?: Array<{ voice: 'soprano' | 'alto' | 'tenor' | 'bass'; audioUrl?: string; pdfUrl?: string; notes?: string }>
   rights?: Song['rights']
+  media?: Song['media']
+  albumArtUrl?: string
+  durationSec?: number
 }
 
 export async function addCustomSong(
@@ -110,6 +113,9 @@ export async function addCustomSong(
     leadSheetUrl: input.leadSheetUrl ?? null,
     satbParts: input.satbParts ?? null,
     rights: input.rights ?? { status: 'unknown' },
+    media: input.media ?? {},
+    albumArtUrl: input.albumArtUrl ?? null,
+    meta: { durationSec: input.durationSec ?? null },
     isCustom: true,
     choirId,
     addedBy,

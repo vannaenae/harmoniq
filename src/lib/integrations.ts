@@ -160,6 +160,10 @@ export async function fetchSongContext(title: string, artist?: string): Promise<
 export const spotifyEmbedUrl = (trackId: string) =>
   `https://open.spotify.com/embed/track/${trackId}?utm_source=generator&theme=0`
 
+/** YouTube embed URL — nocookie domain for privacy. */
+export const youtubeEmbedUrl = (videoId: string) =>
+  `https://www.youtube-nocookie.com/embed/${videoId}?rel=0`
+
 /** Search Spotify for up to 5 tracks matching a free-text query. */
 export async function fetchSpotifyResults(query: string): Promise<SpotifyTrackResult[]> {
   try {
