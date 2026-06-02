@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, Plus, Music2, ChevronRight, Heart, Loader2, Youtube, ExternalLink, Archive } from 'lucide-react'
+import { Search, Plus, Music2, ChevronRight, Heart, Loader2, Youtube, ExternalLink, Archive, WifiOff } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -13,6 +13,7 @@ import { SkeletonCard } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
+import { useOfflineSongs } from '@/hooks/useOfflineSongs'
 import { subscribeSongs, addCustomSong, subscribeSongOverrides, GENRES, ALL_KEYS } from '@/lib/songs'
 import type { SongOverride } from '@/types'
 import {
@@ -44,6 +45,8 @@ export function SongLibrary() {
   const [visible, setVisible] = useState(PAGE_SIZE)
   const [showArchived, setShowArchived] = useState(false)
   const [overrides, setOverrides] = useState<Map<string, SongOverride>>(new Map())
+  const [offlineOnly, setOfflineOnly] = useState(false)
+  const offlineSongIds = useOfflineSongs()
 
   // External search results
   const [spotifyResults, setSpotifyResults] = useState<SpotifyTrackResult[]>([])
@@ -135,12 +138,13 @@ export function SongLibrary() {
       const licenseArchived = s.rights?.status === 'ccli_required' && !choirHasAttestedCcli
       const isArchived = overrideArchived || licenseArchived
       const matchArchive = showArchived || !isArchived
-      return matchSearch && matchGenre && matchArtist && matchKey && matchArchive
+      const matchOffline = !offlineOnly || offlineSongIds.has(s.id)
+      return matchSearch && matchGenre && matchArtist && matchKey && matchArchive && matchOffline
     })
     if (sort === 'title') list.sort((a, b) => a.title.localeCompare(b.title))
     else list.sort((a, b) => +b.createdAt - +a.createdAt)
     return list
-  }, [songs, search, genre, artist, keyFilter, sort, showArchived, overrides, choirHasAttestedCcli])
+  }, [songs, search, genre, artist, keyFilter, sort, showArchived, overrides, choirHasAttestedCcli, offlineOnly, offlineSongIds])
 
   const archivedCount = useMemo(() => {
     let count = 0
@@ -201,15 +205,26 @@ export function SongLibrary() {
                 options={[{ value: 'recent', label: 'Recently added' }, { value: 'title', label: 'Title A–Z' }]}
                 placeholder="Sort" />
             </div>
-            {isDirector && archivedCount > 0 && (
-              <button
-                onClick={() => setShowArchived(v => !v)}
-                className="flex items-center gap-1.5 text-xs font-medium text-harmonic-muted hover:text-harmonic-text transition-colors"
-              >
-                <Archive size={13} />
-                {showArchived ? 'Hide archived' : `Show archived (${archivedCount})`}
-              </button>
-            )}
+            <div className="flex items-center gap-4">
+              {offlineSongIds.size > 0 && (
+                <button
+                  onClick={() => setOfflineOnly(v => !v)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-harmonic-muted hover:text-harmonic-text transition-colors"
+                >
+                  <WifiOff size={13} />
+                  {offlineOnly ? 'Show all' : `Offline only (${offlineSongIds.size})`}
+                </button>
+              )}
+              {isDirector && archivedCount > 0 && (
+                <button
+                  onClick={() => setShowArchived(v => !v)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-harmonic-muted hover:text-harmonic-text transition-colors"
+                >
+                  <Archive size={13} />
+                  {showArchived ? 'Hide archived' : `Show archived (${archivedCount})`}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -239,6 +254,7 @@ export function SongLibrary() {
                             {song.defaultKey && <Badge tone="muted">{song.defaultKey}</Badge>}
                             {song.genre && <Badge tone="tertiary">{song.genre}</Badge>}
                             {song.isCustom && <Badge tone="primary">Custom</Badge>}
+                            {offlineSongIds.has(song.id) && <Badge tone="success">Offline</Badge>}
                             {overrides.get(song.id)?.archived && <Badge tone="muted">Archived</Badge>}
                           </div>
                         </div>
