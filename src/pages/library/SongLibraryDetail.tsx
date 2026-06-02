@@ -259,8 +259,7 @@ export function SongLibraryDetail() {
               src={artUrl}
               alt=""
               aria-hidden="true"
-              className="absolute inset-0 w-full h-full object-cover scale-110"
-              style={{ filter: 'blur(32px) brightness(0.38) saturate(1.5)' }}
+              className="absolute inset-0 w-full h-full object-cover scale-110 blur-[32px] brightness-[0.38] saturate-[1.5]"
             />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-harmonic-primary via-harmonic-secondary to-purple-900" />

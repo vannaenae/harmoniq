@@ -15,7 +15,7 @@ function Harness() {
 
   return (
     <ErrorBoundary>
-      <div style={{ padding: 24 }}>
+      <div className="p-6">
         <h1>Select harness</h1>
         <div data-testid="genre-value">genre=[{genre}]</div>
         <div data-testid="last-change">change=[{lastChange}]</div>
