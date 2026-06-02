@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { FileText, Upload, X } from 'lucide-react'
+import { FileText, Upload, X, ChevronDown, ChevronUp } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -9,11 +9,14 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Select } from '@/components/ui/Select'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { SongMediaUpload, type SongMediaKind } from '@/components/SongMediaUpload'
 import { storage } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
 import { addCustomSong, GENRES, ALL_KEYS } from '@/lib/songs'
 import type { SongGenre } from '@/types'
+
+const SATB_VOICES = ['soprano', 'alto', 'tenor', 'bass'] as const
 
 export function AddCustomSong() {
   const navigate = useNavigate()
@@ -31,19 +34,35 @@ export function AddCustomSong() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Media URLs (uploaded via SongMediaUpload before save)
+  const [sheetMusicUrl, setSheetMusicUrl] = useState<string | undefined>()
+  const [leadSheetUrl, setLeadSheetUrl] = useState<string | undefined>()
+  const [satbUrls, setSatbUrls] = useState<Record<string, string>>({})
+  const [showSatb, setShowSatb] = useState(false)
+
+  // We need a temp songId for storage paths before the song doc exists
+  const [tempSongId] = useState(() => `custom-${Date.now()}`)
+
   const handleSave = async () => {
     if (!choir || !firebaseUser) return
     if (!title.trim()) { setError('Please give the song a title.'); return }
     setError(null)
     setSaving(true)
     try {
-      let sheetMusicUrl: string | undefined
+      let chordChartUrl: string | undefined
       if (pdf) {
-        /* API_POINT: Firebase Storage — chord chart PDF upload */
-        const fRef = storageRef(storage, `choirs/${choir.id}/charts/${Date.now()}-${pdf.name}`)
+        const fRef = storageRef(storage, `choirs/${choir.id}/songMedia/${tempSongId}/chord_chart.pdf`)
         await uploadBytes(fRef, pdf)
-        sheetMusicUrl = await getDownloadURL(fRef)
+        chordChartUrl = await getDownloadURL(fRef)
       }
+
+      // Build SATB parts array
+      const satbParts = Object.keys(satbUrls).length > 0
+        ? SATB_VOICES
+            .filter(v => satbUrls[v])
+            .map(v => ({ voice: v, audioUrl: satbUrls[v] }))
+        : undefined
+
       await addCustomSong(choir.id, firebaseUser.uid, {
         title: title.trim(),
         artist: artist.trim() || undefined,
@@ -52,6 +71,9 @@ export function AddCustomSong() {
         lyricsUrl: lyricsUrl.trim() || undefined,
         notes: notes.trim() || undefined,
         sheetMusicUrl,
+        chordChartUrl,
+        leadSheetUrl,
+        satbParts,
       })
       navigate('/library')
     } catch (err) {
@@ -86,7 +108,7 @@ export function AddCustomSong() {
           <Input label="Lyrics URL (optional)" placeholder="https://genius.com/…" value={lyricsUrl} onChange={e => setLyricsUrl(e.target.value)} />
           <Textarea label="Notes (optional)" placeholder="Arrangement notes, key changes, who usually leads…" value={notes} onChange={e => setNotes(e.target.value)} />
 
-          {/* Chord chart PDF */}
+          {/* Legacy chord chart PDF (keep for backwards compat) */}
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-harmonic-text">Chord chart PDF (optional)</span>
             {pdf ? (
@@ -108,6 +130,56 @@ export function AddCustomSong() {
             <input ref={fileRef} type="file" accept="application/pdf" className="hidden"
               onChange={e => setPdf(e.target.files?.[0] ?? null)} aria-hidden="true" />
           </div>
+
+          {/* Additional sheet music uploads */}
+          {choir && (
+            <>
+              <SongMediaUpload
+                kind="sheet_music"
+                choirId={choir.id}
+                songId={tempSongId}
+                existingUrl={sheetMusicUrl}
+                onUploaded={setSheetMusicUrl}
+                onRemoved={() => setSheetMusicUrl(undefined)}
+              />
+              <SongMediaUpload
+                kind="lead_sheet"
+                choirId={choir.id}
+                songId={tempSongId}
+                existingUrl={leadSheetUrl}
+                onUploaded={setLeadSheetUrl}
+                onRemoved={() => setLeadSheetUrl(undefined)}
+              />
+
+              {/* SATB audio uploads (collapsible) */}
+              <div className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSatb(!showSatb)}
+                  className="flex items-center gap-2 text-sm font-medium text-harmonic-text hover:text-harmonic-primary transition-colors"
+                >
+                  {showSatb ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  SATB practice audio (optional)
+                </button>
+
+                {showSatb && (
+                  <div className="space-y-3 pl-2 border-l-2 border-harmonic-border">
+                    {SATB_VOICES.map(voice => (
+                      <SongMediaUpload
+                        key={voice}
+                        kind={`satb_${voice}` as SongMediaKind}
+                        choirId={choir.id}
+                        songId={tempSongId}
+                        existingUrl={satbUrls[voice]}
+                        onUploaded={url => setSatbUrls(prev => ({ ...prev, [voice]: url }))}
+                        onRemoved={() => setSatbUrls(prev => { const n = { ...prev }; delete n[voice]; return n })}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           <div className="flex justify-end pt-2">
             <Button variant="primary" onClick={handleSave} disabled={!title.trim() || saving}>

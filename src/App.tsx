@@ -37,6 +37,7 @@ const JoinChoir         = lazy(() => import('@/pages/JoinChoir').then(m => ({ de
 const SongLibrary       = lazy(() => import('@/pages/library/SongLibrary').then(m => ({ default: m.SongLibrary })))
 const SongLibraryDetail = lazy(() => import('@/pages/library/SongLibraryDetail').then(m => ({ default: m.SongLibraryDetail })))
 const AddCustomSong     = lazy(() => import('@/pages/library/AddCustomSong').then(m => ({ default: m.AddCustomSong })))
+const PdfViewer         = lazy(() => import('@/pages/library/PdfViewer').then(m => ({ default: m.PdfViewer })))
 
 const AttendanceTracker = lazy(() => import('@/pages/attendance/AttendanceTracker').then(m => ({ default: m.AttendanceTracker })))
 const MyAttendance      = lazy(() => import('@/pages/attendance/MyAttendance').then(m => ({ default: m.MyAttendance })))
@@ -82,8 +83,7 @@ function FullScreenLoader() {
     <div className="min-h-screen bg-harmonic-background flex items-center justify-center" aria-label="Loading">
       <div className="flex flex-col items-center gap-4">
         <div
-          className="w-12 h-12 rounded-xl animate-pulse"
-          style={{ background: 'linear-gradient(135deg, #18005F 0%, #560056 100%)' }}
+          className="w-12 h-12 rounded-xl animate-pulse bg-featured-song-gradient"
           aria-hidden="true"
         />
         <div className="flex gap-1">
@@ -151,6 +151,7 @@ export function App() {
       <Route path="/library" element={<RequireAuth><RequireOnboarding><S><SongLibrary /></S></RequireOnboarding></RequireAuth>} />
       <Route path="/library/add" element={<RequireAuth><RequireOnboarding><S><AddCustomSong /></S></RequireOnboarding></RequireAuth>} />
       <Route path="/library/:songId" element={<RequireAuth><RequireOnboarding><S><SongLibraryDetail /></S></RequireOnboarding></RequireAuth>} />
+      <Route path="/library/:songId/pdf/:kind" element={<RequireAuth><RequireOnboarding><S><PdfViewer /></S></RequireOnboarding></RequireAuth>} />
 
       <Route path="/members" element={<RequireAuth><RequireOnboarding><S><MembersDirectory /></S></RequireOnboarding></RequireAuth>} />
       <Route path="/members/invite" element={<RequireAuth><RequireOnboarding><S><InviteMembers /></S></RequireOnboarding></RequireAuth>} />

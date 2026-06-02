@@ -84,6 +84,9 @@ export interface CustomSongInput {
   lyricsUrl?: string
   notes?: string
   sheetMusicUrl?: string
+  chordChartUrl?: string
+  leadSheetUrl?: string
+  satbParts?: Array<{ voice: 'soprano' | 'alto' | 'tenor' | 'bass'; audioUrl?: string; pdfUrl?: string; notes?: string }>
 }
 
 export async function addCustomSong(
@@ -102,6 +105,9 @@ export async function addCustomSong(
     geniusUrl: null,
     notes: input.notes ?? null,
     sheetMusicUrl: input.sheetMusicUrl ?? null,
+    chordChartUrl: input.chordChartUrl ?? null,
+    leadSheetUrl: input.leadSheetUrl ?? null,
+    satbParts: input.satbParts ?? null,
     isCustom: true,
     choirId,
     addedBy,
@@ -168,6 +174,9 @@ function mapSong(id: string, data: Record<string, unknown>, choirId?: string): S
     },
     lyrics,
     sheetMusicUrl: (data.sheetMusicUrl as string) ?? undefined,
+    chordChartUrl: (data.chordChartUrl as string) ?? undefined,
+    leadSheetUrl: (data.leadSheetUrl as string) ?? undefined,
+    satbParts: Array.isArray(data.satbParts) ? (data.satbParts as Song['satbParts']) : undefined,
     albumArtUrl: (data.albumArtUrl as string) ?? undefined,
     tags: (data.tags as string[]) ?? undefined,
     choirId,

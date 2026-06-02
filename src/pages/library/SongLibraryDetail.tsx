@@ -16,6 +16,9 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ServiceSelect } from '@/components/ServiceSelect'
 import { LyricSheet } from '@/components/LyricSheet'
+import { PdfThumb } from '@/components/PdfThumb'
+import { SatbAudioPlayer } from '@/components/SatbAudioPlayer'
+import { SongMediaUpload, type SongMediaKind } from '@/components/SongMediaUpload'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
 import { getSong, getPracticeNotes, savePracticeNotes, updateCustomSong, deleteCustomSong, subscribeSongOverride, saveSongOverride, ALL_KEYS, GENRES } from '@/lib/songs'
@@ -595,6 +598,41 @@ export function SongLibraryDetail() {
             </Card>
           )}
 
+          {/* ── Sheet music / chord charts ──────────────────────────────── */}
+          {(song.chordChartUrl || song.sheetMusicUrl || song.leadSheetUrl) && (
+            <Card className="p-5 space-y-3">
+              <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-2">Sheet music</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {song.chordChartUrl && (
+                  <Link to={`/library/${song.id}/pdf/chord_chart`} className="group">
+                    <PdfThumb url={song.chordChartUrl} className="aspect-[3/4] mb-2" />
+                    <p className="text-xs font-medium text-harmonic-text group-hover:text-harmonic-primary transition-colors">Chord chart</p>
+                  </Link>
+                )}
+                {song.sheetMusicUrl && (
+                  <Link to={`/library/${song.id}/pdf/sheet_music`} className="group">
+                    <PdfThumb url={song.sheetMusicUrl} className="aspect-[3/4] mb-2" />
+                    <p className="text-xs font-medium text-harmonic-text group-hover:text-harmonic-primary transition-colors">Sheet music</p>
+                  </Link>
+                )}
+                {song.leadSheetUrl && (
+                  <Link to={`/library/${song.id}/pdf/lead_sheet`} className="group">
+                    <PdfThumb url={song.leadSheetUrl} className="aspect-[3/4] mb-2" />
+                    <p className="text-xs font-medium text-harmonic-text group-hover:text-harmonic-primary transition-colors">Lead sheet</p>
+                  </Link>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {/* ── SATB practice audio ──────────────────────────────────────── */}
+          {song.satbParts && song.satbParts.length > 0 && (
+            <Card className="p-5 space-y-3">
+              <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Practice audio</p>
+              <SatbAudioPlayer parts={song.satbParts} />
+            </Card>
+          )}
+
           {/* ── Key & chords ────────────────────────────────────────────── */}
           <Card className="p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -760,6 +798,60 @@ export function SongLibraryDetail() {
               options={GENRES.map(g => ({ value: g, label: g }))} placeholder="Genre…" />
           </div>
           <Input label="Notes" value={editNotes} onChange={e => setEditNotes(e.target.value)} />
+
+          {/* Media uploads in edit modal */}
+          {choir && song && (
+            <div className="space-y-3 pt-2 border-t border-harmonic-border">
+              <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Sheet music & audio</p>
+              {(['chord_chart', 'sheet_music', 'lead_sheet'] as const).map(kind => (
+                <SongMediaUpload
+                  key={kind}
+                  kind={kind}
+                  choirId={choir.id}
+                  songId={song.id}
+                  existingUrl={
+                    kind === 'chord_chart' ? song.chordChartUrl
+                    : kind === 'sheet_music' ? song.sheetMusicUrl
+                    : song.leadSheetUrl
+                  }
+                  onUploaded={url => {
+                    const field = kind === 'chord_chart' ? 'chordChartUrl'
+                      : kind === 'sheet_music' ? 'sheetMusicUrl' : 'leadSheetUrl'
+                    updateCustomSong(choir.id, song.id, { [field]: url } as Record<string, string>)
+                    setSong(prev => prev ? { ...prev, [field]: url } : prev)
+                  }}
+                  onRemoved={() => {
+                    const field = kind === 'chord_chart' ? 'chordChartUrl'
+                      : kind === 'sheet_music' ? 'sheetMusicUrl' : 'leadSheetUrl'
+                    updateCustomSong(choir.id, song.id, { [field]: null } as unknown as Record<string, string>)
+                    setSong(prev => prev ? { ...prev, [field]: undefined } : prev)
+                  }}
+                />
+              ))}
+              {(['soprano', 'alto', 'tenor', 'bass'] as const).map(voice => (
+                <SongMediaUpload
+                  key={voice}
+                  kind={`satb_${voice}` as SongMediaKind}
+                  choirId={choir.id}
+                  songId={song.id}
+                  existingUrl={song.satbParts?.find(p => p.voice === voice)?.audioUrl}
+                  onUploaded={url => {
+                    const existing = song.satbParts ?? []
+                    const updated = existing.filter(p => p.voice !== voice)
+                    updated.push({ voice, audioUrl: url })
+                    updateCustomSong(choir.id, song.id, { satbParts: updated } as Record<string, unknown>)
+                    setSong(prev => prev ? { ...prev, satbParts: updated } : prev)
+                  }}
+                  onRemoved={() => {
+                    const updated = (song.satbParts ?? []).filter(p => p.voice !== voice)
+                    updateCustomSong(choir.id, song.id, { satbParts: updated.length ? updated : null } as Record<string, unknown>)
+                    setSong(prev => prev ? { ...prev, satbParts: updated.length ? updated : undefined } : prev)
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
           {editError && <p role="alert" className="text-sm text-harmonic-danger">{editError}</p>}
         </div>
       </Modal>

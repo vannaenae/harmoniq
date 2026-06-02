@@ -353,6 +353,9 @@ export const createCalendarEvent = onCall(async (request) => {
 
 import { suggestSongs, recordSuggestionFeedback } from './suggestions/suggest.js'
 
+// ── Song Media (Storage trigger) ────────────────────────────────────────────
+export { onSongMediaUploaded } from './songMedia.js'
+
 export const getSongSuggestions = onCall(
   { secrets: [ANTHROPIC_API_KEY] },
   async (request) => {
