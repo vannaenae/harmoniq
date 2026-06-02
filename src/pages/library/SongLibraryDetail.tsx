@@ -3,12 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Save,
   Music2, Youtube, ExternalLink, ChevronDown as ChevronExpand,
-  Sparkles, Pencil, Trash2, RotateCcw, Lock, Unlock, Archive, ArchiveRestore,
+  Sparkles, Pencil, Trash2, RotateCcw, Lock, Unlock, Archive, ArchiveRestore, FileCheck2,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { RightsBadge } from '@/components/ui/RightsBadge'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -360,6 +361,14 @@ export function SongLibraryDetail() {
                     Custom
                   </span>
                 )}
+                {song.rights?.status && (
+                  <RightsBadge
+                    status={song.rights.status}
+                    publisher={song.rights.publisher}
+                    ccliNumber={song.rights.ccliNumber}
+                    className="!bg-white/15 !text-white backdrop-blur-sm"
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -557,6 +566,27 @@ export function SongLibraryDetail() {
                     className="mt-2 flex items-center gap-1 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
                   >
                     <ExternalLink size={11} /> Full lyrics on Genius
+                  </a>
+                )}
+              </div>
+            ) : song.rights?.status === 'ccli_required' || song.rights?.status === 'unlicensed' ? (
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-4 rounded-card bg-harmonic-warning/5 border border-harmonic-warning/20">
+                  <FileCheck2 size={18} className="text-harmonic-warning shrink-0 mt-0.5" aria-hidden="true" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-harmonic-text">Lyrics not licensed</p>
+                    <p className="text-xs text-harmonic-muted mt-1">
+                      {song.rights.publisher
+                        ? `${song.rights.publisher} holds the rights to these lyrics. Open them externally or attest your CCLI licence in choir settings.`
+                        : 'These lyrics are under copyright. Open them externally or attest your CCLI licence in choir settings.'}
+                    </p>
+                  </div>
+                </div>
+                {lyricsUrl && (
+                  <a href={lyricsUrl} target="_blank" rel="noopener noreferrer">
+                    <Button variant="outlined" fullWidth>
+                      <ExternalLink size={15} /> Open lyrics on Genius
+                    </Button>
                   </a>
                 )}
               </div>

@@ -39,6 +39,13 @@ export interface HarmonicUser {
 
 // ── Choir ─────────────────────────────────────────────────────────────────────
 
+export interface ChoirLicensing {
+  ccliNumber?: string
+  attested: boolean
+  attestedBy?: string
+  attestedAt?: Date
+}
+
 export interface Choir {
   id: string
   name: string
@@ -49,6 +56,7 @@ export interface Choir {
   inviteExpiry: Date
   ownerId: string
   memberCount: number
+  licensing?: ChoirLicensing
   createdAt: Date
   updatedAt: Date
 }
