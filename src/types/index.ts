@@ -64,26 +64,149 @@ export interface ChoirMember {
   joinedAt: Date
 }
 
-// ── Song ──────────────────────────────────────────────────────────────────────
+// ── Song (rev-2 schema) ──────────────────────────────────────────────────────
 
-export type SongGenre = 'Gospel' | 'Contemporary' | 'Hymn' | 'Modern' | 'Anthem' | 'Other'
+export type Language = 'en' | 'yo' | 'ig' | 'ha' | 'pcm' | 'fr' | 'sw' | 'pt' | 'la' | 'other'
+export type TimeSig = '4/4' | '3/4' | '6/8' | '2/4' | '12/8' | '5/4' | 'other'
+export type RightsStatus = 'public_domain' | 'ccli_required' | 'royalty_free' | 'unlicensed' | 'unknown'
+export type SongOrigin = 'seed' | 'global' | 'custom'
+
+export type SongGenre =
+  | 'Hymn' | 'Contemporary' | 'Gospel' | 'African Gospel'
+  | 'Yoruba' | 'Igbo' | 'Hausa' | 'Pidgin'
+  | 'Anthem' | 'Chorale' | 'Spiritual' | 'Modern' | 'Other'
+
+export interface LyricSection {
+  kind: 'verse' | 'chorus' | 'pre_chorus' | 'bridge' | 'tag' | 'refrain' | 'intro' | 'outro' | 'interlude'
+  number?: number
+  lines: string[]
+  chordsAboveLines?: string[]
+  language: Language
+}
+
+export interface SongTranslation {
+  language: Language
+  sections: LyricSection[]
+  translator: 'human' | 'ai'
+  aiModel?: string
+  reviewedBy?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface SatbPart {
+  voice: 'soprano' | 'alto' | 'tenor' | 'bass'
+  audioUrl?: string
+  pdfUrl?: string
+  notes?: string
+}
+
+export interface SongMediaLinks {
+  youtubeVideoId?: string
+  youtubeOfficialAudioId?: string
+  spotifyTrackId?: string
+  spotifyAlbumId?: string
+  appleMusicUrl?: string
+  audioMackUrl?: string
+  boomplayUrl?: string
+}
+
+export interface SongRights {
+  status: RightsStatus
+  ccliNumber?: string
+  publisher?: string
+  copyrightYear?: number
+  rightsHolders?: string[]
+  notes?: string
+}
+
+export interface SongMeta {
+  bpm?: number
+  timeSig?: TimeSig
+  durationSec?: number
+  scriptureRefs?: string[]
+  themes?: string[]
+  occasions?: string[]
+  liturgicalSeason?: 'advent' | 'christmas' | 'lent' | 'easter' | 'pentecost' | 'ordinary'
+}
 
 export interface Song {
   id: string
+  origin: SongOrigin
   title: string
+  alternateTitles?: string[]
   artist?: string
+  composers?: string[]
+  arrangers?: string[]
+  primaryLanguage: Language
+  availableLanguages: Language[]
   genre?: SongGenre
   defaultKey?: string
-  spotifyTrackId?: string
-  spotifyPreviewUrl?: string
-  albumArtUrl?: string
-  geniusUrl?: string
-  lyricsUrl?: string
-  notes?: string
+  capoHint?: number
+  meta: SongMeta
+  rights: SongRights
+  media: SongMediaLinks
+  lyrics: LyricSection[]
+  translations?: SongTranslation[]
+  chordChartUrl?: string
   sheetMusicUrl?: string
-  isCustom: boolean
+  leadSheetUrl?: string
+  satbParts?: SatbPart[]
+  archived?: boolean
+  tags?: string[]
+  albumArtUrl?: string
   choirId?: string
   addedBy: string
+  createdAt: Date
+  updatedAt: Date
+
+  // ── Transitional compat fields (removed when 25.2+ consumers ship) ──
+  /** @deprecated Use `origin === 'custom'` instead */
+  isCustom?: boolean
+  /** @deprecated Use `media.spotifyTrackId` instead */
+  spotifyTrackId?: string
+  /** @deprecated Removed */
+  spotifyPreviewUrl?: string
+  /** @deprecated Use lyrics[] sections */
+  geniusUrl?: string
+  /** @deprecated Use lyrics[] sections */
+  lyricsUrl?: string
+  /** @deprecated Use SongOverride.rehearsalNotes or meta */
+  notes?: string
+}
+
+// ── Song Overrides (per-choir) ───────────────────────────────────────────────
+
+export interface SongOverride {
+  songId: string
+  choirId: string
+  performanceKey?: string
+  keyLocked?: boolean
+  rehearsalNotes?: string
+  capoHint?: number
+  archived?: boolean
+  preferredLanguage?: Language
+  updatedBy: string
+  updatedAt: Date
+}
+
+// ── Offline save marker ──────────────────────────────────────────────────────
+
+export interface OfflineSongMarker {
+  songId: string
+  savedAt: Date
+  lastSyncedAt: Date
+}
+
+// ── Translation cache ────────────────────────────────────────────────────────
+
+export interface SongTranslationCache {
+  songId: string
+  language: Language
+  sections: LyricSection[]
+  translator: 'human' | 'ai'
+  aiModel?: string
+  reviewedBy?: string
   createdAt: Date
   updatedAt: Date
 }

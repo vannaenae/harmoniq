@@ -141,23 +141,45 @@ export async function cacheSongMedia(
 }
 
 function mapSong(id: string, data: Record<string, unknown>, choirId?: string): Song {
+  const isCustom = Boolean(data.isCustom)
+  const origin = (data.origin as Song['origin']) ?? (isCustom ? 'custom' : 'global')
+
+  // Legacy lyrics (plain string) → structured LyricSection[]
+  const lyrics: Song['lyrics'] = Array.isArray(data.lyrics)
+    ? (data.lyrics as Song['lyrics'])
+    : typeof data.lyrics === 'string' && data.lyrics
+      ? [{ kind: 'verse', number: 1, lines: (data.lyrics as string).split('\n'), language: 'en' as const }]
+      : []
+
   return {
     id,
+    origin,
     title: (data.title as string) ?? 'Untitled',
     artist: (data.artist as string) ?? undefined,
+    primaryLanguage: (data.primaryLanguage as Song['primaryLanguage']) ?? 'en',
+    availableLanguages: (data.availableLanguages as Song['availableLanguages']) ?? ['en'],
     genre: (data.genre as SongGenre) ?? undefined,
-    defaultKey: (data.defaultKey as string) ?? undefined,
-    spotifyTrackId: (data.spotifyTrackId as string) ?? undefined,
-    albumArtUrl: (data.albumArtUrl as string) ?? undefined,
-    geniusUrl: (data.geniusUrl as string) ?? undefined,
-    lyricsUrl: (data.lyricsUrl as string) ?? undefined,
-    notes: (data.notes as string) ?? undefined,
+    defaultKey: (data.defaultKey as string) ?? (data.key as string) ?? undefined,
+    meta: (data.meta as Song['meta']) ?? {},
+    rights: (data.rights as Song['rights']) ?? { status: 'unknown' },
+    media: (data.media as Song['media']) ?? {
+      spotifyTrackId: (data.spotifyTrackId as string) ?? undefined,
+    },
+    lyrics,
     sheetMusicUrl: (data.sheetMusicUrl as string) ?? undefined,
-    isCustom: Boolean(data.isCustom),
+    albumArtUrl: (data.albumArtUrl as string) ?? undefined,
+    tags: (data.tags as string[]) ?? undefined,
     choirId,
     addedBy: (data.addedBy as string) ?? 'seed',
     createdAt: data.createdAt ? toDate(data.createdAt) : new Date(),
     updatedAt: data.updatedAt ? toDate(data.updatedAt) : new Date(),
+
+    // Transitional compat
+    isCustom,
+    spotifyTrackId: (data.spotifyTrackId as string) ?? (data.media as Record<string, unknown>)?.spotifyTrackId as string ?? undefined,
+    geniusUrl: (data.geniusUrl as string) ?? undefined,
+    lyricsUrl: (data.lyricsUrl as string) ?? undefined,
+    notes: (data.notes as string) ?? undefined,
   }
 }
 
@@ -183,4 +205,8 @@ export async function savePracticeNotes(
 }
 
 export const ALL_KEYS = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B']
-export const GENRES: SongGenre[] = ['Gospel', 'Contemporary', 'Hymn', 'Modern', 'Anthem', 'Other']
+export const GENRES: SongGenre[] = [
+  'Gospel', 'African Gospel', 'Contemporary', 'Hymn', 'Modern',
+  'Anthem', 'Chorale', 'Spiritual',
+  'Yoruba', 'Igbo', 'Hausa', 'Pidgin', 'Other',
+]

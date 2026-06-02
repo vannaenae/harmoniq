@@ -52,13 +52,21 @@ const now = new Date()
 export function seedCatalogueAsSongs(): Song[] {
   return SEED_CATALOGUE.map(s => ({
     id: s.id,
+    origin: 'seed' as const,
     title: s.title,
     artist: s.artist,
+    primaryLanguage: 'en' as const,
+    availableLanguages: ['en' as const],
     genre: s.genre,
     defaultKey: s.defaultKey,
-    isCustom: false,
+    meta: {},
+    rights: { status: 'unknown' as const },
+    media: {},
+    lyrics: [],
     addedBy: 'seed',
     createdAt: now,
     updatedAt: now,
+    // Transitional compat
+    isCustom: false,
   }))
 }

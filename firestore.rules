@@ -156,12 +156,30 @@ service cloud.firestore {
         allow write:  if isMemberOf(choirId) &&
                          noteId.matches(request.auth.uid + '_.*');
       }
+
+      // Per-choir song overrides — directors set keys, lock, archive.
+      match /songOverrides/{songId} {
+        allow read:  if isMemberOf(choirId) || isChoirOwner(choirId);
+        allow write: if isDirectorOf(choirId) || isChoirOwner(choirId);
+      }
+    }
+
+    // ── Users — offline song markers ───────────────────────────────────────────
+    match /users/{uid}/offlineSongs/{songId} {
+      allow read:  if isSignedIn() && isOwner(uid);
+      allow write: if isSignedIn() && isOwner(uid);
     }
 
     // ── Global song library (read-only for authenticated users) ───────────────
     match /songs/{songId} {
       allow read:  if isSignedIn();
       allow write: if false; // seeded via admin SDK only
+    }
+
+    // ── Translation cache (server-written, clients read) ─────────────────────
+    match /songTranslationCache/{cacheKey} {
+      allow read:  if isSignedIn();
+      allow write: if false; // written by Cloud Functions only
     }
 
     // ── Integration caches (Spotify / Genius) ─────────────────────────────────
