@@ -160,7 +160,7 @@ export function SignIn() {
           <Link to="/privacy" className="underline hover:text-harmonic-text">Privacy Policy</Link>.
         </p>
         <p className="text-xs text-harmonic-muted">
-          A <span className="font-semibold" style={{ color: '#560056' }}>SoulSPCE</span> project
+          A <span className="font-semibold text-harmonic-secondary">SoulSPCE</span> project
         </p>
       </div>
     </div>

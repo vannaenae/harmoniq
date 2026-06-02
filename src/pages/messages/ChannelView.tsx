@@ -337,8 +337,7 @@ export function ChannelView() {
             onKeyDown={handleKeyDown}
             placeholder={`Message #${channelName}`}
             rows={1}
-            className="flex-1 resize-none rounded-2xl border-2 border-harmonic-border bg-harmonic-surface/50 px-4 py-2.5 text-sm text-harmonic-text placeholder:text-harmonic-muted focus:outline-none focus:border-harmonic-primary transition-colors max-h-32 overflow-y-auto"
-            style={{ lineHeight: '1.5' }}
+            className="flex-1 resize-none rounded-2xl border-2 border-harmonic-border bg-harmonic-surface/50 px-4 py-2.5 text-sm text-harmonic-text placeholder:text-harmonic-muted focus:outline-none focus:border-harmonic-primary transition-colors max-h-32 overflow-y-auto leading-normal"
             aria-label={`Message input for #${channelName}`}
           />
           <button

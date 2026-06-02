@@ -107,7 +107,7 @@ export function RolePermissions() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
           <Card className="p-4">
             <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #18005F 0%, #560056 100%)' }}>
+              <span className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-featured-song-gradient">
                 <Shield size={18} className="text-white" />
               </span>
               <div>

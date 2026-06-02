@@ -212,8 +212,7 @@ export function Dashboard() {
             <Link to="/library">
               <Card className="p-4 flex items-center gap-4 hover:shadow-card-hover transition-shadow">
                 <span
-                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'linear-gradient(135deg, #18005F 0%, #560056 100%)' }}
+                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-featured-song-gradient"
                   aria-hidden="true"
                 >
                   <Sparkles size={20} className="text-white" />
@@ -340,8 +339,7 @@ function NextServiceCard({ service, isDirector, availabilityCounts }: {
     <Card className="p-5">
       <div className="flex items-start gap-4">
         <span
-          className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: 'linear-gradient(135deg, #18005F 0%, #560056 100%)' }}
+          className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-featured-song-gradient"
           aria-hidden="true"
         >
           <CalendarDays size={22} className="text-white" />

@@ -79,7 +79,7 @@ export function Settings() {
         </Card>
 
         <p className="text-center text-xs text-harmonic-muted mt-8">
-          Harmoniq · A <span className="font-semibold" style={{ color: '#560056' }}>SoulSPCE</span> project
+          Harmoniq · A <span className="font-semibold text-harmonic-secondary">SoulSPCE</span> project
         </p>
       </div>
 

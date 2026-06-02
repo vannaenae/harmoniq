@@ -36,6 +36,10 @@ const config: Config = {
         card: '0 2px 12px 0 rgba(12, 12, 16, 0.06)',
         'card-hover': '0 4px 20px 0 rgba(12, 12, 16, 0.10)',
       },
+      backgroundImage: {
+        'featured-song-gradient': 'linear-gradient(135deg, theme(\'colors.harmonic.primary\') 0%, theme(\'colors.harmonic.secondary\') 100%)',
+        'featured-song-gradient-light': 'linear-gradient(135deg, #18005F15, #56005615)',
+      },
     },
   },
   plugins: [],

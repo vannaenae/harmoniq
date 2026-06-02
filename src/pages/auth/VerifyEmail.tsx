@@ -31,8 +31,7 @@ export function VerifyEmail() {
 
         <div className="w-full bg-white rounded-card-lg p-6 shadow-card flex flex-col items-center gap-5 text-center">
           <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #18005F15, #56005615)' }}
+            className="w-16 h-16 rounded-2xl flex items-center justify-center bg-featured-song-gradient-light"
           >
             <Mail size={28} className="text-harmonic-primary" aria-hidden="true" />
           </div>

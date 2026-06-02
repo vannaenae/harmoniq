@@ -22,8 +22,7 @@ export function AlbumArt({ src, alt, className, iconSize = 22 }: AlbumArtProps) 
   }
   return (
     <div
-      className={cn('flex items-center justify-center', className)}
-      style={{ background: 'linear-gradient(135deg, #18005F 0%, #560056 100%)' }}
+      className={cn('flex items-center justify-center', 'bg-featured-song-gradient', className)}
       aria-hidden="true"
     >
       <Music2 size={iconSize} className="text-white/80" />

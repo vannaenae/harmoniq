@@ -153,10 +153,8 @@ export function LiveServiceMode() {
           <>
             {/* Current Song Hero Card */}
             <div
-              className="rounded-3xl p-6 mb-4 text-white relative overflow-hidden"
-              style={{ background: 'linear-gradient(135deg, #18005F 0%, #560056 100%)' }}
-            >
-              <p className="text-xs font-semibold uppercase tracking-widest text-white/70 mb-1">
+              className="rounded-3xl p-6 mb-4 text-white relative overflow-hidden bg-featured-song-gradient"
+            >              <p className="text-xs font-semibold uppercase tracking-widest text-white/70 mb-1">
                 Current Segment
               </p>
               <h2 className="text-2xl font-bold tracking-tight">
@@ -361,8 +359,7 @@ export function LiveServiceMode() {
                           className="flex items-center gap-2 bg-harmonic-surface rounded-full pl-1 pr-3 py-1"
                         >
                           <span
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
-                            style={{ background: 'linear-gradient(135deg, #18005F 0%, #560056 100%)' }}
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white bg-featured-song-gradient"
                           >
                             {initials}
                           </span>
@@ -383,10 +380,9 @@ export function LiveServiceMode() {
               </div>
               <div className="h-2 bg-harmonic-surface rounded-full overflow-hidden">
                 <div
-                  className="h-full rounded-full transition-all duration-500"
+                  className="h-full rounded-full transition-all duration-500 bg-featured-song-gradient"
                   style={{
                     width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%`,
-                    background: 'linear-gradient(135deg, #18005F 0%, #560056 100%)',
                   }}
                 />
               </div>

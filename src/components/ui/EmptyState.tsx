@@ -13,8 +13,7 @@ export function EmptyState({ icon: Icon, title, description, action }: EmptyStat
     <div className="flex flex-col items-center justify-center text-center py-16 px-6">
       {Icon && (
         <div
-          className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
-          style={{ background: 'linear-gradient(135deg, #18005F 0%, #560056 100%)' }}
+          className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-featured-song-gradient"
           aria-hidden="true"
         >
           <Icon size={24} className="text-white" />

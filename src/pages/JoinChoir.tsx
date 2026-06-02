@@ -85,8 +85,7 @@ export function JoinChoir() {
         {status === 'working' ? (
           <>
             <div
-              className="w-12 h-12 rounded-xl animate-pulse mx-auto mb-4"
-              style={{ background: 'linear-gradient(135deg, #18005F 0%, #560056 100%)' }}
+              className="w-12 h-12 rounded-xl animate-pulse mx-auto mb-4 bg-featured-song-gradient"
               aria-hidden="true"
             />
             <p className="text-sm text-harmonic-muted">{message}</p>
