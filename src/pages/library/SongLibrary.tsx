@@ -119,6 +119,10 @@ export function SongLibrary() {
     [songs],
   )
 
+  const choirHasAttestedCcli = Boolean(
+    choir?.licensing?.attested && choir.licensing.ccliNumber?.trim(),
+  )
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
     const list = songs.filter(s => {
@@ -126,20 +130,28 @@ export function SongLibrary() {
       const matchGenre = !genre || s.genre === genre
       const matchArtist = !artist || s.artist === artist
       const matchKey = !keyFilter || s.defaultKey === keyFilter
-      const isArchived = overrides.get(s.id)?.archived ?? false
+      const overrideArchived = overrides.get(s.id)?.archived ?? false
+      // Auto-archive CCLI-required songs when the choir has no attested licence (HARA-55)
+      const licenseArchived = s.rights?.status === 'ccli_required' && !choirHasAttestedCcli
+      const isArchived = overrideArchived || licenseArchived
       const matchArchive = showArchived || !isArchived
       return matchSearch && matchGenre && matchArtist && matchKey && matchArchive
     })
     if (sort === 'title') list.sort((a, b) => a.title.localeCompare(b.title))
     else list.sort((a, b) => +b.createdAt - +a.createdAt)
     return list
-  }, [songs, search, genre, artist, keyFilter, sort, showArchived, overrides])
+  }, [songs, search, genre, artist, keyFilter, sort, showArchived, overrides, choirHasAttestedCcli])
 
   const archivedCount = useMemo(() => {
     let count = 0
     overrides.forEach(o => { if (o.archived) count++ })
+    if (!choirHasAttestedCcli) {
+      songs.forEach(s => {
+        if (s.rights?.status === 'ccli_required' && !overrides.get(s.id)?.archived) count++
+      })
+    }
     return count
-  }, [overrides])
+  }, [overrides, songs, choirHasAttestedCcli])
 
   const isSearching = search.trim().length >= 3
   const SEARCH_CAP = 5
