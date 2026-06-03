@@ -619,3 +619,10 @@ export const approveTranslation = onCall(async (request) => {
 
   return { ok: true, reviewedBy: request.auth.uid }
 })
+
+// ── Catalog Expansion Pipeline (HARA-82) ────────────────────────────────────
+// Daily scheduled function + manual HTTP callable to add ~1,000 songs/day.
+// Schedule: 03:00 UTC every day (Cloud Scheduler).
+// Manual trigger: catalogExpansionRun (callable, any signed-in user).
+
+export { catalogExpansionScheduled, catalogExpansionRun } from './catalog-pipeline.js'
