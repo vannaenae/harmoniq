@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Search, Plus, Music2, ChevronRight, Heart, Loader2, Youtube, ExternalLink, Archive, WifiOff } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
@@ -17,7 +17,7 @@ import { useOfflineSongs } from '@/hooks/useOfflineSongs'
 import { subscribeSongs, addCustomSong, subscribeSongOverrides, GENRES, ALL_KEYS } from '@/lib/songs'
 import type { SongOverride } from '@/types'
 import {
-  fetchSpotifyResults,
+  fetchItunesResults,
   fetchYoutubeResults,
   type SpotifyTrackResult,
   type YoutubeVideoResult,
@@ -81,7 +81,7 @@ function fmtDuration(sec: number) {
 }
 
 export function SongLibrary() {
-  const navigate = useNavigate()
+
   const { firebaseUser } = useAuth()
   const { choir, loading: choirLoading, isDirector } = useChoir()
   const [songs, setSongs] = useState<Song[]>([])
@@ -97,9 +97,9 @@ export function SongLibrary() {
   const [offlineOnly, setOfflineOnly] = useState(false)
   const offlineSongIds = useOfflineSongs()
 
-  // External search results
-  const [spotifyResults, setSpotifyResults] = useState<SpotifyTrackResult[]>([])
-  const [spotifyLoading, setSpotifyLoading] = useState(false)
+  // External search results (iTunes — credential-free)
+  const [itunesResults, setItunesResults] = useState<SpotifyTrackResult[]>([])
+  const [itunesLoading, setItunesLoading] = useState(false)
   const [youtubeResults, setYoutubeResults] = useState<YoutubeVideoResult[]>([])
   const [youtubeLoading, setYoutubeLoading] = useState(false)
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
@@ -124,25 +124,25 @@ export function SongLibrary() {
     return subscribeSongOverrides(choir.id, setOverrides)
   }, [choir, choirLoading])
 
-  // Debounced external search (Spotify + YouTube)
+  // Debounced external search (iTunes + YouTube)
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     const term = search.trim()
     if (term.length < 3) {
-      setSpotifyResults([])
+      setItunesResults([])
       setYoutubeResults([])
       return
     }
 
     debounceRef.current = setTimeout(async () => {
-      setSpotifyLoading(true)
+      setItunesLoading(true)
       setYoutubeLoading(true)
-      const [sp, yt] = await Promise.all([
-        fetchSpotifyResults(term),
+      const [it, yt] = await Promise.all([
+        fetchItunesResults(term),
         fetchYoutubeResults(term),
       ])
-      setSpotifyResults(sp)
-      setSpotifyLoading(false)
+      setItunesResults(it)
+      setItunesLoading(false)
       setYoutubeResults(yt)
       setYoutubeLoading(false)
     }, 800)
@@ -231,7 +231,7 @@ export function SongLibrary() {
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-harmonic-muted" aria-hidden="true" />
           <Input
             aria-label="Search songs"
-            placeholder="Search library, Spotify, YouTube…"
+            placeholder="Search library, Apple Music, YouTube…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-10"
@@ -320,7 +320,7 @@ export function SongLibrary() {
                   <EmptyState
                     icon={Music2}
                     title="No songs match"
-                    description="Try a different filter — or search by name to discover songs on Spotify and YouTube."
+                    description="Try a different filter — or search by name to discover songs on Apple Music and YouTube."
                   />
                 </Card>
               )}
@@ -339,22 +339,22 @@ export function SongLibrary() {
               )}
             </section>
 
-            {/* ── Spotify results ───────────────────────────────── */}
+            {/* ── Apple Music / iTunes results ──────────────────── */}
             {isSearching && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
-                  <Music2 size={14} className="text-[#1DB954]" />
-                  <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Spotify</p>
+                  <Music2 size={14} className="text-[#FA243C]" />
+                  <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Apple Music</p>
                 </div>
 
-                {spotifyLoading ? (
+                {itunesLoading ? (
                   <Card className="p-4 flex items-center gap-3">
                     <Loader2 size={18} className="animate-spin text-harmonic-muted" />
-                    <p className="text-sm text-harmonic-muted">Searching Spotify…</p>
+                    <p className="text-sm text-harmonic-muted">Searching Apple Music…</p>
                   </Card>
-                ) : spotifyResults.length > 0 ? (
+                ) : itunesResults.length > 0 ? (
                   <div className="flex flex-col gap-2">
-                    {spotifyResults.slice(0, SEARCH_CAP).map(track => (
+                    {itunesResults.slice(0, SEARCH_CAP).map(track => (
                       <Card key={track.trackId} className="p-3 flex items-center gap-3">
                         <AlbumArt src={track.albumArtUrl} alt={track.title} className="w-14 h-14 rounded-xl flex-shrink-0" />
                         <div className="flex-1 min-w-0">
@@ -365,15 +365,17 @@ export function SongLibrary() {
                           )}
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <a
-                            href={`https://open.spotify.com/track/${track.trackId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label="Open in Spotify"
-                            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-harmonic-surface transition-colors text-harmonic-muted hover:text-[#1DB954]"
-                          >
-                            <ExternalLink size={15} />
-                          </a>
+                          {track.externalUrl && (
+                            <a
+                              href={track.externalUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label="Open in Apple Music"
+                              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-harmonic-surface transition-colors text-harmonic-muted hover:text-[#FA243C]"
+                            >
+                              <ExternalLink size={15} />
+                            </a>
+                          )}
                           {isDirector && (
                             savedIds.has(track.trackId) ? (
                               <Button variant="secondary" size="sm" disabled>
@@ -393,30 +395,23 @@ export function SongLibrary() {
                               </Button>
                             )
                           )}
-                          <button
-                            onClick={() => navigate(`/library/spotify-${track.trackId}`)}
-                            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-harmonic-surface transition-colors text-harmonic-muted"
-                            aria-label="View song detail"
-                          >
-                            <ChevronRight size={16} />
-                          </button>
                         </div>
                       </Card>
                     ))}
                     <a
-                      href={`https://open.spotify.com/search/${encodeURIComponent(search.trim())}`}
+                      href={`https://music.apple.com/search?term=${encodeURIComponent(search.trim())}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex justify-center pt-1"
                     >
                       <Button variant="outlined" size="sm">
-                        <ExternalLink size={13} /> See all on Spotify
+                        <ExternalLink size={13} /> See all on Apple Music
                       </Button>
                     </a>
                   </div>
                 ) : (
                   <Card className="p-4 text-center">
-                    <p className="text-sm text-harmonic-muted">No Spotify results for "{search.trim()}"</p>
+                    <p className="text-sm text-harmonic-muted">No Apple Music results for "{search.trim()}"</p>
                   </Card>
                 )}
               </section>

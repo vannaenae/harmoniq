@@ -41,6 +41,7 @@ export interface SpotifyTrackResult {
   releaseYear: number | null
   previewUrl: string | null
   durationSec: number | null
+  externalUrl?: string | null
 }
 
 export interface YoutubeVideoResult {
@@ -172,6 +173,43 @@ export async function fetchSpotifyResults(query: string): Promise<SpotifyTrackRe
     return data.results ?? []
   } catch (err) {
     console.warn('[spotifyMulti] search failed:', err)
+    return []
+  }
+}
+
+/** Search iTunes catalog for up to 5 tracks — no credentials required.
+ *  Used as the primary external-catalog search when Spotify credentials are not configured. */
+export async function fetchItunesResults(query: string): Promise<SpotifyTrackResult[]> {
+  try {
+    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=5&media=music`
+    const res = await fetch(url)
+    if (!res.ok) return []
+    const json = (await res.json()) as {
+      results: Array<{
+        trackId: number
+        trackName: string
+        artistName: string
+        artworkUrl100?: string
+        collectionName?: string
+        releaseDate?: string
+        previewUrl?: string
+        trackTimeMillis?: number
+        trackViewUrl?: string
+      }>
+    }
+    return (json.results ?? []).map(t => ({
+      trackId: String(t.trackId),
+      title: t.trackName,
+      artist: t.artistName,
+      albumArtUrl: t.artworkUrl100?.replace('100x100bb', '300x300bb') ?? null,
+      albumName: t.collectionName ?? null,
+      releaseYear: t.releaseDate ? parseInt(t.releaseDate.slice(0, 4)) : null,
+      previewUrl: t.previewUrl ?? null,
+      durationSec: t.trackTimeMillis ? Math.round(t.trackTimeMillis / 1000) : null,
+      externalUrl: t.trackViewUrl ?? null,
+    }))
+  } catch (err) {
+    console.warn('[itunes] search failed:', err)
     return []
   }
 }
