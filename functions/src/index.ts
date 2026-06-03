@@ -362,7 +362,9 @@ import {
 } from './ai/prompts/song-translations/v1.js'
 
 // ── Song Media (Storage trigger) ────────────────────────────────────────────
-export { onSongMediaUploaded } from './songMedia.js'
+// NOTE: Temporarily disabled — requires Firebase Storage bucket (choir-flow-26.firebasestorage.app)
+// to be provisioned via Firebase Console before this trigger can be deployed.
+// export { onSongMediaUploaded } from './songMedia.js'
 
 export const getSongSuggestions = onCall(
   { secrets: [ANTHROPIC_API_KEY] },
