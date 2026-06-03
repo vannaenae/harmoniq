@@ -24,8 +24,57 @@ import {
 } from '@/lib/integrations'
 import type { Song } from '@/types'
 
-type Sort = 'recent' | 'title'
+type Sort = 'popular' | 'recent' | 'title'
 const PAGE_SIZE = 20
+
+/** Artist popularity tiers — higher = more popular (used for default "Popular" sort).
+ *  Based on CCLI Top 100 reporting and global worship chart presence. */
+const ARTIST_POPULARITY: Record<string, number> = {
+  'Hillsong Worship': 100, 'Hillsong UNITED': 95, 'Bethel Music': 98,
+  'Elevation Worship': 97, 'Chris Tomlin': 96, 'Maverick City Music': 94,
+  'Phil Wickham': 93, 'Matt Redman': 90, 'Kari Jobe': 89,
+  'Lauren Daigle': 92, 'Casting Crowns': 88, 'MercyMe': 87,
+  'Kirk Franklin': 91, 'CeCe Winans': 86, 'Tasha Cobbs Leonard': 85,
+  'Brandon Lake': 84, 'Crowder': 83, 'Passion': 82,
+  'Sinach': 81, 'Dunsin Oyekan': 80, 'Nathaniel Bassey': 79,
+  'Israel Houghton': 78, 'We The Kingdom': 77, 'Jesus Culture': 76,
+  'Housefires': 75, 'Zach Williams': 74, 'Cory Asbury': 73,
+  'Gateway Worship': 72, 'Leeland': 71, 'Tauren Wells': 70,
+  'Newsboys': 69, 'Jeremy Camp': 68, 'Michael W. Smith': 67,
+  'Tope Alabi': 66, 'Frank Edwards': 65, 'Tim Godfrey': 64,
+  'Travis Greene': 63, 'William McDowell': 62, 'Todd Dulaney': 61,
+  'Darlene Zschech': 60, 'All Sons & Daughters': 59, 'Third Day': 58,
+  'for KING & COUNTRY': 57, 'Vertical Worship': 56, 'UPPERROOM': 55,
+  'Chandler Moore': 54, 'Sean Feucht': 53,
+  'Traditional': 40,
+}
+
+/** Well-known song titles get a bonus (independently of artist).
+ *  These are the most-reported worship songs globally. */
+const TITLE_POPULARITY: Record<string, number> = {
+  'Way Maker': 10, 'Goodness of God': 10, 'What a Beautiful Name': 10,
+  'Oceans (Where Feet May Fail)': 10, 'How Great Is Our God': 10,
+  '10,000 Reasons (Bless the Lord)': 10, 'Amazing Grace': 9,
+  'Reckless Love': 9, 'The Blessing': 9, 'Build My Life': 9,
+  'Great Are You Lord': 9, 'Holy Forever': 9, 'Battle Belongs': 8,
+  'You Say': 8, 'Cornerstone': 8, 'King of Kings': 8,
+  'Break Every Chain': 8, 'This Is Amazing Grace': 8,
+  'Jireh': 8, 'Graves into Gardens': 8, 'O Come to the Altar': 8,
+  'House of the Lord': 8, 'Blessed Assurance': 7, 'Holy Holy Holy': 7,
+  'It Is Well with My Soul': 7, 'How Great Thou Art': 7,
+  'Mighty to Save': 7, 'I Can Only Imagine': 7, 'Chain Breaker': 7,
+  'Good Good Father': 7, 'Who You Say I Am': 7, 'So Will I (100 Billion X)': 7,
+  'Living Hope': 7, 'Gratitude': 7, 'Same God': 7,
+  'PRAISE': 7, 'Believe for It': 7, 'I Smile': 7,
+  'Revelation Song': 7, 'I Surrender All': 6, 'Old Rugged Cross': 6,
+  'Great Is Thy Faithfulness': 6, 'To God Be the Glory': 6,
+}
+
+function getPopularity(song: { title: string; artist?: string }): number {
+  const artistScore = ARTIST_POPULARITY[song.artist ?? ''] ?? 30
+  const titleBonus = TITLE_POPULARITY[song.title] ?? 0
+  return artistScore + titleBonus
+}
 
 function fmtDuration(sec: number) {
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
@@ -41,7 +90,7 @@ export function SongLibrary() {
   const [genre, setGenre] = useState('')
   const [artist, setArtist] = useState('')
   const [keyFilter, setKeyFilter] = useState('')
-  const [sort, setSort] = useState<Sort>('recent')
+  const [sort, setSort] = useState<Sort>('popular')
   const [visible, setVisible] = useState(PAGE_SIZE)
   const [showArchived, setShowArchived] = useState(false)
   const [overrides, setOverrides] = useState<Map<string, SongOverride>>(new Map())
@@ -142,6 +191,7 @@ export function SongLibrary() {
       return matchSearch && matchGenre && matchArtist && matchKey && matchArchive && matchOffline
     })
     if (sort === 'title') list.sort((a, b) => a.title.localeCompare(b.title))
+    else if (sort === 'popular') list.sort((a, b) => getPopularity(b) - getPopularity(a) || a.title.localeCompare(b.title))
     else list.sort((a, b) => +b.createdAt - +a.createdAt)
     return list
   }, [songs, search, genre, artist, keyFilter, sort, showArchived, overrides, choirHasAttestedCcli, offlineOnly, offlineSongIds])
@@ -202,7 +252,7 @@ export function SongLibrary() {
                 options={[{ value: '', label: 'Any key' }, ...ALL_KEYS.map(k => ({ value: k, label: k }))]}
                 placeholder="Key" />
               <Select ariaLabel="Sort songs" value={sort} onValueChange={v => setSort(v as Sort)}
-                options={[{ value: 'recent', label: 'Recently added' }, { value: 'title', label: 'Title A–Z' }]}
+                options={[{ value: 'popular', label: 'Most popular' }, { value: 'recent', label: 'Recently added' }, { value: 'title', label: 'Title A–Z' }]}
                 placeholder="Sort" />
             </div>
             <div className="flex items-center gap-4">
