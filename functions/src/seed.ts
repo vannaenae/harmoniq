@@ -16,6 +16,7 @@
  */
 import { initializeApp, applicationDefault } from 'firebase-admin/app'
 import { getFirestore, FieldValue } from 'firebase-admin/firestore'
+import { EXPANSION_CATALOGUE } from './catalog-expansion.js'
 
 initializeApp({ credential: applicationDefault() })
 const db = getFirestore()
@@ -1679,27 +1680,41 @@ function validateRights(catalogue: SeedSong[]): void {
 // ── Seed runner ──────────────────────────────────────────────────────────────
 
 async function run() {
-  const catalogue: SeedSong[] = [...CCLI_CATALOGUE, ...PUBLIC_DOMAIN_HYMNS, ...AUDIT_PENDING]
+  const catalogue: SeedSong[] = [...CCLI_CATALOGUE, ...PUBLIC_DOMAIN_HYMNS, ...AUDIT_PENDING, ...EXPANSION_CATALOGUE]
 
-  validateRights(catalogue)
+  // Deduplicate by id (earlier entries win)
+  const seen = new Set<string>()
+  const deduped = catalogue.filter(s => {
+    if (seen.has(s.id)) return false
+    seen.add(s.id)
+    return true
+  })
 
-  const batch = db.batch()
-  for (const song of catalogue) {
-    batch.set(db.collection('songs').doc(song.id), {
-      ...song,
-      origin: 'seed',
-      addedBy: 'seed',
-      archived: false,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    })
+  validateRights(deduped)
+
+  // Firestore batch limit is 500 — chunk accordingly
+  const BATCH_SIZE = 450
+  for (let i = 0; i < deduped.length; i += BATCH_SIZE) {
+    const chunk = deduped.slice(i, i + BATCH_SIZE)
+    const batch = db.batch()
+    for (const song of chunk) {
+      batch.set(db.collection('songs').doc(song.id), {
+        ...song,
+        origin: 'seed',
+        addedBy: 'seed',
+        archived: false,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      })
+    }
+    await batch.commit()
+    console.log(`  Batch ${Math.floor(i / BATCH_SIZE) + 1}: wrote ${chunk.length} songs`)
   }
-  await batch.commit()
 
-  const ccli = catalogue.filter(s => s.rights.status === 'ccli_required').length
-  const pd = catalogue.filter(s => s.rights.status === 'public_domain').length
-  const unknown = catalogue.filter(s => s.rights.status === 'unknown').length
-  console.log(`Seeded ${catalogue.length} songs into /songs (${ccli} CCLI link-out, ${pd} public-domain with full lyrics, ${unknown} audit-pending).`)
+  const ccli = deduped.filter(s => s.rights.status === 'ccli_required').length
+  const pd = deduped.filter(s => s.rights.status === 'public_domain').length
+  const unknown = deduped.filter(s => s.rights.status === 'unknown').length
+  console.log(`Seeded ${deduped.length} songs into /songs (${ccli} CCLI link-out, ${pd} public-domain with full lyrics, ${unknown} audit-pending/unknown).`)
 }
 
 run().then(() => process.exit(0)).catch(err => { console.error(err); process.exit(1) })
