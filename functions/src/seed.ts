@@ -148,6 +148,47 @@ const CCLI_CATALOGUE: SeedSong[] = [
   { id: 'vo-defender',          title: 'Defender',                 artist: 'Victoria Orenze',     primaryLanguage: 'en', availableLanguages: ['en'], genre: 'African Gospel', defaultKey: 'Eb', rights: { status: 'ccli_required', publisher: 'Victoria Orenze Music' }, media: {}, lyrics: [] },
   { id: 'vo-akoutoukpe',        title: 'Akoutoukpe',               artist: 'Victoria Orenze',     primaryLanguage: 'yo', availableLanguages: ['yo','en'], genre: 'African Gospel', defaultKey: 'D',  rights: { status: 'ccli_required', publisher: 'Victoria Orenze Music' }, media: {}, lyrics: [] },
   { id: 'mh-megomega',          title: 'Mega God',                 artist: 'Mr M & Revelation',   primaryLanguage: 'en', availableLanguages: ['en'], genre: 'African Gospel', defaultKey: 'D',  rights: { status: 'ccli_required', publisher: 'Mr M Music' }, media: {}, lyrics: [] },
+
+  // CCLI batch 4 — modern worship fill + diaspora gospel + Latin/Brazilian
+  { id: 'hb-reckless',          title: 'Reckless Love',            artist: 'Cory Asbury',         primaryLanguage: 'en', availableLanguages: ['en'], genre: 'Contemporary',   defaultKey: 'F',  rights: { status: 'ccli_required', publisher: 'Bethel Music Publishing' }, media: {}, lyrics: [] },
+  { id: 'bt-thisiswhatyoudo',   title: 'This Is What You Do',      artist: 'Bethel Music',        primaryLanguage: 'en', availableLanguages: ['en'], genre: 'Contemporary',   defaultKey: 'A',  rights: { status: 'ccli_required', publisher: 'Bethel Music Publishing' }, media: {}, lyrics: [] },
+  { id: 'el-rattle',            title: 'Rattle!',                  artist: 'Elevation Worship',   primaryLanguage: 'en', availableLanguages: ['en'], genre: 'Contemporary',   defaultKey: 'C',  rights: { status: 'ccli_required', publisher: 'Elevation Worship Publishing' }, media: {}, lyrics: [] },
+  { id: 'mc-wait',              title: 'Wait On You',              artist: 'Maverick City Music', primaryLanguage: 'en', availableLanguages: ['en'], genre: 'Contemporary',   defaultKey: 'D',  rights: { status: 'ccli_required', publisher: 'Maverick City Publishing' }, media: {}, lyrics: [] },
+  { id: 'mc-millionlittlemiracle', title: 'A Million Little Miracles', artist: 'Maverick City Music', primaryLanguage: 'en', availableLanguages: ['en'], genre: 'Contemporary', defaultKey: 'G', rights: { status: 'ccli_required', publisher: 'Maverick City Publishing' }, media: {}, lyrics: [] },
+  { id: 'po-greatandmighty',    title: 'Great and Mighty',         artist: 'Pat Uwaje-King',      primaryLanguage: 'en', availableLanguages: ['en'], genre: 'African Gospel', defaultKey: 'C',  rights: { status: 'ccli_required', publisher: 'Pat Uwaje-King Music' }, media: {}, lyrics: [] },
+  { id: 'jd-orede',             title: 'Orede',                    artist: 'Judikay',             primaryLanguage: 'yo', availableLanguages: ['yo','en'], genre: 'African Gospel', defaultKey: 'D',  rights: { status: 'ccli_required', publisher: 'EeZee Conceptz' }, media: {}, lyrics: [] },
+  { id: 'jd-morethananything',  title: 'More Than Anything',       artist: 'Judikay',             primaryLanguage: 'en', availableLanguages: ['en'], genre: 'African Gospel', defaultKey: 'F',  rights: { status: 'ccli_required', publisher: 'EeZee Conceptz' }, media: {}, lyrics: [] },
+  { id: 'sa-bless',             title: 'Aiwa',                     artist: 'Sammie Okposo',       primaryLanguage: 'en', availableLanguages: ['en'], genre: 'African Gospel', defaultKey: 'G',  rights: { status: 'ccli_required', publisher: 'Zamar Entertainment' }, media: {}, lyrics: [] },
+  { id: 'lq-corazoncontento',   title: 'Coraz\u00f3n Contento',    artist: 'Marcos Witt',         primaryLanguage: 'other', availableLanguages: ['other'], genre: 'Worship',     defaultKey: 'G',  rights: { status: 'ccli_required', publisher: 'CanZion' }, media: {}, lyrics: [] },
+  { id: 'lq-poderoso',          title: 'Poderoso',                 artist: 'Marcos Witt',         primaryLanguage: 'other', availableLanguages: ['other'], genre: 'Worship',     defaultKey: 'C',  rights: { status: 'ccli_required', publisher: 'CanZion' }, media: {}, lyrics: [] },
+  { id: 'br-louvor',            title: 'Lugar Secreto',            artist: 'Gabriela Rocha',      primaryLanguage: 'pt', availableLanguages: ['pt','en'], genre: 'Contemporary', defaultKey: 'G', rights: { status: 'ccli_required', publisher: 'Sony Music Brasil' }, media: {}, lyrics: [] },
+  { id: 'br-aoquilibres',       title: 'Lindo \u00c9s',            artist: 'Aline Barros',        primaryLanguage: 'pt', availableLanguages: ['pt'], genre: 'Worship',          defaultKey: 'Bb', rights: { status: 'ccli_required', publisher: 'MK Music' }, media: {}, lyrics: [] },
+  { id: 'hs-cornerstone',       title: 'Spirit of the Living God', artist: 'Vertical Worship',    primaryLanguage: 'en', availableLanguages: ['en'], genre: 'Contemporary',    defaultKey: 'A',  rights: { status: 'ccli_required', publisher: 'Essential Music Publishing' }, media: {}, lyrics: [] },
+  { id: 'fr-creator',           title: 'A Toi La Gloire',          artist: 'Exo Worship',         primaryLanguage: 'fr', availableLanguages: ['fr'], genre: 'Worship',          defaultKey: 'D',  rights: { status: 'ccli_required', publisher: 'Exo Music' }, media: {}, lyrics: [] },
+]
+
+// ── Audit-pending traditional African hymnal entries ─────────────────────────
+// Rights status `unknown` reflects unverified denominational hymnal provenance.
+// Lyrics intentionally empty until source (Iwe Orin Mimo, RCCG/MFM hymnal,
+// Igbo Methodist hymnal) and copyright status are confirmed. Director can
+// override `rights` per choir via the per-choir override path (HARA-50).
+
+const AUDIT_PENDING: SeedSong[] = [
+  { id: 'au-yo-ade',            title: 'Ade Ti Wo',                artist: 'Traditional (Yoruba Anglican)', primaryLanguage: 'yo', availableLanguages: ['yo'], genre: 'Hymn', defaultKey: 'F',  rights: { status: 'unknown', notes: 'Yoruba Anglican hymnal (Iwe Orin Mimo); rights audit pending.' }, media: {}, lyrics: [] },
+  { id: 'au-yo-baba',           title: 'Baba Mimo Olugbala',       artist: 'Traditional (Yoruba)',          primaryLanguage: 'yo', availableLanguages: ['yo'], genre: 'Hymn', defaultKey: 'G',  rights: { status: 'unknown', notes: 'Iwe Orin Mimo; rights audit pending.' }, media: {}, lyrics: [] },
+  { id: 'au-yo-orunlomi',       title: 'Orun Lo Mi',               artist: 'Traditional (Yoruba)',          primaryLanguage: 'yo', availableLanguages: ['yo'], genre: 'Hymn', defaultKey: 'C',  rights: { status: 'unknown', notes: 'Iwe Orin Mimo; rights audit pending.' }, media: {}, lyrics: [] },
+  { id: 'au-yo-jesumimo',       title: 'Jesu Mimo Olugbala Mi',    artist: 'Traditional (Yoruba)',          primaryLanguage: 'yo', availableLanguages: ['yo'], genre: 'Hymn', defaultKey: 'Eb', rights: { status: 'unknown', notes: 'Iwe Orin Mimo; rights audit pending.' }, media: {}, lyrics: [] },
+  { id: 'au-yo-emimimo',        title: 'Emi Mimo Sokale',          artist: 'Traditional (Yoruba)',          primaryLanguage: 'yo', availableLanguages: ['yo'], genre: 'Hymn', defaultKey: 'D',  rights: { status: 'unknown', notes: 'Iwe Orin Mimo; rights audit pending.' }, media: {}, lyrics: [] },
+  { id: 'au-ig-chineke',        title: 'Chineke Nna Anyi',         artist: 'Traditional (Igbo Methodist)',  primaryLanguage: 'ig', availableLanguages: ['ig'], genre: 'Hymn', defaultKey: 'G',  rights: { status: 'unknown', notes: 'Igbo Methodist hymnal; rights audit pending.' }, media: {}, lyrics: [] },
+  { id: 'au-ig-jisus',          title: 'Jisus Onye Nzoputa M',     artist: 'Traditional (Igbo)',            primaryLanguage: 'ig', availableLanguages: ['ig'], genre: 'Hymn', defaultKey: 'F',  rights: { status: 'unknown', notes: 'Igbo denominational hymnal; rights audit pending.' }, media: {}, lyrics: [] },
+  { id: 'au-ig-onyenwe',        title: 'Onyenwe M Bia',            artist: 'Traditional (Igbo)',            primaryLanguage: 'ig', availableLanguages: ['ig'], genre: 'Hymn', defaultKey: 'Bb', rights: { status: 'unknown', notes: 'Igbo denominational hymnal; rights audit pending.' }, media: {}, lyrics: [] },
+  { id: 'au-ig-otitochi',       title: 'Otito Diri Chukwu',        artist: 'Traditional (Igbo)',            primaryLanguage: 'ig', availableLanguages: ['ig'], genre: 'Hymn', defaultKey: 'D',  rights: { status: 'unknown', notes: 'Igbo denominational hymnal; rights audit pending.' }, media: {}, lyrics: [] },
+  { id: 'au-ha-allah',          title: 'Allah Mai Iko',            artist: 'Traditional (Hausa Christian)', primaryLanguage: 'ha', availableLanguages: ['ha'], genre: 'Hymn', defaultKey: 'G',  rights: { status: 'unknown', notes: 'Hausa Christian hymnal; rights audit pending.' }, media: {}, lyrics: [] },
+  { id: 'au-ha-yesu',           title: 'Yesu Mai Cetona',          artist: 'Traditional (Hausa Christian)', primaryLanguage: 'ha', availableLanguages: ['ha'], genre: 'Hymn', defaultKey: 'C',  rights: { status: 'unknown', notes: 'Hausa Christian hymnal; rights audit pending.' }, media: {}, lyrics: [] },
+  { id: 'au-pcm-jesusna',       title: 'Jesus Na Big God',         artist: 'Traditional (Nigerian Pidgin)', primaryLanguage: 'pcm', availableLanguages: ['pcm','en'], genre: 'Worship', defaultKey: 'D', rights: { status: 'unknown', notes: 'Nigerian Pidgin worship chorus; rights audit pending.' }, media: {}, lyrics: [] },
+  { id: 'au-pcm-godgodogwu',    title: 'God Wey Dey Bless',        artist: 'Traditional (Nigerian Pidgin)', primaryLanguage: 'pcm', availableLanguages: ['pcm','en'], genre: 'Worship', defaultKey: 'G', rights: { status: 'unknown', notes: 'Nigerian Pidgin worship chorus; rights audit pending.' }, media: {}, lyrics: [] },
+  { id: 'au-rccg-wonderfuljesus', title: 'Wonderful Jesus',        artist: 'RCCG Hymnal (Traditional)',     primaryLanguage: 'en', availableLanguages: ['en'], genre: 'Hymn', defaultKey: 'F',  rights: { status: 'unknown', notes: 'RCCG hymnal entry; rights audit pending (likely PD English text).' }, media: {}, lyrics: [] },
+  { id: 'au-mfm-firefire',      title: 'Fire Fire Fire',           artist: 'MFM Hymnal (Traditional)',      primaryLanguage: 'en', availableLanguages: ['en'], genre: 'Worship', defaultKey: 'G', rights: { status: 'unknown', notes: 'MFM (Mountain of Fire) hymnal entry; rights audit pending.' }, media: {}, lyrics: [] },
 ]
 
 // ── Public-domain Western hymn batch (full structured lyrics) ────────────────
@@ -1638,7 +1679,7 @@ function validateRights(catalogue: SeedSong[]): void {
 // ── Seed runner ──────────────────────────────────────────────────────────────
 
 async function run() {
-  const catalogue: SeedSong[] = [...CCLI_CATALOGUE, ...PUBLIC_DOMAIN_HYMNS]
+  const catalogue: SeedSong[] = [...CCLI_CATALOGUE, ...PUBLIC_DOMAIN_HYMNS, ...AUDIT_PENDING]
 
   validateRights(catalogue)
 
@@ -1657,7 +1698,8 @@ async function run() {
 
   const ccli = catalogue.filter(s => s.rights.status === 'ccli_required').length
   const pd = catalogue.filter(s => s.rights.status === 'public_domain').length
-  console.log(`Seeded ${catalogue.length} songs into /songs (${ccli} CCLI link-out, ${pd} public-domain with full lyrics).`)
+  const unknown = catalogue.filter(s => s.rights.status === 'unknown').length
+  console.log(`Seeded ${catalogue.length} songs into /songs (${ccli} CCLI link-out, ${pd} public-domain with full lyrics, ${unknown} audit-pending).`)
 }
 
 run().then(() => process.exit(0)).catch(err => { console.error(err); process.exit(1) })

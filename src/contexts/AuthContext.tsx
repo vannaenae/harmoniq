@@ -33,7 +33,7 @@ interface AuthContextValue {
   refreshUser: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null)
+export const AuthContext = createContext<AuthContextValue | null>(null)
 
 async function createUserDoc(user: User): Promise<void> {
   const userRef = doc(db, 'users', user.uid)

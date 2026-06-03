@@ -7,8 +7,6 @@
 import { getFirestore } from 'firebase-admin/firestore'
 import type { SuggestionCandidate } from '../ai/prompts/song-suggestions/v1.js'
 
-const db = getFirestore()
-
 // ── Signal weights (hand-tuned, retrained weekly offline) ─────────────────
 
 const W = {
@@ -50,6 +48,7 @@ export interface RetrievalInput {
 export async function retrieveCandidates(
   input: RetrievalInput,
 ): Promise<SuggestionCandidate[]> {
+  const db = getFirestore()
   const serviceDate = new Date(input.serviceDate)
   const season = estimateSeason(serviceDate)
   const nowMs = Date.now()

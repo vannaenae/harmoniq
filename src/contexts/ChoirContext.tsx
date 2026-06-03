@@ -23,7 +23,7 @@ interface ChoirContextValue {
   refreshUnread: () => Promise<void>
 }
 
-const ChoirContext = createContext<ChoirContextValue | null>(null)
+export const ChoirContext = createContext<ChoirContextValue | null>(null)
 
 function coerceDate(v: unknown): Date {
   if (!v) return new Date()

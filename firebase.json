@@ -9,8 +9,5 @@
       "runtime": "nodejs20",
       "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
     }
-  ],
-  "storage": {
-    "rules": "storage.rules"
-  }
+  ]
 }

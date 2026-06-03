@@ -7,9 +7,9 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
   },
   webServer: {
-    command: 'npm run dev -- --port 5173',
+    command: 'npm run dev -- --mode e2e-harness --port 5173',
     url: 'http://localhost:5173/e2e/harness.html',
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     timeout: 60_000,
   },
 })

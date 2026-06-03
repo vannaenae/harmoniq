@@ -15,8 +15,6 @@ import {
 } from '../ai/prompts/song-suggestions/v1.js'
 import { getFirestore, FieldValue } from 'firebase-admin/firestore'
 
-const db = getFirestore()
-
 const RERANKER_MODEL = 'claude-haiku-4-5-20251001'
 const COLD_START_WEEKS = 4
 
@@ -147,6 +145,7 @@ function fallbackToRetrieval(
 }
 
 async function checkColdStart(choirId: string): Promise<boolean> {
+  const db = getFirestore()
   const cutoff = new Date(Date.now() - COLD_START_WEEKS * 7 * 24 * 60 * 60 * 1000)
   const snap = await db.collection('choirs').doc(choirId)
     .collection('services')
@@ -166,6 +165,7 @@ export async function recordSuggestionFeedback(
   userId: string,
   serviceId?: string,
 ): Promise<void> {
+  const db = getFirestore()
   await db.collection('choirs').doc(choirId)
     .collection('suggestionFeedback')
     .add({
