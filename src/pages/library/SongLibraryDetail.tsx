@@ -4,7 +4,7 @@ import {
   ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Save,
   Music2, Youtube, ExternalLink, ChevronDown as ChevronExpand,
   Sparkles, Pencil, Trash2, RotateCcw, Lock, Unlock, Archive, ArchiveRestore, FileCheck2,
-  Languages,
+  Languages, BookOpen,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
@@ -681,21 +681,63 @@ export function SongLibraryDetail() {
                 <div className="flex items-start gap-3 p-4 rounded-card bg-harmonic-warning/5 border border-harmonic-warning/20">
                   <FileCheck2 size={18} className="text-harmonic-warning shrink-0 mt-0.5" aria-hidden="true" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-harmonic-text">Lyrics not licensed</p>
+                    <p className="text-sm font-semibold text-harmonic-text">Lyrics not licensed for in-app display</p>
                     <p className="text-xs text-harmonic-muted mt-1">
                       {song.rights.publisher
-                        ? `${song.rights.publisher} holds the rights to these lyrics. Open them externally or attest your CCLI licence in choir settings.`
-                        : 'These lyrics are under copyright. Open them externally or attest your CCLI licence in choir settings.'}
+                        ? `${song.rights.publisher} holds the rights to these lyrics.`
+                        : 'These lyrics are under copyright.'}
+                      {' '}View them on SongSelect or Genius, or attest your CCLI licence in choir settings.
                     </p>
                   </div>
                 </div>
-                {lyricsUrl && (
-                  <a href={lyricsUrl} target="_blank" rel="noopener noreferrer">
+                <div className="flex gap-2">
+                  <a
+                    href={`https://songselect.ccli.com/search/results?SearchBit=Name&SearchString=${encodeURIComponent(song.title)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex-1"
+                  >
                     <Button variant="outlined" fullWidth>
-                      <ExternalLink size={15} /> Open lyrics on Genius
+                      <FileCheck2 size={15} /> View on SongSelect
                     </Button>
                   </a>
-                )}
+                  {lyricsUrl && (
+                    <a href={lyricsUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                      <Button variant="outlined" fullWidth>
+                        <ExternalLink size={15} /> Open on Genius
+                      </Button>
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : song.rights?.status === 'unknown' ? (
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-4 rounded-card bg-harmonic-surface border border-harmonic-border">
+                  <BookOpen size={18} className="text-harmonic-primary shrink-0 mt-0.5" aria-hidden="true" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-harmonic-text">Traditional hymn</p>
+                    <p className="text-xs text-harmonic-muted mt-1">
+                      Full lyrics for this hymn are likely in the public domain. Search on Hymnary.org or Genius for the complete text.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <a
+                    href={`https://hymnary.org/search?qu=title%3A${encodeURIComponent(song.title)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex-1"
+                  >
+                    <Button variant="outlined" fullWidth>
+                      <BookOpen size={15} /> Search Hymnary.org
+                    </Button>
+                  </a>
+                  {lyricsUrl && (
+                    <a href={lyricsUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                      <Button variant="outlined" fullWidth>
+                        <ExternalLink size={15} /> View on Genius
+                      </Button>
+                    </a>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="space-y-2">
