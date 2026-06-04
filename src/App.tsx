@@ -57,6 +57,7 @@ const DeleteAccount     = lazy(() => import('@/pages/settings/DeleteAccount').th
 const RolePermissions   = lazy(() => import('@/pages/settings/RolePermissions').then(m => ({ default: m.RolePermissions })))
 const PrivacyPolicy     = lazy(() => import('@/pages/settings/LegalPage').then(m => ({ default: m.PrivacyPolicy })))
 const TermsOfService    = lazy(() => import('@/pages/settings/LegalPage').then(m => ({ default: m.TermsOfService })))
+const WaitlistPage      = lazy(() => import('@/pages/waitlist/WaitlistPage').then(m => ({ default: m.WaitlistPage })))
 
 /** Route guard — redirects unauthenticated users to sign-in */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -128,6 +129,7 @@ export function App() {
       />
       <Route path="/forgot-password" element={<S><ForgotPassword /></S>} />
       <Route path="/verify-email" element={<S><VerifyEmail /></S>} />
+      <Route path="/waitlist" element={<S><WaitlistPage /></S>} />
 
       {/* Onboarding */}
       <Route path="/onboarding/role" element={<RequireAuth><S><RoleSelection /></S></RequireAuth>} />
