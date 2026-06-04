@@ -236,6 +236,164 @@ export function WaitlistPage() {
         </div>
       </section>
 
+      {/* ── Signup form ── */}
+      <section id="signup" className="py-16 px-4 bg-featured-song-gradient">
+        <div ref={signupSection.ref} className="max-w-md mx-auto">
+          <p
+            className={cn(
+              'text-white/70 text-xs font-semibold uppercase tracking-widest text-center mb-3',
+              'transition-all duration-700 ease-out',
+              signupSection.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6',
+            )}
+          >
+            Early access
+          </p>
+          <h2
+            className={cn(
+              'text-2xl sm:text-3xl font-bold text-white text-center mb-2 tracking-tight',
+              'transition-all duration-700 ease-out',
+              signupSection.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6',
+            )}
+            style={{ transitionDelay: signupSection.inView ? '100ms' : '0ms' }}
+          >
+            Be first to know
+          </h2>
+          <p
+            className={cn(
+              'text-white/70 text-sm text-center mb-8',
+              'transition-all duration-700 ease-out',
+              signupSection.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6',
+            )}
+            style={{ transitionDelay: signupSection.inView ? '180ms' : '0ms' }}
+          >
+            We're opening up choir by choir. Drop your email and we'll reach out when it's your turn.
+          </p>
+
+          {submitted ? (
+            <div className="bg-white/10 rounded-card-lg p-8 text-center flex flex-col items-center gap-4 animate-scale-in">
+              <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
+                <CheckCircle size={28} className="text-white" />
+              </div>
+              <p className="text-white font-semibold text-lg">You're on the list!</p>
+              <p className="text-white/70 text-sm">
+                We'll email you at <span className="text-white font-medium">{email}</span> when
+                Harmoniq is ready for your choir.
+              </p>
+              {signupCount !== null && signupCount > 0 && (
+                <p className="text-white/50 text-xs">
+                  {signupCount.toLocaleString()} choirs waiting
+                </p>
+              )}
+            </div>
+          ) : (
+            <form
+              onSubmit={handleSubmit}
+              noValidate
+              className={cn(
+                'flex flex-col gap-4',
+                'transition-all duration-700 ease-out',
+                signupSection.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6',
+              )}
+              style={{ transitionDelay: signupSection.inView ? '260ms' : '0ms' }}
+            >
+              {/* Email */}
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="wl-email" className="text-sm font-medium text-white/90">
+                  Email address <span className="text-white/50">(required)</span>
+                </label>
+                <input
+                  id="wl-email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@yourchurch.org"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  className={cn(
+                    'bg-white/10 border border-white/20 text-white placeholder:text-white/40',
+                    'rounded-pill px-4 py-3 text-sm outline-none',
+                    'focus:border-white/60 transition-colors min-h-[44px]',
+                    error && 'border-red-300',
+                  )}
+                />
+              </div>
+
+              {/* Choir name */}
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="wl-choir" className="text-sm font-medium text-white/90">
+                  Choir or church name <span className="text-white/50">(optional)</span>
+                </label>
+                <input
+                  id="wl-choir"
+                  type="text"
+                  autoComplete="organization"
+                  placeholder="Grace Community Choir"
+                  value={choirName}
+                  onChange={e => setChoirName(e.target.value)}
+                  className={cn(
+                    'bg-white/10 border border-white/20 text-white placeholder:text-white/40',
+                    'rounded-pill px-4 py-3 text-sm outline-none',
+                    'focus:border-white/60 transition-colors min-h-[44px]',
+                  )}
+                />
+              </div>
+
+              {/* Role */}
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="wl-role" className="text-sm font-medium text-white/90">
+                  Your role <span className="text-white/50">(optional)</span>
+                </label>
+                <select
+                  id="wl-role"
+                  value={role}
+                  onChange={e => setRole(e.target.value as Role)}
+                  className={cn(
+                    'bg-white/10 border border-white/20 text-white',
+                    'rounded-pill px-4 py-3 text-sm outline-none appearance-none',
+                    'focus:border-white/60 transition-colors min-h-[44px]',
+                    !role && 'text-white/40',
+                  )}
+                >
+                  <option value="" className="text-harmonic-text bg-white">Select a role…</option>
+                  <option value="director" className="text-harmonic-text bg-white">Choir Director</option>
+                  <option value="vocalist" className="text-harmonic-text bg-white">Vocalist</option>
+                  <option value="musician" className="text-harmonic-text bg-white">Musician / Instrumentalist</option>
+                </select>
+              </div>
+
+              {error && (
+                <p role="alert" className="text-sm text-red-200">
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className={cn(
+                  'mt-2 w-full bg-white text-harmonic-primary font-semibold',
+                  'px-8 py-3 rounded-pill hover:opacity-90 transition-opacity',
+                  'text-sm min-h-[44px] flex items-center justify-center gap-2',
+                  'disabled:opacity-50 disabled:cursor-not-allowed',
+                )}
+              >
+                {submitting ? 'Joining…' : (
+                  <>
+                    Join the waitlist <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+
+              {signupCount !== null && signupCount > 0 && (
+                <p className="text-center text-white/50 text-xs">
+                  {signupCount.toLocaleString()} choirs already waiting
+                </p>
+              )}
+            </form>
+          )}
+        </div>
+      </section>
+
       {/* ── Problem / Solution ── */}
       <section className="py-16 px-4">
         <div ref={problemSolution.ref} className="max-w-4xl mx-auto">
@@ -401,164 +559,6 @@ export function WaitlistPage() {
               </p>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ── Signup form ── */}
-      <section id="signup" className="py-16 px-4 bg-featured-song-gradient">
-        <div ref={signupSection.ref} className="max-w-md mx-auto">
-          <p
-            className={cn(
-              'text-white/70 text-xs font-semibold uppercase tracking-widest text-center mb-3',
-              'transition-all duration-700 ease-out',
-              signupSection.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6',
-            )}
-          >
-            Early access
-          </p>
-          <h2
-            className={cn(
-              'text-2xl sm:text-3xl font-bold text-white text-center mb-2 tracking-tight',
-              'transition-all duration-700 ease-out',
-              signupSection.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6',
-            )}
-            style={{ transitionDelay: signupSection.inView ? '100ms' : '0ms' }}
-          >
-            Be first to know
-          </h2>
-          <p
-            className={cn(
-              'text-white/70 text-sm text-center mb-8',
-              'transition-all duration-700 ease-out',
-              signupSection.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6',
-            )}
-            style={{ transitionDelay: signupSection.inView ? '180ms' : '0ms' }}
-          >
-            We're opening up choir by choir. Drop your email and we'll reach out when it's your turn.
-          </p>
-
-          {submitted ? (
-            <div className="bg-white/10 rounded-card-lg p-8 text-center flex flex-col items-center gap-4 animate-scale-in">
-              <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
-                <CheckCircle size={28} className="text-white" />
-              </div>
-              <p className="text-white font-semibold text-lg">You're on the list!</p>
-              <p className="text-white/70 text-sm">
-                We'll email you at <span className="text-white font-medium">{email}</span> when
-                Harmoniq is ready for your choir.
-              </p>
-              {signupCount !== null && signupCount > 0 && (
-                <p className="text-white/50 text-xs">
-                  {signupCount.toLocaleString()} choirs waiting
-                </p>
-              )}
-            </div>
-          ) : (
-            <form
-              onSubmit={handleSubmit}
-              noValidate
-              className={cn(
-                'flex flex-col gap-4',
-                'transition-all duration-700 ease-out',
-                signupSection.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6',
-              )}
-              style={{ transitionDelay: signupSection.inView ? '260ms' : '0ms' }}
-            >
-              {/* Email */}
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="wl-email" className="text-sm font-medium text-white/90">
-                  Email address <span className="text-white/50">(required)</span>
-                </label>
-                <input
-                  id="wl-email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="you@yourchurch.org"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  className={cn(
-                    'bg-white/10 border border-white/20 text-white placeholder:text-white/40',
-                    'rounded-pill px-4 py-3 text-sm outline-none',
-                    'focus:border-white/60 transition-colors min-h-[44px]',
-                    error && 'border-red-300',
-                  )}
-                />
-              </div>
-
-              {/* Choir name */}
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="wl-choir" className="text-sm font-medium text-white/90">
-                  Choir or church name <span className="text-white/50">(optional)</span>
-                </label>
-                <input
-                  id="wl-choir"
-                  type="text"
-                  autoComplete="organization"
-                  placeholder="Grace Community Choir"
-                  value={choirName}
-                  onChange={e => setChoirName(e.target.value)}
-                  className={cn(
-                    'bg-white/10 border border-white/20 text-white placeholder:text-white/40',
-                    'rounded-pill px-4 py-3 text-sm outline-none',
-                    'focus:border-white/60 transition-colors min-h-[44px]',
-                  )}
-                />
-              </div>
-
-              {/* Role */}
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="wl-role" className="text-sm font-medium text-white/90">
-                  Your role <span className="text-white/50">(optional)</span>
-                </label>
-                <select
-                  id="wl-role"
-                  value={role}
-                  onChange={e => setRole(e.target.value as Role)}
-                  className={cn(
-                    'bg-white/10 border border-white/20 text-white',
-                    'rounded-pill px-4 py-3 text-sm outline-none appearance-none',
-                    'focus:border-white/60 transition-colors min-h-[44px]',
-                    !role && 'text-white/40',
-                  )}
-                >
-                  <option value="" className="text-harmonic-text bg-white">Select a role…</option>
-                  <option value="director" className="text-harmonic-text bg-white">Choir Director</option>
-                  <option value="vocalist" className="text-harmonic-text bg-white">Vocalist</option>
-                  <option value="musician" className="text-harmonic-text bg-white">Musician / Instrumentalist</option>
-                </select>
-              </div>
-
-              {error && (
-                <p role="alert" className="text-sm text-red-200">
-                  {error}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className={cn(
-                  'mt-2 w-full bg-white text-harmonic-primary font-semibold',
-                  'px-8 py-3 rounded-pill hover:opacity-90 transition-opacity',
-                  'text-sm min-h-[44px] flex items-center justify-center gap-2',
-                  'disabled:opacity-50 disabled:cursor-not-allowed',
-                )}
-              >
-                {submitting ? 'Joining…' : (
-                  <>
-                    Join the waitlist <ArrowRight size={16} />
-                  </>
-                )}
-              </button>
-
-              {signupCount !== null && signupCount > 0 && (
-                <p className="text-center text-white/50 text-xs">
-                  {signupCount.toLocaleString()} choirs already waiting
-                </p>
-              )}
-            </form>
-          )}
         </div>
       </section>
 
