@@ -760,33 +760,36 @@ export function SongLibraryDetail() {
                 <div className="flex items-start gap-3 p-4 rounded-card bg-harmonic-warning/5 border border-harmonic-warning/20">
                   <FileCheck2 size={18} className="text-harmonic-warning shrink-0 mt-0.5" aria-hidden="true" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-harmonic-text">Lyrics not licensed for in-app display</p>
+                    <p className="text-sm font-semibold text-harmonic-text">This song is under copyright</p>
                     <p className="text-xs text-harmonic-muted mt-1">
                       {song.rights.publisher
                         ? `${song.rights.publisher} holds the rights to these lyrics.`
-                        : 'These lyrics are under copyright.'}
-                      {' '}View them on SongSelect or Genius, or attest your CCLI licence in choir settings.
+                        : 'These lyrics are protected by copyright.'}
+                      {' '}View the full lyrics on SongSelect or Genius below.
                     </p>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <a
                     href={`https://songselect.ccli.com/search/results?SearchBit=Name&SearchString=${encodeURIComponent(song.title)}`}
                     target="_blank" rel="noopener noreferrer"
-                    className="flex-1"
                   >
                     <Button variant="outlined" fullWidth>
                       <FileCheck2 size={15} /> View on SongSelect
                     </Button>
                   </a>
-                  {lyricsUrl && (
-                    <a href={lyricsUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
-                      <Button variant="outlined" fullWidth>
-                        <ExternalLink size={15} /> Open on Genius
-                      </Button>
-                    </a>
-                  )}
+                  <a
+                    href={lyricsUrl ?? `https://genius.com/search?q=${songQuery}`}
+                    target="_blank" rel="noopener noreferrer"
+                  >
+                    <Button variant="outlined" fullWidth>
+                      <ExternalLink size={15} /> {lyricsUrl ? 'Open on Genius' : 'Search Genius'}
+                    </Button>
+                  </a>
                 </div>
+                {song.rights.ccliNumber && (
+                  <p className="text-xs text-harmonic-muted text-center">CCLI Song # {song.rights.ccliNumber}</p>
+                )}
               </div>
             ) : song.rights?.status === 'unknown' ? (
               <div className="space-y-3">
@@ -820,7 +823,11 @@ export function SongLibraryDetail() {
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm text-harmonic-muted">Lyrics not available in-app for this song.</p>
+                <p className="text-sm text-harmonic-muted">
+                  {isDirector
+                    ? 'No lyrics saved yet. Auto-fetch them below, or paste a lyrics link when adding the song.'
+                    : 'Lyrics haven\u2019t been added for this song yet.'}
+                </p>
                 <LyricsAutoFetch
                   title={song.title}
                   artist={song.artist}

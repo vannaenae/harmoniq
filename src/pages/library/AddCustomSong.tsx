@@ -81,7 +81,7 @@ export function AddCustomSong() {
             .map(v => ({ voice: v, audioUrl: satbUrls[v] }))
         : undefined
 
-      await addCustomSong(choir.id, firebaseUser.uid, {
+      const songId = await addCustomSong(choir.id, firebaseUser.uid, {
         title: title.trim(),
         artist: artist.trim() || undefined,
         defaultKey: defaultKey || undefined,
@@ -98,7 +98,8 @@ export function AddCustomSong() {
           ccliNumber: ccliNumber.trim() || undefined,
         },
       })
-      navigate('/library')
+      // Navigate to song detail so director can immediately fetch/add lyrics
+      navigate(`/library/${songId}`)
     } catch (err) {
       console.error('Add custom song error:', err)
       setError('Something went wrong. Please try again.')
