@@ -1,5 +1,5 @@
 /**
- * LyricsAutoFetch — auto-fetch lyrics from CCLI SongSelect → Musixmatch → lyrics.ovh.
+ * LyricsAutoFetch — auto-fetch lyrics from lyrics.ovh.
  *
  * Renders a compact card with a "Fetch lyrics" button. On success it surfaces
  * the raw lyrics text for preview. The parent decides what to do with the text
@@ -11,11 +11,9 @@ import { Button } from '@/components/ui/Button'
 import { fetchAutoLyrics, type AutoLyricsResult } from '@/lib/integrations'
 
 const SOURCE_LABEL: Record<AutoLyricsResult['source'], string> = {
-  ccli:       'CCLI SongSelect',
-  musixmatch: 'Musixmatch',
   'lyrics.ovh': 'lyrics.ovh',
-  cache:      'cache',
-  none:       '',
+  cache:        'cache',
+  none:         '',
 }
 
 interface Props {

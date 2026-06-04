@@ -710,10 +710,7 @@ export function SongLibraryDetail() {
                   )}
                   {lyricsData?.source && lyricsData.source !== 'none' && (
                     <span className="text-xs text-harmonic-muted">
-                      via {lyricsData.source === 'ccli' ? 'CCLI SongSelect'
-                        : lyricsData.source === 'musixmatch' ? 'Musixmatch'
-                        : lyricsData.source === 'lyrics.ovh' ? 'lyrics.ovh'
-                        : 'cache'}
+                      via {lyricsData.source === 'lyrics.ovh' ? 'lyrics.ovh' : 'cache'}
                     </span>
                   )}
                 </div>

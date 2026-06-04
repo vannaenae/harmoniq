@@ -226,26 +226,14 @@ export async function fetchYoutubeResults(query: string): Promise<YoutubeVideoRe
   }
 }
 
-// ── CCLI SongSelect + Musixmatch auto-lyrics (HARA-118) ──────────────────────
+// ── Auto-lyrics (lyrics.ovh) ─────────────────────────────────────────────────
 
 export interface AutoLyricsResult {
   lyrics: string | null
-  source: 'ccli' | 'musixmatch' | 'lyrics.ovh' | 'cache' | 'none'
+  source: 'lyrics.ovh' | 'cache' | 'none'
 }
 
-export interface CcliSongMatch {
-  ccliNumber: number
-  title: string
-  authors: string[]
-  copyright: string | null
-  publisher: string | null
-}
-
-/**
- * Fetch lyrics automatically using all available sources in priority order:
- *   CCLI SongSelect → Musixmatch → lyrics.ovh
- * Result is cached in Firestore lyricsCache so repeat calls are free.
- */
+/** Fetch lyrics via lyrics.ovh (server-side, cached in Firestore lyricsCache). */
 export async function fetchAutoLyrics(
   title: string,
   artist?: string,
@@ -260,27 +248,6 @@ export async function fetchAutoLyrics(
   } catch (err) {
     console.warn('[autoLyrics] fetch failed:', err)
     return { lyrics: null, source: 'none' }
-  }
-}
-
-/**
- * Search CCLI SongSelect for a song to surface its CCLI number and publisher.
- * Returns null when credentials are not configured server-side.
- */
-export async function searchCcliSong(
-  title: string,
-  artist?: string,
-): Promise<{ configured: boolean; song: CcliSongMatch | null }> {
-  try {
-    const call = httpsCallable<
-      { title: string; artist?: string },
-      { configured: boolean; song: CcliSongMatch | null }
-    >(functions, 'ccliSearchSong')
-    const { data } = await call({ title, artist })
-    return data
-  } catch (err) {
-    console.warn('[ccli] search failed:', err)
-    return { configured: false, song: null }
   }
 }
 

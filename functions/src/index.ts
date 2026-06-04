@@ -620,252 +620,43 @@ export const approveTranslation = onCall(async (request) => {
   return { ok: true, reviewedBy: request.auth.uid }
 })
 
-// ── CCLI SongSelect + Musixmatch — Auto-lyrics (HARA-118) ────────────────────
-//
-// fetchAutoLyrics:  Orchestrator callable.
-//   1. Checks lyricsCache — returns immediately if already fetched.
-//   2. Tries CCLI SongSelect (if CCLI_CLIENT_ID + CCLI_CLIENT_SECRET are set).
-//   3. Falls back to Musixmatch (if MUSIXMATCH_API_KEY is set).
-//   4. Falls back to lyrics.ovh (no credentials required).
-//
-// Configure secrets before deploy:
-//   firebase functions:secrets:set CCLI_CLIENT_ID
-//   firebase functions:secrets:set CCLI_CLIENT_SECRET
-//   firebase functions:secrets:set MUSIXMATCH_API_KEY
-
-const CCLI_CLIENT_ID     = defineSecret('CCLI_CLIENT_ID')
-const CCLI_CLIENT_SECRET = defineSecret('CCLI_CLIENT_SECRET')
-const MUSIXMATCH_API_KEY = defineSecret('MUSIXMATCH_API_KEY')
-
-// ── CCLI SongSelect helpers ───────────────────────────────────────────────────
-
-let ccliTokenCache: { value: string; expiresAt: number } | null = null
-
-async function getCcliToken(clientId: string, clientSecret: string): Promise<string | null> {
-  if (ccliTokenCache && ccliTokenCache.expiresAt > Date.now() + 60_000) return ccliTokenCache.value
-  try {
-    const res = await fetch('https://api.ccli.com/oauth2/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64'),
-      },
-      body: 'grant_type=client_credentials&scope=SongSelect.Lyrics',
-    })
-    if (!res.ok) {
-      console.warn('[ccli] token request failed:', res.status)
-      return null
-    }
-    const json = (await res.json()) as { access_token: string; expires_in: number }
-    ccliTokenCache = { value: json.access_token, expiresAt: Date.now() + json.expires_in * 1000 }
-    return ccliTokenCache.value
-  } catch (err) {
-    console.warn('[ccli] token error:', err)
-    return null
-  }
-}
-
-interface CcliSong {
-  ccliNumber: number
-  title: string
-  authors: Array<{ authorName: string }>
-  copyright?: string
-  publisher?: string
-}
-
-async function searchCcliSong(
-  token: string,
-  title: string,
-  artist?: string,
-): Promise<CcliSong | null> {
-  try {
-    const q = encodeURIComponent(`${title}${artist ? ` ${artist}` : ''}`)
-    const res = await fetch(
-      `https://api.ccli.com/songselect/songs?q=${q}&pagesize=5`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    )
-    if (!res.ok) {
-      console.warn('[ccli] song search failed:', res.status)
-      return null
-    }
-    const json = (await res.json()) as { results?: CcliSong[] }
-    return json.results?.[0] ?? null
-  } catch (err) {
-    console.warn('[ccli] search error:', err)
-    return null
-  }
-}
-
-async function fetchCcliLyrics(token: string, ccliNumber: number): Promise<string | null> {
-  try {
-    const res = await fetch(
-      `https://api.ccli.com/songselect/songs/${ccliNumber}/lyrics`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    )
-    if (!res.ok) {
-      console.warn('[ccli] lyrics fetch failed:', res.status)
-      return null
-    }
-    // SongSelect returns { lyrics: string, ... } or a formatted text body
-    const json = (await res.json()) as { lyrics?: string; lyricsText?: string; body?: string }
-    return json.lyrics ?? json.lyricsText ?? json.body ?? null
-  } catch (err) {
-    console.warn('[ccli] lyrics error:', err)
-    return null
-  }
-}
-
-// ── Musixmatch helpers ────────────────────────────────────────────────────────
-
-async function fetchMusixmatchLyrics(
-  apiKey: string,
-  title: string,
-  artist?: string,
-): Promise<string | null> {
-  try {
-    const params = new URLSearchParams({
-      q_track: title,
-      apikey: apiKey,
-      f_has_lyrics: '1',
-    })
-    if (artist) params.set('q_artist', artist)
-
-    const res = await fetch(
-      `https://api.musixmatch.com/ws/1.1/matcher.lyrics.get?${params.toString()}`,
-    )
-    if (!res.ok) {
-      console.warn('[musixmatch] request failed:', res.status)
-      return null
-    }
-    const json = (await res.json()) as {
-      message: {
-        header: { status_code: number }
-        body?: { lyrics?: { lyrics_body?: string } }
-      }
-    }
-
-    const statusCode = json.message.header.status_code
-    if (statusCode !== 200) {
-      console.warn('[musixmatch] API status:', statusCode)
-      return null
-    }
-
-    const raw = json.message.body?.lyrics?.lyrics_body?.trim() ?? null
-    if (!raw) return null
-
-    // Strip Musixmatch footer added by free tier
-    const footerIdx = raw.indexOf('******* This Lyrics is NOT for Commercial use *******')
-    return footerIdx > 0 ? raw.slice(0, footerIdx).trim() : raw
-  } catch (err) {
-    console.warn('[musixmatch] error:', err)
-    return null
-  }
-}
-
 // ── fetchAutoLyrics callable ──────────────────────────────────────────────────
-// Priority: CCLI SongSelect → Musixmatch → lyrics.ovh
-// Results are cached in /lyricsCache (same collection used by legacy fetchLyrics).
+// Uses lyrics.ovh (free, no credentials). Results cached in /lyricsCache.
 
-export const fetchAutoLyrics = onCall(
-  { secrets: [CCLI_CLIENT_ID, CCLI_CLIENT_SECRET, MUSIXMATCH_API_KEY] },
-  async (request) => {
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required')
-    const { title, artist } = request.data as { title: string; artist?: string }
-    if (!title?.trim()) throw new HttpsError('invalid-argument', 'title is required')
+export const fetchAutoLyrics = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required')
+  const { title, artist } = request.data as { title: string; artist?: string }
+  if (!title?.trim()) throw new HttpsError('invalid-argument', 'title is required')
 
-    const cacheKey = `${title}__${artist ?? ''}`.toLowerCase().replace(/[^a-z0-9]+/g, '_')
-    const cacheRef = db.collection('lyricsCache').doc(cacheKey)
+  const cacheKey = `${title}__${artist ?? ''}`.toLowerCase().replace(/[^a-z0-9]+/g, '_')
+  const cacheRef = db.collection('lyricsCache').doc(cacheKey)
 
-    // Return cached result if present
-    const cached = await cacheRef.get()
-    if (cached.exists) {
-      const d = cached.data() as { lyrics?: string | null; source?: string }
-      return { lyrics: d.lyrics ?? null, source: d.source ?? 'cache' }
-    }
+  const cached = await cacheRef.get()
+  if (cached.exists) {
+    const d = cached.data() as { lyrics?: string | null; source?: string }
+    return { lyrics: d.lyrics ?? null, source: d.source ?? 'cache' }
+  }
 
-    let lyrics: string | null = null
-    let source: 'ccli' | 'musixmatch' | 'lyrics.ovh' | 'none' = 'none'
+  let lyrics: string | null = null
+  let source: 'lyrics.ovh' | 'none' = 'none'
 
-    // ── 1. CCLI SongSelect ────────────────────────────────────────────────────
-    const ccliId = CCLI_CLIENT_ID.value()
-    const ccliSecret = CCLI_CLIENT_SECRET.value()
-    if (ccliId && ccliSecret) {
-      const token = await getCcliToken(ccliId, ccliSecret)
-      if (token) {
-        const song = await searchCcliSong(token, title, artist)
-        if (song) {
-          const raw = await fetchCcliLyrics(token, song.ccliNumber)
-          if (raw) { lyrics = raw; source = 'ccli' }
-        }
+  try {
+    const artistPath = encodeURIComponent((artist ?? '').trim() || '_')
+    const titlePath  = encodeURIComponent(title.trim())
+    const res = await fetch(`https://api.lyrics.ovh/v1/${artistPath}/${titlePath}`)
+    if (res.ok) {
+      const json = (await res.json()) as { lyrics?: string; error?: string }
+      if (json.lyrics && !json.error) {
+        lyrics = json.lyrics.trim()
+        source = 'lyrics.ovh'
       }
     }
+  } catch { /* no lyrics available */ }
 
-    // ── 2. Musixmatch ─────────────────────────────────────────────────────────
-    if (!lyrics) {
-      const mmKey = MUSIXMATCH_API_KEY.value()
-      if (mmKey) {
-        const raw = await fetchMusixmatchLyrics(mmKey, title, artist)
-        if (raw) { lyrics = raw; source = 'musixmatch' }
-      }
-    }
-
-    // ── 3. lyrics.ovh (free, no credentials) ─────────────────────────────────
-    if (!lyrics) {
-      try {
-        const artistPath = encodeURIComponent((artist ?? '').trim() || '_')
-        const titlePath  = encodeURIComponent(title.trim())
-        const res = await fetch(`https://api.lyrics.ovh/v1/${artistPath}/${titlePath}`)
-        if (res.ok) {
-          const json = (await res.json()) as { lyrics?: string; error?: string }
-          if (json.lyrics && !json.error) {
-            lyrics = json.lyrics.trim()
-            source = 'lyrics.ovh'
-          }
-        }
-      } catch { /* no lyrics available from fallback */ }
-    }
-
-    const result = { lyrics, source }
-    await cacheRef.set(result).catch(() => {})
-    return result
-  },
-)
-
-// ── ccliSearchSong callable ───────────────────────────────────────────────────
-// Search CCLI SongSelect catalog — returns song metadata + CCLI number.
-// Used when adding a song to surface the correct CCLI # and publisher.
-
-export const ccliSearchSong = onCall(
-  { secrets: [CCLI_CLIENT_ID, CCLI_CLIENT_SECRET] },
-  async (request) => {
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required')
-    const { title, artist } = request.data as { title: string; artist?: string }
-    if (!title?.trim()) throw new HttpsError('invalid-argument', 'title is required')
-
-    const ccliId = CCLI_CLIENT_ID.value()
-    const ccliSecret = CCLI_CLIENT_SECRET.value()
-    if (!ccliId || !ccliSecret) {
-      return { song: null, configured: false }
-    }
-
-    const token = await getCcliToken(ccliId, ccliSecret)
-    if (!token) return { song: null, configured: true }
-
-    const song = await searchCcliSong(token, title, artist)
-    if (!song) return { song: null, configured: true }
-
-    return {
-      configured: true,
-      song: {
-        ccliNumber: song.ccliNumber,
-        title: song.title,
-        authors: song.authors.map(a => a.authorName),
-        copyright: song.copyright ?? null,
-        publisher: song.publisher ?? null,
-      },
-    }
-  },
-)
+  const result = { lyrics, source }
+  await cacheRef.set(result).catch(() => {})
+  return result
+})
 
 // ── Catalog Expansion Pipeline (HARA-82) ────────────────────────────────────
 // Daily scheduled function + manual HTTP callable to add ~1,000 songs/day.
