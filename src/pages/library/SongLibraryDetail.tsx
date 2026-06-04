@@ -4,7 +4,7 @@ import {
   ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Save,
   Music2, Youtube, ExternalLink, ChevronDown as ChevronExpand,
   Sparkles, Pencil, Trash2, RotateCcw, Lock, Unlock, Archive, ArchiveRestore, FileCheck2,
-  Languages, BookOpen, Play, Pause,
+  BookOpen, Play, Pause,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
@@ -34,7 +34,6 @@ import { LyricsAutoFetch } from '@/components/LyricsAutoFetch'
 import { useAudioPlayerStore } from '@/store/audioPlayerStore'
 import { listServices, getSetList, saveSetList } from '@/lib/firestore'
 import { semitoneDelta, inferPreference } from '@/lib/transpose'
-import { LANGUAGE_NAMES, SUPPORTED_TRANSLATION_LANGUAGES } from '@/lib/translations'
 import type { Song, Service, Language, LyricSection } from '@/types'
 
 // ── Key / chord utilities ─────────────────────────────────────────────────────
@@ -616,41 +615,7 @@ export function SongLibraryDetail() {
             </div>
           )}
 
-          {/* ── Translation review (director only) ─────────────────────── */}
-          {isDirector && song.lyrics && song.lyrics.length > 0 && (
-            <Card className="p-5 space-y-3">
-              <div className="flex items-center gap-2">
-                <Languages size={14} className="text-harmonic-primary" />
-                <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Translate & review</p>
-              </div>
-              <p className="text-xs text-harmonic-muted">
-                Generate an AI translation and review it line by line before publishing.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {SUPPORTED_TRANSLATION_LANGUAGES
-                  .filter(l => l !== song.primaryLanguage)
-                  .map(lang => {
-                    const existing = song.translations?.find(t => t.language === lang)
-                    const needsReview = existing?.translator === 'ai' && !existing?.reviewedBy
-                    return (
-                      <Link
-                        key={lang}
-                        to={`/library/${song.id}/translate/${lang}`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-harmonic-surface text-harmonic-text hover:bg-harmonic-border transition-colors"
-                      >
-                        {LANGUAGE_NAMES[lang as Language]}
-                        {needsReview && (
-                          <span className="w-2 h-2 rounded-full bg-harmonic-warning flex-shrink-0" />
-                        )}
-                        {existing?.reviewedBy && (
-                          <Check size={12} className="text-harmonic-success" />
-                        )}
-                      </Link>
-                    )
-                  })}
-              </div>
-            </Card>
-          )}
+          {/* ── Translation review — hidden per founder directive (revisit July 2026) ── */}
 
           {/* ── AI Knowledge card ───────────────────────────────────────── */}
           <Card className="p-5 space-y-3">
@@ -699,7 +664,6 @@ export function SongLibraryDetail() {
             {song.lyrics && song.lyrics.length > 0 ? (
               <LyricSheet
                 sections={song.lyrics}
-                translations={song.translations}
                 showChords
                 transposeDelta={transposeDelta}
                 accidentalPreference={inferPreference(selectedKey)}
