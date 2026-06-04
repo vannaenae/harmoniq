@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Search, Plus, Music2, ChevronRight } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Search, Plus, Music2, ChevronRight, Heart, Loader2, Youtube, ExternalLink, BookOpen } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -11,15 +11,30 @@ import { AlbumArt } from '@/components/ui/AlbumArt'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
-import { listSongs, GENRES, ALL_KEYS } from '@/lib/songs'
+import { listSongs, addCustomSong, GENRES, ALL_KEYS } from '@/lib/songs'
+import {
+  fetchSpotifyResults,
+  fetchYoutubeResults,
+  fetchCcliResults,
+  type SpotifyTrackResult,
+  type YoutubeVideoResult,
+  type CcliSongResult,
+} from '@/lib/integrations'
 import type { Song } from '@/types'
 
 type Sort = 'recent' | 'title'
 const PAGE_SIZE = 20
 
+function fmtDuration(sec: number) {
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
+}
+
 export function SongLibrary() {
-  const { choir, isDirector } = useChoir()
+  const navigate = useNavigate()
+  const { firebaseUser } = useAuth()
+  const { choir, loading: choirLoading, isDirector } = useChoir()
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -29,8 +44,21 @@ export function SongLibrary() {
   const [sort, setSort] = useState<Sort>('recent')
   const [visible, setVisible] = useState(PAGE_SIZE)
 
+  // External search results
+  const [spotifyResults, setSpotifyResults] = useState<SpotifyTrackResult[]>([])
+  const [spotifyLoading, setSpotifyLoading] = useState(false)
+  const [youtubeResults, setYoutubeResults] = useState<YoutubeVideoResult[]>([])
+  const [youtubeLoading, setYoutubeLoading] = useState(false)
+  const [ccliResults, setCcliResults] = useState<CcliSongResult[]>([])
+  const [ccliLoading, setCcliLoading] = useState(false)
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
+  const [savingId, setSavingId] = useState<string | null>(null)
+  const [savingCcli, setSavingCcli] = useState<number | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   useEffect(() => {
-    if (!choir) return
+    if (choirLoading) return
+    if (!choir) { setLoading(false); return }
     let active = true
     setLoading(true)
     listSongs(choir.id)
@@ -38,7 +66,75 @@ export function SongLibrary() {
       .catch(err => console.error('Load songs error:', err))
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [choir])
+  }, [choir, choirLoading])
+
+  // Debounced external search (CCLI + Spotify + YouTube)
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    const term = search.trim()
+    if (term.length < 3) {
+      setSpotifyResults([])
+      setYoutubeResults([])
+      setCcliResults([])
+      return
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      setSpotifyLoading(true)
+      setYoutubeLoading(true)
+      setCcliLoading(true)
+      const [sp, yt, cc] = await Promise.all([
+        fetchSpotifyResults(term),
+        fetchYoutubeResults(term),
+        fetchCcliResults(term),
+      ])
+      setSpotifyResults(sp)
+      setSpotifyLoading(false)
+      setYoutubeResults(yt)
+      setYoutubeLoading(false)
+      setCcliResults(cc)
+      setCcliLoading(false)
+    }, 800)
+
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [search])
+
+  const handleSaveToLibrary = async (track: SpotifyTrackResult) => {
+    if (!choir || !firebaseUser) return
+    setSavingId(track.trackId)
+    try {
+      await addCustomSong(choir.id, firebaseUser.uid, {
+        title: track.title,
+        artist: track.artist || undefined,
+      })
+      setSavedIds(prev => new Set([...prev, track.trackId]))
+      const updated = await listSongs(choir.id)
+      setSongs(updated)
+    } catch (err) {
+      console.error('Save song error:', err)
+    } finally {
+      setSavingId(null)
+    }
+  }
+
+  const handleSaveCcliSong = async (song: CcliSongResult) => {
+    if (!choir || !firebaseUser) return
+    setSavingCcli(song.songNumber)
+    try {
+      await addCustomSong(choir.id, firebaseUser.uid, {
+        title: song.title,
+        artist: song.authors.join(', ') || undefined,
+        ccliNumber: song.songNumber,
+      })
+      setSavedIds(prev => new Set([...prev, `ccli-${song.songNumber}`]))
+      const updated = await listSongs(choir.id)
+      setSongs(updated)
+    } catch (err) {
+      console.error('Save CCLI song error:', err)
+    } finally {
+      setSavingCcli(null)
+    }
+  }
 
   const artists = useMemo(
     () => Array.from(new Set(songs.map(s => s.artist).filter(Boolean))).sort() as string[],
@@ -59,7 +155,9 @@ export function SongLibrary() {
     return list
   }, [songs, search, genre, artist, keyFilter, sort])
 
-  const page = filtered.slice(0, visible)
+  const isSearching = search.trim().length >= 3
+  const SEARCH_CAP = 5
+  const page = isSearching ? filtered.slice(0, SEARCH_CAP) : filtered.slice(0, visible)
 
   return (
     <AppLayout>
@@ -81,68 +179,326 @@ export function SongLibrary() {
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-harmonic-muted" aria-hidden="true" />
           <Input
             aria-label="Search songs"
-            placeholder="Search by title or artist"
+            placeholder="Search library, SongSelect, Spotify, YouTube…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-10"
           />
         </div>
 
-        {/* Filters */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-5">
-          <Select ariaLabel="Filter by genre" value={genre} onValueChange={setGenre}
-            options={[{ value: '', label: 'All genres' }, ...GENRES.map(g => ({ value: g, label: g }))]}
-            placeholder="Genre" />
-          <Select ariaLabel="Filter by artist" value={artist} onValueChange={setArtist}
-            options={[{ value: '', label: 'All artists' }, ...artists.map(a => ({ value: a, label: a }))]}
-            placeholder="Artist" />
-          <Select ariaLabel="Filter by key" value={keyFilter} onValueChange={setKeyFilter}
-            options={[{ value: '', label: 'Any key' }, ...ALL_KEYS.map(k => ({ value: k, label: k }))]}
-            placeholder="Key" />
-          <Select ariaLabel="Sort songs" value={sort} onValueChange={v => setSort(v as Sort)}
-            options={[{ value: 'recent', label: 'Recently added' }, { value: 'title', label: 'Title A–Z' }]}
-            placeholder="Sort" />
-        </div>
+        {/* Filters — only shown when not in external-search mode */}
+        {!isSearching && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-5">
+            <Select ariaLabel="Filter by genre" value={genre} onValueChange={setGenre}
+              options={[{ value: '', label: 'All genres' }, ...GENRES.map(g => ({ value: g, label: g }))]}
+              placeholder="Genre" />
+            <Select ariaLabel="Filter by artist" value={artist} onValueChange={setArtist}
+              options={[{ value: '', label: 'All artists' }, ...artists.map(a => ({ value: a, label: a }))]}
+              placeholder="Artist" />
+            <Select ariaLabel="Filter by key" value={keyFilter} onValueChange={setKeyFilter}
+              options={[{ value: '', label: 'Any key' }, ...ALL_KEYS.map(k => ({ value: k, label: k }))]}
+              placeholder="Key" />
+            <Select ariaLabel="Sort songs" value={sort} onValueChange={v => setSort(v as Sort)}
+              options={[{ value: 'recent', label: 'Recently added' }, { value: 'title', label: 'Title A–Z' }]}
+              placeholder="Sort" />
+          </div>
+        )}
 
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
           </div>
-        ) : page.length === 0 ? (
-          <Card className="p-2">
-            <EmptyState
-              icon={Music2}
-              title="No songs match"
-              description="Try a different search or filter — or add a custom song to your library."
-            />
-          </Card>
         ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {page.map(song => (
-                <Link key={song.id} to={`/library/${song.id}`}>
-                  <Card className="p-3 flex items-center gap-3 hover:shadow-card-hover transition-shadow">
-                    <AlbumArt src={song.albumArtUrl} alt={`${song.title} artwork`} className="w-14 h-14 rounded-xl flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-harmonic-text truncate">{song.title}</p>
-                      <p className="text-xs text-harmonic-muted truncate">{song.artist}</p>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        {song.defaultKey && <Badge tone="muted">{song.defaultKey}</Badge>}
-                        {song.genre && <Badge tone="tertiary">{song.genre}</Badge>}
-                        {song.isCustom && <Badge tone="primary">Custom</Badge>}
-                      </div>
-                    </div>
-                    <ChevronRight size={16} className="text-harmonic-muted flex-shrink-0" aria-hidden="true" />
+          <div className="space-y-8">
+            {/* ── Your library ─────────────────────────────────── */}
+            <section>
+              {isSearching && (
+                <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3">
+                  Your library
+                </p>
+              )}
+              {page.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {page.map(song => (
+                    <Link key={song.id} to={`/library/${song.id}`}>
+                      <Card className="p-3 flex items-center gap-3 hover:shadow-card transition-shadow">
+                        <AlbumArt src={song.albumArtUrl} alt={`${song.title} artwork`} className="w-14 h-14 rounded-xl flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-harmonic-text truncate">{song.title}</p>
+                          <p className="text-xs text-harmonic-muted truncate">{song.artist}</p>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {song.defaultKey && <Badge tone="muted">{song.defaultKey}</Badge>}
+                            {song.genre && <Badge tone="tertiary">{song.genre}</Badge>}
+                            {song.ccliNumber && <Badge tone="muted">CCLI #{song.ccliNumber}</Badge>}
+                            {song.isCustom && <Badge tone="primary">Custom</Badge>}
+                          </div>
+                        </div>
+                        <ChevronRight size={16} className="text-harmonic-muted flex-shrink-0" aria-hidden="true" />
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              ) : isSearching ? (
+                <p className="text-sm text-harmonic-muted">No songs in your library match "{search.trim()}".</p>
+              ) : (
+                <Card className="p-2">
+                  <EmptyState
+                    icon={Music2}
+                    title="No songs match"
+                    description="Try a different filter — or search by name to discover songs on SongSelect, Spotify, and YouTube."
+                  />
+                </Card>
+              )}
+
+              {isSearching && filtered.length > SEARCH_CAP && (
+                <div className="flex justify-center mt-3">
+                  <Button variant="outlined" size="sm" onClick={() => setVisible(filtered.length)}>
+                    Show all {filtered.length} library results
+                  </Button>
+                </div>
+              )}
+              {!isSearching && visible < filtered.length && (
+                <div className="flex justify-center mt-4">
+                  <Button variant="outlined" size="sm" onClick={() => setVisible(v => v + PAGE_SIZE)}>Load more</Button>
+                </div>
+              )}
+            </section>
+
+            {/* ── CCLI SongSelect results ───────────────────────── */}
+            {isSearching && (
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <BookOpen size={14} className="text-[#e74c3c]" />
+                  <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">CCLI SongSelect</p>
+                </div>
+
+                {ccliLoading ? (
+                  <Card className="p-4 flex items-center gap-3">
+                    <Loader2 size={18} className="animate-spin text-harmonic-muted" />
+                    <p className="text-sm text-harmonic-muted">Searching SongSelect…</p>
                   </Card>
-                </Link>
-              ))}
-            </div>
-            {visible < filtered.length && (
-              <div className="flex justify-center mt-5">
-                <Button variant="outlined" size="sm" onClick={() => setVisible(v => v + PAGE_SIZE)}>Load more</Button>
-              </div>
+                ) : ccliResults.length > 0 ? (
+                  <div className="flex flex-col gap-2">
+                    {ccliResults.slice(0, SEARCH_CAP).map(song => (
+                      <Card key={song.songNumber} className="p-3 flex items-center gap-3">
+                        <div className="w-14 h-14 rounded-xl bg-[#e74c3c]/10 flex-shrink-0 flex items-center justify-center">
+                          <BookOpen size={22} className="text-[#e74c3c]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-harmonic-text truncate">{song.title}</p>
+                          <p className="text-xs text-harmonic-muted truncate">
+                            {song.authors.join(', ')}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] font-medium text-harmonic-muted">#{song.songNumber}</span>
+                            {song.themes.slice(0, 2).map(t => (
+                              <Badge key={t} tone="muted">{t}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {isDirector && (
+                            savedIds.has(`ccli-${song.songNumber}`) ? (
+                              <Button variant="secondary" size="sm" disabled>
+                                <Heart size={13} className="fill-current" /> Saved
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outlined"
+                                size="sm"
+                                onClick={() => handleSaveCcliSong(song)}
+                                disabled={savingCcli === song.songNumber}
+                              >
+                                {savingCcli === song.songNumber
+                                  ? <Loader2 size={13} className="animate-spin" />
+                                  : <Heart size={13} />}
+                                Save
+                              </Button>
+                            )
+                          )}
+                        </div>
+                      </Card>
+                    ))}
+                    <a
+                      href={`https://songselect.ccli.com/search/results?Search=${encodeURIComponent(search.trim())}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex justify-center pt-1"
+                    >
+                      <Button variant="outlined" size="sm">
+                        <ExternalLink size={13} /> See all on SongSelect
+                      </Button>
+                    </a>
+                  </div>
+                ) : (
+                  <Card className="p-4 text-center">
+                    <p className="text-sm text-harmonic-muted">
+                      {!ccliLoading
+                        ? 'No SongSelect results — CCLI credentials may not be configured yet.'
+                        : `No CCLI results for "${search.trim()}"`}
+                    </p>
+                  </Card>
+                )}
+              </section>
             )}
-          </>
+
+            {/* ── Spotify results ───────────────────────────────── */}
+            {isSearching && (
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <Music2 size={14} className="text-[#1DB954]" />
+                  <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Spotify</p>
+                </div>
+
+                {spotifyLoading ? (
+                  <Card className="p-4 flex items-center gap-3">
+                    <Loader2 size={18} className="animate-spin text-harmonic-muted" />
+                    <p className="text-sm text-harmonic-muted">Searching Spotify…</p>
+                  </Card>
+                ) : spotifyResults.length > 0 ? (
+                  <div className="flex flex-col gap-2">
+                    {spotifyResults.slice(0, SEARCH_CAP).map(track => (
+                      <Card key={track.trackId} className="p-3 flex items-center gap-3">
+                        <AlbumArt src={track.albumArtUrl} alt={track.title} className="w-14 h-14 rounded-xl flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-harmonic-text truncate">{track.title}</p>
+                          <p className="text-xs text-harmonic-muted truncate">{track.artist}</p>
+                          {track.durationSec && (
+                            <p className="text-xs text-harmonic-muted mt-0.5">{fmtDuration(track.durationSec)}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <a
+                            href={`https://open.spotify.com/track/${track.trackId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Open in Spotify"
+                            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-harmonic-surface transition-colors text-harmonic-muted hover:text-[#1DB954]"
+                          >
+                            <ExternalLink size={15} />
+                          </a>
+                          {isDirector && (
+                            savedIds.has(track.trackId) ? (
+                              <Button variant="secondary" size="sm" disabled>
+                                <Heart size={13} className="fill-current" /> Saved
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outlined"
+                                size="sm"
+                                onClick={() => handleSaveToLibrary(track)}
+                                disabled={savingId === track.trackId}
+                              >
+                                {savingId === track.trackId
+                                  ? <Loader2 size={13} className="animate-spin" />
+                                  : <Heart size={13} />}
+                                Save
+                              </Button>
+                            )
+                          )}
+                          <button
+                            onClick={() => navigate(`/library/spotify-${track.trackId}`)}
+                            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-harmonic-surface transition-colors text-harmonic-muted"
+                            aria-label="View song detail"
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      </Card>
+                    ))}
+                    <a
+                      href={`https://open.spotify.com/search/${encodeURIComponent(search.trim())}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex justify-center pt-1"
+                    >
+                      <Button variant="outlined" size="sm">
+                        <ExternalLink size={13} /> See all on Spotify
+                      </Button>
+                    </a>
+                  </div>
+                ) : (
+                  <Card className="p-4 text-center">
+                    <p className="text-sm text-harmonic-muted">No Spotify results for "{search.trim()}"</p>
+                  </Card>
+                )}
+              </section>
+            )}
+
+            {/* ── YouTube results ───────────────────────────────── */}
+            {isSearching && (
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <Youtube size={14} className="text-[#FF0000]" />
+                  <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">YouTube</p>
+                </div>
+
+                {youtubeLoading ? (
+                  <Card className="p-4 flex items-center gap-3">
+                    <Loader2 size={18} className="animate-spin text-harmonic-muted" />
+                    <p className="text-sm text-harmonic-muted">Searching YouTube…</p>
+                  </Card>
+                ) : youtubeResults.length > 0 ? (
+                  <div className="flex flex-col gap-2">
+                    {youtubeResults.slice(0, SEARCH_CAP).map(video => (
+                      <a
+                        key={video.videoId}
+                        href={`https://www.youtube.com/watch?v=${video.videoId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Card className="p-3 flex items-center gap-3 hover:shadow-card transition-shadow">
+                          {video.thumbnailUrl ? (
+                            <img
+                              src={video.thumbnailUrl}
+                              alt={video.title}
+                              className="w-20 h-14 rounded-xl object-cover flex-shrink-0 bg-harmonic-surface"
+                            />
+                          ) : (
+                            <div className="w-20 h-14 rounded-xl bg-harmonic-surface flex-shrink-0 flex items-center justify-center">
+                              <Youtube size={20} className="text-harmonic-muted" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p
+                              className="font-semibold text-sm text-harmonic-text line-clamp-2"
+                              dangerouslySetInnerHTML={{ __html: video.title }}
+                            />
+                            <p className="text-xs text-harmonic-muted mt-0.5 truncate">{video.channelTitle}</p>
+                          </div>
+                          <ExternalLink size={15} className="text-harmonic-muted flex-shrink-0" />
+                        </Card>
+                      </a>
+                    ))}
+                    <a
+                      href={`https://www.youtube.com/results?search_query=${encodeURIComponent(search.trim())}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex justify-center pt-1"
+                    >
+                      <Button variant="outlined" size="sm">
+                        <ExternalLink size={13} /> See all on YouTube
+                      </Button>
+                    </a>
+                  </div>
+                ) : (
+                  <Card className="p-4 text-center">
+                    <p className="text-sm text-harmonic-muted">
+                      YouTube search not available.{' '}
+                      <a
+                        href={`https://www.youtube.com/results?search_query=${encodeURIComponent(search.trim())}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-harmonic-primary underline"
+                      >
+                        Search on YouTube ↗
+                      </a>
+                    </p>
+                  </Card>
+                )}
+              </section>
+            )}
+          </div>
         )}
       </div>
     </AppLayout>

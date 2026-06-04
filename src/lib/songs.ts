@@ -54,6 +54,7 @@ export interface CustomSongInput {
   lyricsUrl?: string
   notes?: string
   sheetMusicUrl?: string
+  ccliNumber?: number
 }
 
 export async function addCustomSong(
@@ -72,6 +73,7 @@ export async function addCustomSong(
     geniusUrl: input.lyricsUrl ?? null,
     notes: input.notes ?? null,
     sheetMusicUrl: input.sheetMusicUrl ?? null,
+    ccliNumber: input.ccliNumber ?? null,
     isCustom: true,
     choirId,
     addedBy,
@@ -108,6 +110,7 @@ function mapSong(id: string, data: Record<string, unknown>, choirId?: string): S
     lyricsUrl: (data.lyricsUrl as string) ?? undefined,
     notes: (data.notes as string) ?? undefined,
     sheetMusicUrl: (data.sheetMusicUrl as string) ?? undefined,
+    ccliNumber: typeof data.ccliNumber === 'number' ? data.ccliNumber : undefined,
     isCustom: Boolean(data.isCustom),
     choirId,
     addedBy: (data.addedBy as string) ?? 'seed',

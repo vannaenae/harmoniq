@@ -81,6 +81,7 @@ export interface Song {
   lyricsUrl?: string
   notes?: string
   sheetMusicUrl?: string
+  ccliNumber?: number
   isCustom: boolean
   choirId?: string
   addedBy: string
