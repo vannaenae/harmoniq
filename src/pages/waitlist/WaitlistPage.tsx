@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { collection, addDoc, getCountFromServer, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { cn } from '@/lib/utils'
@@ -12,6 +12,31 @@ import {
   Mic2,
   BookOpen,
 } from 'lucide-react'
+
+// ─── useInView hook ───────────────────────────────────────────────────────────
+
+function useInView(threshold = 0.12) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [inView, setInView] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true)
+          observer.disconnect()
+        }
+      },
+      { threshold },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [threshold])
+
+  return { ref, inView }
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,6 +101,12 @@ export function WaitlistPage() {
   const [error, setError] = useState<string | null>(null)
   const [signupCount, setSignupCount] = useState<number | null>(null)
   const [toast, setToast] = useState(false)
+
+  // Scroll-triggered sections
+  const problemSolution = useInView()
+  const features = useInView()
+  const whoItsFor = useInView()
+  const signupSection = useInView()
 
   // Load live signup count
   useEffect(() => {
@@ -163,19 +194,31 @@ export function WaitlistPage() {
       {/* ── Hero ── */}
       <section className="bg-featured-song-gradient text-white px-4 py-16 sm:py-24">
         <div className="max-w-2xl mx-auto text-center flex flex-col items-center gap-6">
-          <div className="flex items-center gap-2 bg-white/10 rounded-pill px-4 py-1.5 text-xs font-semibold uppercase tracking-widest">
+          <div
+            className="flex items-center gap-2 bg-white/10 rounded-pill px-4 py-1.5 text-xs font-semibold uppercase tracking-widest animate-fade-in-up"
+            style={{ animationDelay: '0ms' }}
+          >
             <Mic2 size={12} />
             Early access
           </div>
-          <h1 className="text-4xl sm:text-5xl font-black italic tracking-tight leading-tight">
+          <h1
+            className="text-4xl sm:text-5xl font-black italic tracking-tight leading-tight animate-fade-in-up"
+            style={{ animationDelay: '100ms' }}
+          >
             Vocal excellence,<br />coordinated.
           </h1>
-          <p className="text-base sm:text-lg text-white/80 max-w-md leading-relaxed">
+          <p
+            className="text-base sm:text-lg text-white/80 max-w-md leading-relaxed animate-fade-in-up"
+            style={{ animationDelay: '200ms' }}
+          >
             Harmoniq is the all-in-one operating system for worship choirs — set lists,
             availability, song library, and announcements in one calm app.
           </p>
           {signupCount !== null && signupCount > 0 && (
-            <p className="text-sm text-white/60">
+            <p
+              className="text-sm text-white/60 animate-fade-in-up"
+              style={{ animationDelay: '280ms' }}
+            >
               <span className="text-white font-semibold">{signupCount.toLocaleString()}</span> choirs already waiting
             </p>
           )}
@@ -184,8 +227,9 @@ export function WaitlistPage() {
             className={cn(
               'inline-flex items-center gap-2 bg-white text-harmonic-primary',
               'font-semibold px-8 py-3 rounded-pill hover:opacity-90 transition-opacity',
-              'text-sm mt-2',
+              'text-sm mt-2 animate-fade-in-up',
             )}
+            style={{ animationDelay: '320ms' }}
           >
             Get early access <ArrowRight size={16} />
           </a>
@@ -194,13 +238,26 @@ export function WaitlistPage() {
 
       {/* ── Problem / Solution ── */}
       <section className="py-16 px-4">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold text-harmonic-text text-center mb-12 tracking-tight">
+        <div ref={problemSolution.ref} className="max-w-4xl mx-auto">
+          <h2
+            className={cn(
+              'text-2xl sm:text-3xl font-bold text-harmonic-text text-center mb-12 tracking-tight',
+              'transition-all duration-700 ease-out',
+              problemSolution.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6',
+            )}
+          >
             Choir coordination is broken.<br />We fixed it.
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {/* Problems */}
-            <div className="bg-white rounded-card border border-harmonic-border p-6 shadow-card">
+            <div
+              className={cn(
+                'bg-white rounded-card border border-harmonic-border p-6 shadow-card',
+                'transition-all duration-700 ease-out',
+                problemSolution.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8',
+              )}
+              style={{ transitionDelay: problemSolution.inView ? '100ms' : '0ms' }}
+            >
               <p className="text-xs font-semibold uppercase tracking-widest text-harmonic-muted mb-4">
                 The problem
               </p>
@@ -216,7 +273,14 @@ export function WaitlistPage() {
               </ul>
             </div>
             {/* Solutions */}
-            <div className="bg-white rounded-card border border-harmonic-border p-6 shadow-card">
+            <div
+              className={cn(
+                'bg-white rounded-card border border-harmonic-border p-6 shadow-card',
+                'transition-all duration-700 ease-out',
+                problemSolution.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8',
+              )}
+              style={{ transitionDelay: problemSolution.inView ? '220ms' : '0ms' }}
+            >
               <p className="text-xs font-semibold uppercase tracking-widest text-harmonic-muted mb-4">
                 Harmoniq
               </p>
@@ -235,18 +299,36 @@ export function WaitlistPage() {
 
       {/* ── Feature cards ── */}
       <section className="py-16 px-4 bg-white border-y border-harmonic-border">
-        <div className="max-w-4xl mx-auto">
-          <p className="text-xs font-semibold uppercase tracking-widest text-harmonic-muted text-center mb-3">
+        <div ref={features.ref} className="max-w-4xl mx-auto">
+          <p
+            className={cn(
+              'text-xs font-semibold uppercase tracking-widest text-harmonic-muted text-center mb-3',
+              'transition-all duration-600 ease-out',
+              features.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4',
+            )}
+          >
             What's inside
           </p>
-          <h2 className="text-2xl sm:text-3xl font-bold text-harmonic-text text-center mb-10 tracking-tight">
+          <h2
+            className={cn(
+              'text-2xl sm:text-3xl font-bold text-harmonic-text text-center mb-10 tracking-tight',
+              'transition-all duration-700 ease-out',
+              features.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4',
+            )}
+            style={{ transitionDelay: features.inView ? '80ms' : '0ms' }}
+          >
             Everything your choir needs
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {FEATURES.map(({ icon: Icon, title, description }) => (
+            {FEATURES.map(({ icon: Icon, title, description }, i) => (
               <div
                 key={title}
-                className="flex items-start gap-4 p-5 rounded-card border border-harmonic-border hover:shadow-card-hover transition-shadow"
+                className={cn(
+                  'flex items-start gap-4 p-5 rounded-card border border-harmonic-border hover:shadow-card-hover transition-shadow',
+                  'transition-all duration-700 ease-out',
+                  features.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8',
+                )}
+                style={{ transitionDelay: features.inView ? `${160 + i * 100}ms` : '0ms' }}
               >
                 <div className="w-10 h-10 rounded-card bg-featured-song-gradient-light flex items-center justify-center flex-shrink-0">
                   <Icon size={18} className="text-harmonic-primary" />
@@ -263,15 +345,35 @@ export function WaitlistPage() {
 
       {/* ── Who it's for ── */}
       <section className="py-16 px-4">
-        <div className="max-w-3xl mx-auto text-center">
-          <p className="text-xs font-semibold uppercase tracking-widest text-harmonic-muted mb-3">
+        <div ref={whoItsFor.ref} className="max-w-3xl mx-auto text-center">
+          <p
+            className={cn(
+              'text-xs font-semibold uppercase tracking-widest text-harmonic-muted mb-3',
+              'transition-all duration-600 ease-out',
+              whoItsFor.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4',
+            )}
+          >
             Built for
           </p>
-          <h2 className="text-2xl sm:text-3xl font-bold text-harmonic-text mb-8 tracking-tight">
+          <h2
+            className={cn(
+              'text-2xl sm:text-3xl font-bold text-harmonic-text mb-8 tracking-tight',
+              'transition-all duration-700 ease-out',
+              whoItsFor.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4',
+            )}
+            style={{ transitionDelay: whoItsFor.inView ? '80ms' : '0ms' }}
+          >
             Directors and vocalists, both
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="bg-white rounded-card border border-harmonic-border p-6 shadow-card text-left">
+            <div
+              className={cn(
+                'bg-white rounded-card border border-harmonic-border p-6 shadow-card text-left',
+                'transition-all duration-700 ease-out',
+                whoItsFor.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8',
+              )}
+              style={{ transitionDelay: whoItsFor.inView ? '160ms' : '0ms' }}
+            >
               <div className="w-10 h-10 rounded-card bg-featured-song-gradient-light flex items-center justify-center mb-4">
                 <Users size={18} className="text-harmonic-primary" />
               </div>
@@ -281,7 +383,14 @@ export function WaitlistPage() {
                 whole choir from one screen.
               </p>
             </div>
-            <div className="bg-white rounded-card border border-harmonic-border p-6 shadow-card text-left">
+            <div
+              className={cn(
+                'bg-white rounded-card border border-harmonic-border p-6 shadow-card text-left',
+                'transition-all duration-700 ease-out',
+                whoItsFor.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8',
+              )}
+              style={{ transitionDelay: whoItsFor.inView ? '280ms' : '0ms' }}
+            >
               <div className="w-10 h-10 rounded-card bg-featured-song-gradient-light flex items-center justify-center mb-4">
                 <Mic2 size={18} className="text-harmonic-primary" />
               </div>
@@ -297,19 +406,39 @@ export function WaitlistPage() {
 
       {/* ── Signup form ── */}
       <section id="signup" className="py-16 px-4 bg-featured-song-gradient">
-        <div className="max-w-md mx-auto">
-          <p className="text-white/70 text-xs font-semibold uppercase tracking-widest text-center mb-3">
+        <div ref={signupSection.ref} className="max-w-md mx-auto">
+          <p
+            className={cn(
+              'text-white/70 text-xs font-semibold uppercase tracking-widest text-center mb-3',
+              'transition-all duration-700 ease-out',
+              signupSection.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6',
+            )}
+          >
             Early access
           </p>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-2 tracking-tight">
+          <h2
+            className={cn(
+              'text-2xl sm:text-3xl font-bold text-white text-center mb-2 tracking-tight',
+              'transition-all duration-700 ease-out',
+              signupSection.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6',
+            )}
+            style={{ transitionDelay: signupSection.inView ? '100ms' : '0ms' }}
+          >
             Be first to know
           </h2>
-          <p className="text-white/70 text-sm text-center mb-8">
+          <p
+            className={cn(
+              'text-white/70 text-sm text-center mb-8',
+              'transition-all duration-700 ease-out',
+              signupSection.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6',
+            )}
+            style={{ transitionDelay: signupSection.inView ? '180ms' : '0ms' }}
+          >
             We're opening up choir by choir. Drop your email and we'll reach out when it's your turn.
           </p>
 
           {submitted ? (
-            <div className="bg-white/10 rounded-card-lg p-8 text-center flex flex-col items-center gap-4">
+            <div className="bg-white/10 rounded-card-lg p-8 text-center flex flex-col items-center gap-4 animate-scale-in">
               <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
                 <CheckCircle size={28} className="text-white" />
               </div>
@@ -325,7 +454,16 @@ export function WaitlistPage() {
               )}
             </div>
           ) : (
-            <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+            <form
+              onSubmit={handleSubmit}
+              noValidate
+              className={cn(
+                'flex flex-col gap-4',
+                'transition-all duration-700 ease-out',
+                signupSection.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6',
+              )}
+              style={{ transitionDelay: signupSection.inView ? '260ms' : '0ms' }}
+            >
               {/* Email */}
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="wl-email" className="text-sm font-medium text-white/90">

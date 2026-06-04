@@ -40,6 +40,20 @@ const config: Config = {
         'featured-song-gradient': 'linear-gradient(135deg, theme(\'colors.harmonic.primary\') 0%, theme(\'colors.harmonic.secondary\') 100%)',
         'featured-song-gradient-light': 'linear-gradient(135deg, #18005F15, #56005615)',
       },
+      keyframes: {
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(28px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        scaleIn: {
+          '0%': { opacity: '0', transform: 'scale(0.90)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+      },
+      animation: {
+        'fade-in-up': 'fadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'scale-in': 'scaleIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both',
+      },
     },
   },
   plugins: [],
