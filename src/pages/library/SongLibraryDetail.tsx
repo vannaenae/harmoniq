@@ -23,7 +23,7 @@ import { SatbAudioPlayer } from '@/components/SatbAudioPlayer'
 import { SongMediaUpload, type SongMediaKind } from '@/components/SongMediaUpload'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
-import { getSong, getPracticeNotes, savePracticeNotes, updateCustomSong, deleteCustomSong, subscribeSongOverride, saveSongOverride, ALL_KEYS, GENRES } from '@/lib/songs'
+import { getSong, getPracticeNotes, savePracticeNotes, updateCustomSong, deleteCustomSong, subscribeSongOverride, saveSongOverride, cacheSongMedia, ALL_KEYS, GENRES } from '@/lib/songs'
 import type { SongOverride } from '@/types'
 import {
   fetchSpotify, fetchGenius, fetchAutoLyrics, fetchSongContext,
@@ -126,7 +126,18 @@ export function SongLibraryDetail() {
       ])
 
       if (!active) return
-      if (sp.status === 'fulfilled') setSpotify(sp.value)
+      if (sp.status === 'fulfilled') {
+        setSpotify(sp.value)
+        // Lazy-persist album art URL for custom songs that don't have it yet
+        if (
+          sp.value?.albumArtUrl &&
+          !s.albumArtUrl &&
+          s.id.startsWith('custom-') &&
+          s.choirId
+        ) {
+          cacheSongMedia(s.choirId, s.id, { albumArtUrl: sp.value.albumArtUrl }).catch(() => {})
+        }
+      }
       setMediaLoading(false)
 
       if (ge.status === 'fulfilled') setGenius(ge.value)

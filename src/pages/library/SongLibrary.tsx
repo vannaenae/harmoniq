@@ -157,6 +157,8 @@ export function SongLibrary() {
       await addCustomSong(choir.id, firebaseUser.uid, {
         title: track.title,
         artist: track.artist || undefined,
+        albumArtUrl: track.albumArtUrl ?? undefined,
+        durationSec: track.durationSec ?? undefined,
       })
       setSavedIds(prev => new Set([...prev, track.trackId]))
     } catch (err) {
