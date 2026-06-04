@@ -27,3 +27,6 @@ yarn-error.*
 # editor
 .vscode/
 .idea/
+
+# test output
+test-results/
