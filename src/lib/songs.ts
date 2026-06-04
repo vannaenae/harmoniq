@@ -81,6 +81,7 @@ export interface CustomSongInput {
   artist?: string
   defaultKey?: string
   genre?: SongGenre
+  lyrics?: Song['lyrics']
   lyricsUrl?: string
   notes?: string
   sheetMusicUrl?: string
@@ -105,6 +106,7 @@ export async function addCustomSong(
     artist: input.artist ?? null,
     defaultKey: input.defaultKey ?? null,
     genre: input.genre ?? 'Other',
+    lyrics: input.lyrics ?? [],
     lyricsUrl: input.lyricsUrl ?? null,
     geniusUrl: null,
     notes: input.notes ?? null,

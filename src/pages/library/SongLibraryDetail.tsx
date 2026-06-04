@@ -26,14 +26,15 @@ import { useChoir } from '@/contexts/ChoirContext'
 import { getSong, getPracticeNotes, savePracticeNotes, updateCustomSong, deleteCustomSong, subscribeSongOverride, saveSongOverride, ALL_KEYS, GENRES } from '@/lib/songs'
 import type { SongOverride } from '@/types'
 import {
-  fetchSpotify, fetchGenius, fetchLyricsData, fetchSongContext,
+  fetchSpotify, fetchGenius, fetchAutoLyrics, fetchSongContext,
   spotifyEmbedUrl, youtubeEmbedUrl,
-  type SpotifyData, type GeniusData, type LyricsData, type SongContextData,
+  type SpotifyData, type GeniusData, type AutoLyricsResult, type SongContextData,
 } from '@/lib/integrations'
+import { LyricsAutoFetch } from '@/components/LyricsAutoFetch'
 import { listServices, getSetList, saveSetList } from '@/lib/firestore'
 import { semitoneDelta, inferPreference } from '@/lib/transpose'
 import { LANGUAGE_NAMES, SUPPORTED_TRANSLATION_LANGUAGES } from '@/lib/translations'
-import type { Song, Service, Language } from '@/types'
+import type { Song, Service, Language, LyricSection } from '@/types'
 
 // ── Key / chord utilities ─────────────────────────────────────────────────────
 const CHROMATIC = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
@@ -69,7 +70,9 @@ export function SongLibraryDetail() {
   const [loading, setLoading] = useState(true)
   const [spotify, setSpotify] = useState<SpotifyData | null>(null)
   const [genius,  setGenius]  = useState<GeniusData | null>(null)
-  const [lyricsData,  setLyricsData]  = useState<LyricsData | null>(null)
+  const [lyricsData,  setLyricsData]  = useState<AutoLyricsResult | null>(null)
+  const [lyricsSaving, setLyricsSaving] = useState(false)
+  const [lyricsSaved,  setLyricsSaved]  = useState(false)
   const [context, setContext] = useState<SongContextData | null>(null)
   const [mediaLoading,   setMediaLoading]   = useState(true)
   const [lyricsLoading,  setLyricsLoading]  = useState(true)
@@ -125,7 +128,7 @@ export function SongLibraryDetail() {
       const [sp, ge, ly, ctx] = await Promise.allSettled([
         fetchSpotify(s.title, s.artist),
         fetchGenius(s.title, s.artist),
-        fetchLyricsData(s.title, s.artist),
+        fetchAutoLyrics(s.title, s.artist),
         fetchSongContext(s.title, s.artist),
       ])
 
@@ -280,6 +283,35 @@ export function SongLibraryDetail() {
       navigate('/library', { replace: true })
     } catch {
       setDeleting(false)
+    }
+  }
+
+  /** Parse a plain-text lyrics blob into basic LyricSection[] (verse-per-paragraph). */
+  const parseLyricsText = (text: string): LyricSection[] => {
+    const paragraphs = text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
+    return paragraphs.map((para, i) => ({
+      kind: 'verse' as const,
+      number: i + 1,
+      lines: para.split('\n').map(l => l.trim()).filter(Boolean),
+      language: (song?.primaryLanguage ?? 'en') as Language,
+    }))
+  }
+
+  /** Save auto-fetched lyrics to the song's `lyrics` field in Firestore (custom songs only). */
+  const handleSaveLyricsToSong = async () => {
+    if (!choir || !songId || !song?.isCustom) return
+    const raw = lyricsData?.lyrics
+    if (!raw) return
+    setLyricsSaving(true)
+    try {
+      const sections = parseLyricsText(raw)
+      await updateCustomSong(choir.id, songId, { lyrics: sections } as Parameters<typeof updateCustomSong>[2])
+      setSong(prev => prev ? { ...prev, lyrics: sections } : prev)
+      setLyricsSaved(true)
+    } catch (err) {
+      console.error('Save lyrics error:', err)
+    } finally {
+      setLyricsSaving(false)
     }
   }
 
@@ -665,15 +697,44 @@ export function SongLibraryDetail() {
                   <ChevronExpand size={14} className={`transition-transform ${lyricsExpanded ? 'rotate-180' : ''}`} />
                   {lyricsExpanded ? 'Show less' : 'Show full lyrics'}
                 </button>
-                {lyricsUrl && (
-                  <a
-                    href={lyricsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2 flex items-center gap-1 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
-                  >
-                    <ExternalLink size={11} /> Full lyrics on Genius
-                  </a>
+                <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
+                  {lyricsUrl && (
+                    <a
+                      href={lyricsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
+                    >
+                      <ExternalLink size={11} /> Full lyrics on Genius
+                    </a>
+                  )}
+                  {lyricsData?.source && lyricsData.source !== 'none' && (
+                    <span className="text-xs text-harmonic-muted">
+                      via {lyricsData.source === 'ccli' ? 'CCLI SongSelect'
+                        : lyricsData.source === 'musixmatch' ? 'Musixmatch'
+                        : lyricsData.source === 'lyrics.ovh' ? 'lyrics.ovh'
+                        : 'cache'}
+                    </span>
+                  )}
+                </div>
+                {/* Director: save raw lyrics to song document */}
+                {isDirector && song.isCustom && (
+                  <div className="mt-3">
+                    {lyricsSaved ? (
+                      <span className="flex items-center gap-1.5 text-xs text-harmonic-success font-medium">
+                        <Check size={13} /> Lyrics saved to song
+                      </span>
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        onClick={handleSaveLyricsToSong}
+                        disabled={lyricsSaving}
+                      >
+                        <Save size={15} />
+                        {lyricsSaving ? 'Saving…' : 'Save lyrics to song'}
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
             ) : song.rights?.status === 'ccli_required' || song.rights?.status === 'unlicensed' ? (
@@ -740,8 +801,17 @@ export function SongLibraryDetail() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-2">
-                <p className="text-sm text-harmonic-muted mb-3">Lyrics not available in-app for this song.</p>
+              <div className="space-y-3">
+                <p className="text-sm text-harmonic-muted">Lyrics not available in-app for this song.</p>
+                <LyricsAutoFetch
+                  title={song.title}
+                  artist={song.artist}
+                  enabled={isDirector}
+                  onFetched={(rawLyrics) => {
+                    setLyricsData({ lyrics: rawLyrics, source: 'none' })
+                    setLyricsLoading(false)
+                  }}
+                />
                 {lyricsUrl && (
                   <a href={lyricsUrl} target="_blank" rel="noopener noreferrer">
                     <Button variant="outlined" fullWidth>
