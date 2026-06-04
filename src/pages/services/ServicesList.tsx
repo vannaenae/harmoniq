@@ -89,8 +89,8 @@ export function ServicesList() {
               className={cn(
                 'px-4 py-2 rounded-pill text-sm font-medium transition-colors min-h-[40px]',
                 filter === f.id
-                  ? 'bg-harmonic-neutral text-white'
-                  : 'bg-harmonic-surface text-harmonic-muted hover:text-harmonic-text',
+                  ? 'bg-harmonic-primary text-white'
+                  : 'bg-harmonic-surface text-harmonic-muted hover:text-harmonic-text hover:bg-harmonic-surface',
               )}
             >
               {f.label}
@@ -128,7 +128,7 @@ export function ServicesList() {
             <div className="flex flex-col gap-3">
               {page.map(s => (
                 <Link key={s.id} to={isDirector ? `/services/${s.id}/setlist` : `/services/${s.id}`}>
-                  <Card className="p-4 flex items-center gap-4 hover:shadow-card-hover transition-shadow">
+                  <Card className="p-4 flex items-center gap-4 hover:bg-harmonic-surface/50 transition-colors">
                     <span className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center flex-shrink-0">
                       <CalendarDays size={18} className="text-harmonic-primary" aria-hidden="true" />
                     </span>

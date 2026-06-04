@@ -14,7 +14,7 @@ const variantClasses: Record<Variant, string> = {
   primary:   'bg-harmonic-primary text-white hover:opacity-90',
   secondary: 'bg-harmonic-surface text-harmonic-text hover:opacity-90',
   inverted:  'bg-harmonic-neutral text-white hover:opacity-90',
-  outlined:  'bg-transparent border border-harmonic-border text-harmonic-text hover:bg-harmonic-surface',
+  outlined:  'bg-transparent border border-harmonic-primary text-harmonic-primary hover:bg-harmonic-primary/10',
   danger:    'bg-harmonic-danger text-white hover:opacity-90',
 }
 

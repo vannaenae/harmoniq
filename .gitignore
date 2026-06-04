@@ -39,3 +39,4 @@ expo-env.d.ts
 
 # claude specific files
 .claude/
+.vercel

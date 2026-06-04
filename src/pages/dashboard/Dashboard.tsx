@@ -124,8 +124,8 @@ export function Dashboard() {
       <div className="px-6 py-8 max-w-3xl mx-auto md:px-8">
         {/* Greeting */}
         <header className="mb-8">
-          <h1 className="text-2xl font-bold text-harmonic-text">Hey, {name.split(' ')[0]} 👋</h1>
-          <p className="text-harmonic-muted text-sm mt-0.5">
+          <h1 className="text-2xl font-bold font-cormorant text-harmonic-text">Hey, {name.split(' ')[0]}</h1>
+          <p className="text-harmonic-muted text-sm font-crimson mt-0.5">
             {isDirector
               ? "Here's what's happening with your choir."
               : "Here's what's coming up for your choir."}
@@ -136,7 +136,7 @@ export function Dashboard() {
         <section aria-labelledby="next-service-heading" className="mb-6">
           <h2
             id="next-service-heading"
-            className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3"
+            className="text-xs font-semibold font-cormorant text-harmonic-muted uppercase tracking-widest mb-3"
           >
             Next service
           </h2>
@@ -174,7 +174,7 @@ export function Dashboard() {
           <section aria-labelledby="quick-actions-heading" className="mb-6">
             <h2
               id="quick-actions-heading"
-              className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3"
+              className="text-xs font-semibold font-cormorant text-harmonic-muted uppercase tracking-widest mb-3"
             >
               Quick actions
             </h2>
@@ -188,7 +188,7 @@ export function Dashboard() {
                   key={to}
                   to={to}
                   aria-label={label}
-                  className="flex flex-col items-center gap-2 p-4 bg-white rounded-card shadow-card hover:shadow-card-hover transition-shadow text-center min-h-[44px]"
+                  className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-harmonic-border hover:bg-harmonic-surface/50 transition-colors text-center min-h-[44px]"
                 >
                   <span className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center">
                     <Icon size={18} className="text-harmonic-primary" aria-hidden="true" />
@@ -205,14 +205,14 @@ export function Dashboard() {
           <section aria-labelledby="sotw-heading" className="mb-6">
             <h2
               id="sotw-heading"
-              className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3"
+              className="text-xs font-semibold font-cormorant text-harmonic-muted uppercase tracking-widest mb-3"
             >
               Featured song
             </h2>
             <Link to="/library">
-              <Card className="p-4 flex items-center gap-4 hover:shadow-card-hover transition-shadow">
+              <Card className="p-4 flex items-center gap-4 hover:bg-harmonic-surface/50 transition-colors">
                 <span
-                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-featured-song-gradient"
+                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-harmonic-primary"
                   aria-hidden="true"
                 >
                   <Sparkles size={20} className="text-white" />
@@ -233,7 +233,7 @@ export function Dashboard() {
           <div className="flex items-center justify-between mb-3">
             <h2
               id="upcoming-heading"
-              className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest"
+              className="text-xs font-semibold font-cormorant text-harmonic-muted uppercase tracking-widest"
             >
               Upcoming services
             </h2>
@@ -254,7 +254,7 @@ export function Dashboard() {
             <div className="flex flex-col gap-3">
               {upcoming.map(s => (
                 <Link key={s.id} to={isDirector ? `/services/${s.id}/setlist` : `/services/${s.id}`}>
-                  <Card className="p-4 flex items-center gap-4 hover:shadow-card-hover transition-shadow">
+                  <Card className="p-4 flex items-center gap-4 hover:bg-harmonic-surface/50 transition-colors">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm text-harmonic-text truncate">{s.title}</p>
                       <p className="text-harmonic-muted text-xs mt-0.5">{formatDate(s.date)}</p>
@@ -281,7 +281,7 @@ export function Dashboard() {
           <div className="flex items-center justify-between mb-3">
             <h2
               id="activity-heading"
-              className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest"
+              className="text-xs font-semibold font-cormorant text-harmonic-muted uppercase tracking-widest"
             >
               {isDirector ? 'Recent activity' : 'Latest announcements'}
             </h2>
@@ -299,7 +299,7 @@ export function Dashboard() {
             <div className="flex flex-col gap-3">
               {announcements.map(a => (
                 <Link key={a.id} to="/announcements">
-                  <Card className="p-4 hover:shadow-card-hover transition-shadow">
+                  <Card className="p-4 hover:bg-harmonic-surface/50 transition-colors">
                     <div className="flex items-start gap-3">
                       <span className="w-8 h-8 rounded-full bg-harmonic-surface flex items-center justify-center flex-shrink-0">
                         <Megaphone size={14} className="text-harmonic-primary" aria-hidden="true" />
@@ -339,7 +339,7 @@ function NextServiceCard({ service, isDirector, availabilityCounts }: {
     <Card className="p-5">
       <div className="flex items-start gap-4">
         <span
-          className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-featured-song-gradient"
+          className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-harmonic-primary"
           aria-hidden="true"
         >
           <CalendarDays size={22} className="text-white" />

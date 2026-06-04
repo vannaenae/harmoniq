@@ -22,8 +22,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'bg-harmonic-surface rounded-pill px-4 py-2.5 text-sm',
-            'outline-none border border-transparent',
+            'bg-white rounded-xl px-4 py-2.5 text-sm font-crimson',
+            'outline-none border border-harmonic-border',
             'focus:border-harmonic-primary transition-colors',
             'placeholder:text-harmonic-muted',
             'min-h-[44px]',

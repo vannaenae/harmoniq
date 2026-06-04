@@ -287,7 +287,7 @@ export function SongLibrary() {
             {/* ── Your library ─────────────────────────────────── */}
             <section>
               {isSearching && (
-                <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3">
+                <p className="text-xs font-semibold font-cormorant text-harmonic-muted uppercase tracking-widest mb-3">
                   Your library
                 </p>
               )}
@@ -295,7 +295,7 @@ export function SongLibrary() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {page.map(song => (
                     <Link key={song.id} to={`/library/${song.id}`}>
-                      <Card className="p-3 flex items-center gap-3 hover:shadow-card transition-shadow">
+                      <Card className="p-3 flex items-center gap-3 hover:bg-harmonic-surface/50 transition-colors">
                         <AlbumArt src={song.albumArtUrl} alt={`${song.title} artwork`} className="w-14 h-14 rounded-xl flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm text-harmonic-text truncate">{song.title}</p>
@@ -344,7 +344,7 @@ export function SongLibrary() {
               <section>
                 <div className="flex items-center gap-2 mb-3">
                   <Music2 size={14} className="text-[#FA243C]" />
-                  <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Apple Music</p>
+                  <p className="text-xs font-semibold font-cormorant text-harmonic-muted uppercase tracking-widest">Apple Music</p>
                 </div>
 
                 {itunesLoading ? (
@@ -422,7 +422,7 @@ export function SongLibrary() {
               <section>
                 <div className="flex items-center gap-2 mb-3">
                   <Youtube size={14} className="text-[#FF0000]" />
-                  <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">YouTube</p>
+                  <p className="text-xs font-semibold font-cormorant text-harmonic-muted uppercase tracking-widest">YouTube</p>
                 </div>
 
                 {youtubeLoading ? (
@@ -439,7 +439,7 @@ export function SongLibrary() {
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        <Card className="p-3 flex items-center gap-3 hover:shadow-card transition-shadow">
+                        <Card className="p-3 flex items-center gap-3 hover:bg-harmonic-surface/50 transition-colors">
                           {video.thumbnailUrl ? (
                             <img
                               src={video.thumbnailUrl}

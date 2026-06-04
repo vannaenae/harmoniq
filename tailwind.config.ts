@@ -10,6 +10,8 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
+        cormorant: ['Cormorant Garamond', 'serif'],
+        crimson: ['Crimson Pro', 'serif'],
       },
       colors: {
         harmonic: {
