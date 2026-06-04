@@ -33,19 +33,11 @@ import {
 import { LyricsAutoFetch } from '@/components/LyricsAutoFetch'
 import { useAudioPlayerStore } from '@/store/audioPlayerStore'
 import { listServices, getSetList, saveSetList } from '@/lib/firestore'
-import { semitoneDelta, inferPreference } from '@/lib/transpose'
+import { semitoneDelta, inferPreference, transposeChord } from '@/lib/transpose'
 import type { Song, Service, Language, LyricSection } from '@/types'
 
 // ── Key / chord utilities ─────────────────────────────────────────────────────
 const CHROMATIC = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
-const KEY_CHORDS: Record<string, [string, string, string, string]> = {
-  'C':  ['C',  'F',  'G',  'Am'], 'C#': ['C#', 'F#', 'G#', 'A#m'],
-  'D':  ['D',  'G',  'A',  'Bm'], 'Eb': ['Eb', 'Ab', 'Bb', 'Cm'],
-  'E':  ['E',  'A',  'B',  'C#m'], 'F': ['F',  'Bb', 'C',  'Dm'],
-  'F#': ['F#', 'B',  'C#', 'D#m'], 'G': ['G',  'C',  'D',  'Em'],
-  'Ab': ['Ab', 'Db', 'Eb', 'Fm'], 'A':  ['A',  'D',  'E',  'F#m'],
-  'Bb': ['Bb', 'Eb', 'F',  'Gm'], 'B':  ['B',  'E',  'F#', 'G#m'],
-}
 
 function toChromaticKey(k: string): string {
   return ({ Db: 'C#', 'D#': 'Eb', Gb: 'F#', 'G#': 'Ab', 'A#': 'Bb' } as Record<string, string>)[k] ?? k
@@ -232,7 +224,29 @@ export function SongLibraryDetail() {
   const artUrl   = spotify?.albumArtUrl ?? song?.albumArtUrl ?? null
   const lyricsUrl = genius?.url ?? song?.geniusUrl ?? song?.lyricsUrl ?? null
   const lyrics   = lyricsData?.lyrics ?? null
-  const chords   = KEY_CHORDS[selectedKey] ?? null
+  // Extract unique chords from the song's actual lyric sections
+  const songChords: string[] | null = (() => {
+    const sections = song?.lyrics ?? []
+    const seen = new Set<string>()
+    const unique: string[] = []
+    for (const section of sections) {
+      for (const line of section.chordsAboveLines ?? []) {
+        // Extract individual chord tokens from the chord line
+        const tokens = line.trim().split(/\s+/).filter(Boolean)
+        for (const token of tokens) {
+          if (/^[A-G]/.test(token) && !seen.has(token)) {
+            seen.add(token)
+            unique.push(token)
+          }
+        }
+      }
+    }
+    return unique.length > 0 ? unique : null
+  })()
+  // Transpose extracted chords to the selected key
+  const chords = songChords
+    ? songChords.map(c => transposeChord(c, transposeDelta, inferPreference(selectedKey)))
+    : null
   const songQuery = encodeURIComponent(`${song?.title ?? ''} ${song?.artist ?? ''}`.trim())
 
   // YouTube video IDs from media links
@@ -948,15 +962,16 @@ export function SongLibraryDetail() {
               </button>
             )}
 
-            {chords && (
-              <div className="grid grid-cols-4 gap-2">
-                {(['I', 'IV', 'V', 'vi'] as const).map((numeral, i) => (
-                  <div key={numeral} className="flex flex-col items-center bg-harmonic-surface rounded-xl py-3">
-                    <p className="text-[10px] font-semibold text-harmonic-muted uppercase tracking-widest">{numeral}</p>
-                    <p className="text-sm font-bold text-harmonic-text mt-0.5">{chords[i]}</p>
+            {chords ? (
+              <div className="flex flex-wrap gap-2">
+                {chords.map((chord, i) => (
+                  <div key={i} className="flex items-center justify-center bg-harmonic-surface rounded-xl px-3 py-2 min-w-[3rem]">
+                    <p className="text-sm font-bold text-harmonic-text">{chord}</p>
                   </div>
                 ))}
               </div>
+            ) : (
+              <p className="text-sm text-harmonic-muted italic">No chord data</p>
             )}
 
             {/* Chromatic key selector — hidden for members when locked */}
