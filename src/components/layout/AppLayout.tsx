@@ -2,7 +2,9 @@ import { type ReactNode } from 'react'
 import { WifiOff } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { BottomNav } from './BottomNav'
+import { PersistentAudioPlayer } from '@/components/PersistentAudioPlayer'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
+import { useAudioPlayerStore } from '@/store/audioPlayerStore'
 
 interface AppLayoutProps {
   children: ReactNode
@@ -11,6 +13,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, hidePadding }: AppLayoutProps) {
   const online = useOnlineStatus()
+  const playerActive = useAudioPlayerStore(s => s.track !== null)
 
   return (
     <div className="min-h-screen bg-harmonic-background">
@@ -25,7 +28,7 @@ export function AppLayout({ children, hidePadding }: AppLayoutProps) {
       <Sidebar />
 
       <main
-        className={`md:ml-64 ${hidePadding ? '' : 'pb-20 md:pb-0'} min-h-screen`}
+        className={`md:ml-64 ${hidePadding ? '' : playerActive ? 'pb-36 md:pb-14' : 'pb-20 md:pb-0'} min-h-screen`}
         id="main-content"
       >
         {/* Offline banner */}
@@ -41,6 +44,7 @@ export function AppLayout({ children, hidePadding }: AppLayoutProps) {
         {children}
       </main>
 
+      <PersistentAudioPlayer />
       <BottomNav />
     </div>
   )

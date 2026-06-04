@@ -4,7 +4,7 @@ import {
   ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Save,
   Music2, Youtube, ExternalLink, ChevronDown as ChevronExpand,
   Sparkles, Pencil, Trash2, RotateCcw, Lock, Unlock, Archive, ArchiveRestore, FileCheck2,
-  Languages, BookOpen,
+  Languages, BookOpen, Play, Pause,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
@@ -31,6 +31,7 @@ import {
   type SpotifyData, type GeniusData, type AutoLyricsResult, type SongContextData,
 } from '@/lib/integrations'
 import { LyricsAutoFetch } from '@/components/LyricsAutoFetch'
+import { useAudioPlayerStore } from '@/store/audioPlayerStore'
 import { listServices, getSetList, saveSetList } from '@/lib/firestore'
 import { semitoneDelta, inferPreference } from '@/lib/transpose'
 import { LANGUAGE_NAMES, SUPPORTED_TRANSLATION_LANGUAGES } from '@/lib/translations'
@@ -65,6 +66,7 @@ export function SongLibraryDetail() {
   const navigate = useNavigate()
   const { firebaseUser } = useAuth()
   const { choir, isDirector } = useChoir()
+  const { track: playerTrack, playing: playerPlaying, playTrack, setPlaying: setPlayerPlaying } = useAudioPlayerStore()
 
   const [song,    setSong]    = useState<Song | null>(null)
   const [loading, setLoading] = useState(true)
@@ -438,6 +440,36 @@ export function SongLibraryDetail() {
                     className="rounded-2xl shadow-card"
                   />
                 </div>
+              )}
+
+              {/* Spotify 30s preview — in-app player button */}
+              {spotify?.previewUrl && (
+                <button
+                  onClick={() => {
+                    const previewUrl = spotify.previewUrl!
+                    if (playerTrack?.url === previewUrl) {
+                      setPlayerPlaying(!playerPlaying)
+                    } else {
+                      playTrack({
+                        url: previewUrl,
+                        title: song.title,
+                        artist: spotify.artistName ?? song.artist ?? '',
+                        source: 'spotify_preview',
+                        artUrl,
+                      })
+                    }
+                  }}
+                  className="flex items-center gap-2 w-full px-4 py-3 rounded-2xl bg-[#1DB954]/10 hover:bg-[#1DB954]/20 transition-colors text-sm font-medium text-harmonic-text"
+                  aria-label={playerTrack?.url === spotify.previewUrl && playerPlaying ? 'Pause 30s preview' : 'Play 30s Spotify preview'}
+                >
+                  <span className="w-8 h-8 rounded-full bg-[#1DB954] flex items-center justify-center text-white flex-shrink-0">
+                    {playerTrack?.url === spotify.previewUrl && playerPlaying
+                      ? <Pause size={14} />
+                      : <Play size={14} className="ml-0.5" />}
+                  </span>
+                  <span className="flex-1 text-left">Play 30s preview in app</span>
+                  <Music2 size={14} className="text-[#1DB954] flex-shrink-0" />
+                </button>
               )}
 
               {/* YouTube embed */}
@@ -875,7 +907,12 @@ export function SongLibraryDetail() {
           {song.satbParts && song.satbParts.length > 0 && (
             <Card className="p-5 space-y-3">
               <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Practice audio</p>
-              <SatbAudioPlayer parts={song.satbParts} />
+              <SatbAudioPlayer
+                parts={song.satbParts}
+                songTitle={song.title}
+                artist={spotify?.artistName ?? song.artist}
+                artUrl={artUrl}
+              />
             </Card>
           )}
 
