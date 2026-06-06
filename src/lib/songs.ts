@@ -143,11 +143,11 @@ export async function deleteCustomSong(choirId: string, songId: string): Promise
   await deleteDoc(doc(db, 'choirs', choirId, 'songs', songId))
 }
 
-/** Persist resolved Spotify/Genius data back onto a custom song to avoid repeat calls. */
+/** Persist resolved Spotify/Apple Music/Genius data back onto a custom song to avoid repeat calls. */
 export async function cacheSongMedia(
   choirId: string,
   songId: string,
-  media: { spotifyTrackId?: string | null; albumArtUrl?: string | null; geniusUrl?: string | null },
+  media: { spotifyTrackId?: string | null; albumArtUrl?: string | null; geniusUrl?: string | null; appleMusicUrl?: string | null },
 ): Promise<void> {
   if (!songId.startsWith('custom-')) return // global/seed songs are read-only from client
   await setDoc(

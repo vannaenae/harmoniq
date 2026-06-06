@@ -4,7 +4,7 @@ import {
   ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Save,
   Music2, Youtube, ExternalLink, ChevronDown as ChevronExpand,
   Sparkles, Pencil, Trash2, RotateCcw, Lock, Unlock, Archive, ArchiveRestore, FileCheck2,
-  BookOpen, Play, Pause,
+  BookOpen, Play, Pause, RefreshCw,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
@@ -26,7 +26,7 @@ import { useChoir } from '@/contexts/ChoirContext'
 import { getSong, getPracticeNotes, savePracticeNotes, updateCustomSong, deleteCustomSong, subscribeSongOverride, saveSongOverride, cacheSongMedia, ALL_KEYS, GENRES } from '@/lib/songs'
 import type { SongOverride } from '@/types'
 import {
-  fetchSpotify, fetchGenius, fetchAutoLyrics, fetchSongContext,
+  fetchSpotify, fetchGenius, fetchAutoLyrics, fetchSongContext, fetchItunesResults,
   spotifyEmbedUrl, youtubeEmbedUrl,
   type SpotifyData, type GeniusData, type AutoLyricsResult, type SongContextData,
 } from '@/lib/integrations'
@@ -59,10 +59,12 @@ export function SongLibraryDetail() {
   const { choir, isDirector } = useChoir()
   const { track: playerTrack, playing: playerPlaying, playTrack, setPlaying: setPlayerPlaying } = useAudioPlayerStore()
 
-  const [song,    setSong]    = useState<Song | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [spotify, setSpotify] = useState<SpotifyData | null>(null)
-  const [genius,  setGenius]  = useState<GeniusData | null>(null)
+  const [song,      setSong]      = useState<Song | null>(null)
+  const [loading,   setLoading]   = useState(true)
+  const [spotify,   setSpotify]   = useState<SpotifyData | null>(null)
+  const [genius,    setGenius]    = useState<GeniusData | null>(null)
+  const [itunesUrl, setItunesUrl] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
   const [lyricsData,  setLyricsData]  = useState<AutoLyricsResult | null>(null)
   const [lyricsSaving, setLyricsSaving] = useState(false)
   const [lyricsSaved,  setLyricsSaved]  = useState(false)
@@ -118,24 +120,26 @@ export function SongLibraryDetail() {
       setLoading(false)
 
       // Fire all enrichment in parallel — each settles independently
-      const [sp, ge, ly, ctx] = await Promise.allSettled([
+      const [sp, ge, ly, ctx, it] = await Promise.allSettled([
         fetchSpotify(s.title, s.artist),
         fetchGenius(s.title, s.artist),
         fetchAutoLyrics(s.title, s.artist),
         fetchSongContext(s.title, s.artist),
+        fetchItunesResults(`${s.title} ${s.artist ?? ''}`.trim()),
       ])
 
       if (!active) return
+      const resolvedItunesUrl = it.status === 'fulfilled' ? (it.value[0]?.externalUrl ?? null) : null
+      if (resolvedItunesUrl) setItunesUrl(resolvedItunesUrl)
+
       if (sp.status === 'fulfilled') {
         setSpotify(sp.value)
-        // Lazy-persist album art URL for custom songs that don't have it yet
-        if (
-          sp.value?.albumArtUrl &&
-          !s.albumArtUrl &&
-          s.id.startsWith('custom-') &&
-          s.choirId
-        ) {
-          cacheSongMedia(s.choirId, s.id, { albumArtUrl: sp.value.albumArtUrl }).catch(() => {})
+        // Lazy-persist album art URL + Apple Music URL for custom songs missing them
+        if (s.id.startsWith('custom-') && s.choirId) {
+          const patch: Parameters<typeof cacheSongMedia>[2] = {}
+          if (sp.value?.albumArtUrl && !s.albumArtUrl) patch.albumArtUrl = sp.value.albumArtUrl
+          if (resolvedItunesUrl && !s.media?.appleMusicUrl) patch.appleMusicUrl = resolvedItunesUrl
+          if (Object.keys(patch).length > 0) cacheSongMedia(s.choirId, s.id, patch).catch(() => {})
         }
       }
       setMediaLoading(false)
@@ -231,9 +235,10 @@ export function SongLibraryDetail() {
 
   const keyIsLocked = override?.keyLocked ?? false
 
-  const trackId  = spotify?.trackId  ?? song?.media?.spotifyTrackId ?? song?.spotifyTrackId ?? null
-  const artUrl   = spotify?.albumArtUrl ?? song?.albumArtUrl ?? null
-  const lyricsUrl = genius?.url ?? song?.geniusUrl ?? song?.lyricsUrl ?? null
+  const trackId       = spotify?.trackId  ?? song?.media?.spotifyTrackId ?? song?.spotifyTrackId ?? null
+  const artUrl        = spotify?.albumArtUrl ?? song?.albumArtUrl ?? null
+  const lyricsUrl     = genius?.url ?? song?.geniusUrl ?? song?.lyricsUrl ?? null
+  const appleMusicUrl = itunesUrl ?? song?.media?.appleMusicUrl ?? null
   const lyrics   = lyricsData?.lyrics ?? null
   // Extract unique chords from the song's actual lyric sections
   const songChords: string[] | null = (() => {
@@ -338,6 +343,30 @@ export function SongLibraryDetail() {
       console.error('Save lyrics error:', err)
     } finally {
       setLyricsSaving(false)
+    }
+  }
+
+  const handleRefreshMetadata = async () => {
+    if (!song || !choir || refreshing) return
+    setRefreshing(true)
+    try {
+      const [sp, it] = await Promise.allSettled([
+        fetchSpotify(song.title, song.artist),
+        fetchItunesResults(`${song.title} ${song.artist ?? ''}`.trim()),
+      ])
+      if (sp.status === 'fulfilled' && sp.value) setSpotify(sp.value)
+      const freshItunesUrl = it.status === 'fulfilled' ? (it.value[0]?.externalUrl ?? null) : null
+      if (freshItunesUrl) setItunesUrl(freshItunesUrl)
+      // Persist for custom songs
+      if (song.id.startsWith('custom-')) {
+        const patch: Parameters<typeof cacheSongMedia>[2] = {}
+        if (sp.status === 'fulfilled' && sp.value?.albumArtUrl) patch.albumArtUrl = sp.value.albumArtUrl
+        if (sp.status === 'fulfilled' && sp.value?.trackId) patch.spotifyTrackId = sp.value.trackId
+        if (freshItunesUrl) patch.appleMusicUrl = freshItunesUrl
+        if (Object.keys(patch).length > 0) await cacheSongMedia(choir.id, song.id, patch).catch(() => {})
+      }
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -538,7 +567,7 @@ export function SongLibraryDetail() {
               )}
 
               {/* Links row */}
-              <div className="flex items-center justify-center gap-4 pt-1">
+              <div className="flex items-center justify-center flex-wrap gap-x-4 gap-y-1 pt-1">
                 {trackId && (
                   <a
                     href={`https://open.spotify.com/track/${trackId}`}
@@ -548,7 +577,15 @@ export function SongLibraryDetail() {
                     <Music2 size={12} className="text-[#1DB954]" /> Open in Spotify
                   </a>
                 )}
-                {trackId && activeYtId && <span className="text-harmonic-border">·</span>}
+                {appleMusicUrl && (
+                  <a
+                    href={appleMusicUrl}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
+                  >
+                    <Music2 size={12} className="text-[#FC3C44]" /> Open in Apple Music
+                  </a>
+                )}
                 {activeYtId ? (
                   <a
                     href={`https://www.youtube.com/watch?v=${activeYtId}`}
@@ -637,6 +674,15 @@ export function SongLibraryDetail() {
                   </Button>
                 </div>
               )}
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={handleRefreshMetadata}
+                disabled={refreshing}
+              >
+                <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+                {refreshing ? 'Refreshing…' : 'Refresh metadata'}
+              </Button>
             </div>
           )}
 
