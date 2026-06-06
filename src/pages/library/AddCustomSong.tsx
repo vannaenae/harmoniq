@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { FileText, Upload, X, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
+import { FileText, Upload, X, ChevronDown, ChevronUp } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -14,15 +14,7 @@ import { storage } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
 import { addCustomSong, GENRES, ALL_KEYS } from '@/lib/songs'
-import type { SongGenre, RightsStatus } from '@/types'
-
-const RIGHTS_OPTIONS: { value: RightsStatus; label: string }[] = [
-  { value: 'unknown', label: 'Rights unknown' },
-  { value: 'public_domain', label: 'Public domain' },
-  { value: 'ccli_required', label: 'CCLI required' },
-  { value: 'royalty_free', label: 'Royalty free' },
-  { value: 'unlicensed', label: 'Unlicensed' },
-]
+import type { SongGenre } from '@/types'
 
 const SATB_VOICES = ['soprano', 'alto', 'tenor', 'bass'] as const
 
@@ -47,16 +39,6 @@ export function AddCustomSong() {
   const [leadSheetUrl, setLeadSheetUrl] = useState<string | undefined>()
   const [satbUrls, setSatbUrls] = useState<Record<string, string>>({})
   const [showSatb, setShowSatb] = useState(false)
-
-  // Rights / licensing
-  const [rightsStatus, setRightsStatus] = useState<RightsStatus>('unknown')
-  const [publisher, setPublisher] = useState('')
-  const [ccliNumber, setCcliNumber] = useState('')
-
-  const choirHasAttestedCcli = Boolean(
-    choir?.licensing?.attested && choir.licensing.ccliNumber?.trim(),
-  )
-  const uploadsBlocked = rightsStatus === 'ccli_required' && !choirHasAttestedCcli
 
   // We need a temp songId for storage paths before the song doc exists
   const [tempSongId] = useState(() => `custom-${Date.now()}`)
@@ -88,15 +70,10 @@ export function AddCustomSong() {
         genre,
         lyricsUrl: lyricsUrl.trim() || undefined,
         notes: notes.trim() || undefined,
-        sheetMusicUrl: uploadsBlocked ? undefined : sheetMusicUrl,
-        chordChartUrl: uploadsBlocked ? undefined : chordChartUrl,
-        leadSheetUrl: uploadsBlocked ? undefined : leadSheetUrl,
-        satbParts: uploadsBlocked ? undefined : satbParts,
-        rights: {
-          status: rightsStatus,
-          publisher: publisher.trim() || undefined,
-          ccliNumber: ccliNumber.trim() || undefined,
-        },
+        sheetMusicUrl,
+        chordChartUrl,
+        leadSheetUrl,
+        satbParts,
       })
       // Navigate to song detail so director can immediately fetch/add lyrics
       navigate(`/library/${songId}`)
@@ -132,38 +109,8 @@ export function AddCustomSong() {
           <Input label="Lyrics URL (optional)" placeholder="https://genius.com/…" value={lyricsUrl} onChange={e => setLyricsUrl(e.target.value)} />
           <Textarea label="Notes (optional)" placeholder="Arrangement notes, key changes, who usually leads…" value={notes} onChange={e => setNotes(e.target.value)} />
 
-          {/* Rights / licensing */}
-          <div className="grid grid-cols-1 gap-4">
-            <Select
-              label="Rights status"
-              value={rightsStatus}
-              onValueChange={v => setRightsStatus(v as RightsStatus)}
-              options={RIGHTS_OPTIONS}
-              placeholder="Rights"
-            />
-            {(rightsStatus === 'ccli_required' || rightsStatus === 'unlicensed') && (
-              <div className="grid grid-cols-2 gap-4">
-                <Input label="Publisher (optional)" placeholder="e.g. Capitol CMG" value={publisher} onChange={e => setPublisher(e.target.value)} />
-                <Input label="Song CCLI # (optional)" placeholder="e.g. 4779872" value={ccliNumber} onChange={e => setCcliNumber(e.target.value)} inputMode="numeric" />
-              </div>
-            )}
-            {uploadsBlocked && (
-              <div role="alert" className="flex items-start gap-3 p-4 rounded-card bg-harmonic-warning/5 border border-harmonic-warning/20">
-                <AlertTriangle size={18} className="text-harmonic-warning shrink-0 mt-0.5" aria-hidden="true" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-harmonic-text">Sheet music upload blocked</p>
-                  <p className="text-xs text-harmonic-muted mt-1">
-                    This song requires a CCLI licence. Hosting sheet music, lead sheets, or SATB audio is disabled until a
-                    director attests a CCLI licence in <span className="font-medium">Settings → Choir → Library licensing</span>.
-                    You can still save the song with a lyrics link-out.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Legacy chord chart PDF (keep for backwards compat) */}
-          <div className={`flex flex-col gap-1.5 ${uploadsBlocked ? 'opacity-50 pointer-events-none' : ''}`} aria-disabled={uploadsBlocked}>
+          <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-harmonic-text">Chord chart PDF (optional)</span>
             {pdf ? (
               <div className="flex items-center gap-3 bg-harmonic-surface rounded-2xl px-4 py-3">
@@ -186,7 +133,7 @@ export function AddCustomSong() {
           </div>
 
           {/* Additional sheet music uploads */}
-          {choir && !uploadsBlocked && (
+          {choir && (
             <>
               <SongMediaUpload
                 kind="sheet_music"

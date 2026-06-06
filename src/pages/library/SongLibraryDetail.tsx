@@ -3,14 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Save,
   Music2, Youtube, ExternalLink, ChevronDown as ChevronExpand,
-  Sparkles, Pencil, Trash2, RotateCcw, Lock, Unlock, Archive, ArchiveRestore, FileCheck2,
+  Sparkles, Pencil, Trash2, RotateCcw, Lock, Unlock, Archive, ArchiveRestore,
   BookOpen, Play, Pause, RefreshCw,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { RightsBadge } from '@/components/ui/RightsBadge'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -459,14 +458,6 @@ export function SongLibraryDetail() {
                     Custom
                   </span>
                 )}
-                {song.rights?.status && (
-                  <RightsBadge
-                    status={song.rights.status}
-                    publisher={song.rights.publisher}
-                    ccliNumber={song.rights.ccliNumber}
-                    className="!bg-white/15 !text-white backdrop-blur-sm"
-                  />
-                )}
               </div>
             </div>
           </div>
@@ -799,42 +790,6 @@ export function SongLibraryDetail() {
                       </Button>
                     )}
                   </div>
-                )}
-              </div>
-            ) : song.rights?.status === 'ccli_required' || song.rights?.status === 'unlicensed' ? (
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 p-4 rounded-card bg-harmonic-warning/5 border border-harmonic-warning/20">
-                  <FileCheck2 size={18} className="text-harmonic-warning shrink-0 mt-0.5" aria-hidden="true" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-harmonic-text">This song is under copyright</p>
-                    <p className="text-xs text-harmonic-muted mt-1">
-                      {song.rights.publisher
-                        ? `${song.rights.publisher} holds the rights to these lyrics.`
-                        : 'These lyrics are protected by copyright.'}
-                      {' '}View the full lyrics on SongSelect or Genius below.
-                    </p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <a
-                    href={`https://songselect.ccli.com/search/results?SearchBit=Name&SearchString=${encodeURIComponent(song.title)}`}
-                    target="_blank" rel="noopener noreferrer"
-                  >
-                    <Button variant="outlined" fullWidth>
-                      <FileCheck2 size={15} /> View on SongSelect
-                    </Button>
-                  </a>
-                  <a
-                    href={lyricsUrl ?? `https://genius.com/search?q=${songQuery}`}
-                    target="_blank" rel="noopener noreferrer"
-                  >
-                    <Button variant="outlined" fullWidth>
-                      <ExternalLink size={15} /> {lyricsUrl ? 'Open on Genius' : 'Search Genius'}
-                    </Button>
-                  </a>
-                </div>
-                {song.rights.ccliNumber && (
-                  <p className="text-xs text-harmonic-muted text-center">CCLI Song # {song.rights.ccliNumber}</p>
                 )}
               </div>
             ) : song.rights?.status === 'unknown' ? (

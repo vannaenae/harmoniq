@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { Check, Upload, Archive, UserCog, FileCheck2 } from 'lucide-react'
+import { Check, Upload, Archive, UserCog } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -11,7 +11,6 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
-import { Toggle } from '@/components/ui/Toggle'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { db, storage } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -37,11 +36,6 @@ export function ChoirSettings() {
   const [transferOpen, setTransferOpen] = useState(false)
   const [transferTo, setTransferTo] = useState('')
   const [working, setWorking] = useState(false)
-
-  const [ccliNumber, setCcliNumber] = useState(choir?.licensing?.ccliNumber ?? '')
-  const [attested, setAttested] = useState(choir?.licensing?.attested ?? false)
-  const [licensingSaving, setLicensingSaving] = useState(false)
-  const [licensingSaved, setLicensingSaved] = useState(false)
 
   if (!choir) return null
 
@@ -100,42 +94,7 @@ export function ChoirSettings() {
     } finally { setWorking(false) }
   }
 
-  const handleSaveLicensing = async () => {
-    if (!firebaseUser) return
-    setLicensingSaving(true)
-    setError(null)
-    try {
-      const trimmed = ccliNumber.trim()
-      await updateDoc(doc(db, 'choirs', choir.id), {
-        licensing: {
-          ccliNumber: trimmed || null,
-          attested,
-          attestedBy: attested ? firebaseUser.uid : null,
-          attestedAt: attested ? serverTimestamp() : null,
-        },
-        updatedAt: serverTimestamp(),
-      })
-      await refreshChoir()
-      setLicensingSaved(true)
-      setTimeout(() => setLicensingSaved(false), 2000)
-    } catch (err) {
-      console.error('Save licensing error:', err)
-      setError('Could not save licensing details. Please try again.')
-    } finally {
-      setLicensingSaving(false)
-    }
-  }
-
   const otherMembers = members.filter(m => m.uid !== choir.ownerId)
-  const licensingDirty =
-    (choir.licensing?.ccliNumber ?? '') !== ccliNumber.trim() ||
-    (choir.licensing?.attested ?? false) !== attested
-  const attestedAtDate =
-    choir.licensing?.attestedAt instanceof Date
-      ? choir.licensing.attestedAt
-      : choir.licensing?.attestedAt
-        ? new Date(choir.licensing.attestedAt as unknown as string)
-        : null
 
   return (
     <AppLayout>
@@ -176,51 +135,6 @@ export function ChoirSettings() {
             </Button>
           </div>
         </Card>
-
-        {/* Library licensing */}
-        <section className="mb-5">
-          <h3 className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3">Library licensing</h3>
-          <Card className="p-6 space-y-4">
-            <div className="flex items-start gap-3">
-              <FileCheck2 size={18} className="text-harmonic-primary shrink-0 mt-0.5" aria-hidden="true" />
-              <p className="text-xs text-harmonic-muted">
-                Record your CCLI licence so directors can attach copyrighted songs and lyrics to set lists. Songs marked
-                "CCLI required" will be visible to your choir once a licence is attested.
-              </p>
-            </div>
-
-            <Input
-              label="CCLI licence number"
-              placeholder="e.g. 1234567"
-              value={ccliNumber}
-              onChange={e => setCcliNumber(e.target.value)}
-              inputMode="numeric"
-            />
-
-            <Toggle
-              checked={attested}
-              onCheckedChange={setAttested}
-              label="I attest this choir holds a current CCLI licence"
-              description="By toggling this on, you confirm responsibility for licence compliance."
-            />
-
-            {attestedAtDate && choir.licensing?.attested && (
-              <p className="text-xs text-harmonic-muted">
-                Last attested {attestedAtDate.toLocaleDateString()} at {attestedAtDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </p>
-            )}
-
-            <div className="flex justify-end">
-              <Button
-                variant="primary"
-                onClick={handleSaveLicensing}
-                disabled={!licensingDirty || licensingSaving}
-              >
-                {licensingSaved ? <><Check size={16} /> Saved</> : licensingSaving ? 'Saving…' : 'Save licensing'}
-              </Button>
-            </div>
-          </Card>
-        </section>
 
         {/* Members with roles */}
         <section className="mb-5">
