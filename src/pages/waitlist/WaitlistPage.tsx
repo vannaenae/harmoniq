@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { collection, addDoc, getCountFromServer, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { cn } from '@/lib/utils'
@@ -1029,6 +1030,14 @@ export function WaitlistPage() {
           <span className="font-black italic text-white text-base tracking-tight">Harmoniq</span>
           <p>Vocal excellence, coordinated.</p>
           <p>© {new Date().getFullYear()} Harmoniq. All rights reserved.</p>
+        </div>
+        <div className="max-w-5xl mx-auto mt-6 pt-4 border-t border-white/10 flex justify-center">
+          <Link
+            to="/sign-in"
+            className="text-white/25 text-xs hover:text-white/40 transition-colors"
+          >
+            Team login
+          </Link>
         </div>
       </footer>
     </div>
