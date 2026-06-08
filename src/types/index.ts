@@ -69,6 +69,7 @@ export interface ChoirMember {
   photoURL?: string
   role: UserRole
   voicePart: VoicePart
+  canLead?: boolean
   joinedAt: Date
 }
 

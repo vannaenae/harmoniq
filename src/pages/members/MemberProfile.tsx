@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Mail, Shield, Music2, Trash2 } from 'lucide-react'
+import { Mail, Shield, Music2, Trash2, Mic2 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -11,7 +11,7 @@ import { Modal } from '@/components/ui/Modal'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useChoir } from '@/contexts/ChoirContext'
-import { updateMemberRole, updateMemberVoicePart, removeMember } from '@/lib/members'
+import { updateMemberRole, updateMemberVoicePart, updateMemberCanLead, removeMember } from '@/lib/members'
 import { getMemberAttendanceHistory, type AttendanceHistoryEntry } from '@/lib/attendance'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { voicePartLabel } from '@/lib/utils'
@@ -79,6 +79,12 @@ export function MemberProfile() {
     try { await updateMemberVoicePart(choir.id, member.uid, part as VoicePart); await refreshMembers() }
     finally { setWorking(false) }
   }
+  const handleCanLead = async (value: boolean) => {
+    if (!choir) return
+    setWorking(true)
+    try { await updateMemberCanLead(choir.id, member.uid, value); await refreshMembers() }
+    finally { setWorking(false) }
+  }
   const handleRemove = async () => {
     if (!choir) return
     setWorking(true)
@@ -95,11 +101,12 @@ export function MemberProfile() {
         <Card className="p-6 flex flex-col items-center text-center mb-5">
           <Avatar src={member.photoURL} name={name} size="xl" className="mb-3" />
           <h2 className="text-lg font-bold text-harmonic-text">{name}</h2>
-          <div className="flex items-center gap-2 mt-1.5">
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap justify-center">
             <Badge tone="tertiary">{voicePartLabel[member.voicePart] ?? member.voicePart}</Badge>
             <Badge tone={member.role === 'director' ? 'primary' : 'muted'}>
               {member.role === 'director' ? 'Director' : 'Member'}
             </Badge>
+            {member.canLead && <Badge tone="success">Can lead</Badge>}
           </div>
           <a href={`mailto:${member.email}`} className="mt-4">
             <Button variant="outlined" size="sm" aria-label={`Email ${name}`}>
@@ -151,6 +158,33 @@ export function MemberProfile() {
                 <div className="flex-1">
                   <Select label="Voice part" value={member.voicePart} onValueChange={handlePart} options={PART_OPTIONS} />
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 py-1">
+                <div className="flex items-center gap-3">
+                  <Mic2 size={18} className="text-harmonic-muted flex-shrink-0" aria-hidden="true" />
+                  <div>
+                    <p className="text-sm font-medium text-harmonic-text">Can lead songs</p>
+                    <p className="text-xs text-harmonic-muted">Eligible to be assigned as lead vocalist in set lists</p>
+                  </div>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={member.canLead ?? false}
+                  aria-label="Toggle can lead"
+                  disabled={working}
+                  onClick={() => handleCanLead(!(member.canLead ?? false))}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-harmonic-primary focus:ring-offset-2 ${
+                    member.canLead ? 'bg-harmonic-primary' : 'bg-harmonic-border'
+                  } disabled:opacity-50`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                      member.canLead ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
               </div>
 
               <div className="pt-2 border-t border-harmonic-border">

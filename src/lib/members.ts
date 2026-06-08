@@ -35,6 +35,14 @@ export async function updateMemberVoicePart(
   await updateDoc(doc(db, 'users', uid), { voicePart, updatedAt: serverTimestamp() }).catch(() => {})
 }
 
+export async function updateMemberCanLead(
+  choirId: string,
+  uid: string,
+  canLead: boolean,
+): Promise<void> {
+  await updateDoc(doc(db, 'choirs', choirId, 'members', uid), { canLead })
+}
+
 export async function removeMember(choirId: string, uid: string): Promise<void> {
   await deleteDoc(doc(db, 'choirs', choirId, 'members', uid))
 }

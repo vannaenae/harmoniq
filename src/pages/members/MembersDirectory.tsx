@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, UserPlus, ChevronRight } from 'lucide-react'
+import { Search, UserPlus, ChevronRight, Mic2 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -152,6 +152,13 @@ export function MembersDirectory() {
                           {m.preferredName || m.displayName}
                         </p>
                         {m.role === 'director' && <Badge tone="primary">Director</Badge>}
+                        {m.canLead && (
+                          <Mic2
+                            size={13}
+                            className="text-harmonic-primary flex-shrink-0"
+                            aria-label="Can lead songs"
+                          />
+                        )}
                       </div>
                       <p className="text-xs text-harmonic-muted mt-0.5">
                         {voicePartLabel[m.voicePart] ?? m.voicePart}

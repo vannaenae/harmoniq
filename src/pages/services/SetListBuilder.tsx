@@ -75,9 +75,11 @@ export function SetListBuilder() {
     return unsub
   }, [choir])
 
-  const memberOptions = [
+  const leadOptions = [
     { value: '', label: 'Unassigned' },
-    ...members.map(m => ({ value: m.uid, label: m.preferredName || m.displayName })),
+    ...members
+      .filter(m => m.canLead)
+      .map(m => ({ value: m.uid, label: m.preferredName || m.displayName })),
   ]
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -220,7 +222,7 @@ export function SetListBuilder() {
                     key={item.songId}
                     item={item}
                     index={idx}
-                    memberOptions={memberOptions}
+                    memberOptions={leadOptions}
                     onUpdate={updateItem}
                     onRemove={removeItem}
                   />
