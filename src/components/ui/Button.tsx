@@ -1,7 +1,7 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
 
-type Variant = 'primary' | 'secondary' | 'inverted' | 'outlined' | 'danger' | 'gradient'
+type Variant = 'primary' | 'secondary' | 'inverted' | 'outlined' | 'danger' | 'gradient' | 'electric' | 'neon' | 'ghost'
 type Size = 'sm' | 'md' | 'lg'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -12,11 +12,14 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<Variant, string> = {
   primary:  'bg-gradient-brand text-white hover:brightness-110 hover:shadow-btn-glow',
-  secondary: 'bg-harmonic-surface text-harmonic-text hover:bg-harmonic-border/60',
+  secondary: 'bg-harmonic-surface text-harmonic-text hover:bg-harmonic-surfaceMid border border-harmonic-border/60',
   inverted:  'bg-harmonic-neutral text-white hover:opacity-90',
-  outlined:  'bg-transparent border-2 border-harmonic-primary text-harmonic-primary hover:bg-harmonic-primary hover:text-white',
+  outlined:  'bg-transparent border-2 border-harmonic-electric text-harmonic-electric hover:bg-harmonic-electric hover:text-white',
   danger:    'bg-harmonic-danger text-white hover:brightness-110',
   gradient:  'bg-gradient-brand-vivid text-white hover:brightness-110 hover:shadow-btn-glow',
+  electric:  'bg-gradient-electric text-white hover:brightness-110 hover:shadow-btn-electric',
+  neon:      'bg-gradient-neon text-white hover:brightness-110 hover:shadow-btn-neon',
+  ghost:     'bg-transparent text-harmonic-electric hover:bg-harmonic-electric/10 border border-harmonic-electric/30',
 }
 
 const sizeClasses: Record<Size, string> = {
@@ -33,7 +36,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled}
         className={cn(
           'inline-flex items-center justify-center gap-2 rounded-pill font-semibold tracking-tight transition-all duration-200',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-harmonic-primary',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-harmonic-electric',
           'active:scale-95',
           'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
           'min-h-[44px]',

@@ -89,8 +89,8 @@ export function ServicesList() {
               className={cn(
                 'px-4 py-2 rounded-pill text-sm font-semibold transition-all duration-200 min-h-[40px]',
                 filter === f.id
-                  ? 'bg-gradient-brand text-white shadow-nav-active'
-                  : 'bg-harmonic-surface text-harmonic-muted hover:text-harmonic-text hover:bg-harmonic-border/40',
+                  ? 'bg-gradient-electric text-white shadow-btn-electric'
+                  : 'bg-harmonic-surface text-harmonic-muted hover:text-harmonic-text hover:bg-harmonic-surfaceMid border border-harmonic-border/50',
               )}
             >
               {f.label}
@@ -129,11 +129,11 @@ export function ServicesList() {
               {page.map(s => (
                 <Link key={s.id} to={isDirector ? `/services/${s.id}/setlist` : `/services/${s.id}`}>
                   <Card className="p-4 flex items-center gap-4 group" hoverable>
-                    <span className="w-10 h-10 rounded-xl bg-gradient-card-accent border border-harmonic-primary/15 flex items-center justify-center flex-shrink-0">
-                      <CalendarDays size={17} className="text-harmonic-primary" aria-hidden="true" />
+                    <span className="w-10 h-10 rounded-xl bg-gradient-electric flex items-center justify-center flex-shrink-0 shadow-btn-electric">
+                      <CalendarDays size={17} className="text-white" aria-hidden="true" />
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-harmonic-text truncate group-hover:text-harmonic-primary transition-colors">{s.title}</p>
+                      <p className="font-bold text-sm text-harmonic-text truncate group-hover:text-harmonic-electric transition-colors">{s.title}</p>
                       <p className="text-harmonic-muted text-xs mt-0.5">
                         {formatDate(s.date)}{s.time ? ` · ${s.time}` : ''}
                       </p>
@@ -141,7 +141,7 @@ export function ServicesList() {
                     <Badge tone={serviceStatusMeta[s.status].tone}>
                       {serviceStatusMeta[s.status].label}
                     </Badge>
-                    <ChevronRight size={15} className="text-harmonic-muted group-hover:translate-x-0.5 group-hover:text-harmonic-primary transition-all flex-shrink-0" aria-hidden="true" />
+                    <ChevronRight size={15} className="text-harmonic-muted group-hover:translate-x-0.5 group-hover:text-harmonic-electric transition-all flex-shrink-0" aria-hidden="true" />
                   </Card>
                 </Link>
               ))}

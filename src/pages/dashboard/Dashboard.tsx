@@ -11,6 +11,9 @@ import {
   HelpCircle,
   X,
   BookOpen,
+  Zap,
+  TrendingUp,
+  ArrowRight,
 } from 'lucide-react'
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -32,12 +35,29 @@ type AvailabilityStatus = 'available' | 'not_sure' | 'unavailable' | null
 
 const availabilityDisplay: Record<
   NonNullable<AvailabilityStatus>,
-  { label: string; icon: typeof Check; className: string }
+  { label: string; icon: typeof Check; className: string; badgeTone: 'success' | 'warning' | 'danger' }
 > = {
-  available:   { label: "I'm in",     icon: Check,       className: 'text-harmonic-success' },
-  not_sure:    { label: "Not sure",   icon: HelpCircle,  className: 'text-harmonic-warning' },
-  unavailable: { label: "Can't make it", icon: X,        className: 'text-harmonic-danger'  },
+  available:   { label: "I'm in",        icon: Check,       className: 'text-harmonic-success', badgeTone: 'success' },
+  not_sure:    { label: "Not sure",      icon: HelpCircle,  className: 'text-harmonic-warning', badgeTone: 'warning' },
+  unavailable: { label: "Can't make it", icon: X,           className: 'text-harmonic-danger',  badgeTone: 'danger'  },
 }
+
+// Accent colors for bento grid stat tiles
+const STAT_ACCENTS = [
+  { bg: 'bg-gradient-electric',   shadow: 'shadow-btn-electric' },
+  { bg: 'bg-gradient-neon',       shadow: 'shadow-card-hot' },
+  { bg: 'bg-gradient-hot',        shadow: 'shadow-card-hot' },
+  { bg: 'bg-gradient-teal',       shadow: 'shadow-card-glow' },
+]
+
+// Per-song icon accent colors (cycling)
+const SONG_ICON_ACCENTS = [
+  'bg-gradient-electric',
+  'bg-gradient-neon',
+  'bg-gradient-hot',
+  'bg-gradient-teal',
+  'bg-gradient-aurora',
+]
 
 export function Dashboard() {
   const { harmonicUser, firebaseUser } = useAuth()
@@ -49,7 +69,6 @@ export function Dashboard() {
   const [availabilityCounts, setAvailabilityCounts] = useState<{
     confirmed: number; pending: number; unavailable: number
   } | null>(null)
-  // Member-specific state
   const [myNextServiceAvailability, setMyNextServiceAvailability] = useState<AvailabilityStatus>(null)
   const [nextServiceSongs, setNextServiceSongs] = useState<SetListItem[]>([])
   const [songsLoading, setSongsLoading] = useState(false)
@@ -69,7 +88,6 @@ export function Dashboard() {
     return unsub
   }, [choir])
 
-  // Real-time announcements (latest 3)
   useEffect(() => {
     if (!choir) { setAnnouncements([]); setAnnouncementsLoading(false); return }
     setAnnouncementsLoading(true)
@@ -96,7 +114,6 @@ export function Dashboard() {
     .slice(0, 3)
   const nextService = upcoming[0]
 
-  // Real-time availability counts for the next service (director view)
   useEffect(() => {
     if (!choir || !nextService) { setAvailabilityCounts(null); return }
     const unsub = onSnapshot(
@@ -121,7 +138,6 @@ export function Dashboard() {
     return unsub
   }, [choir, nextService?.id, members.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Member: load my availability for next service + songs to practice
   useEffect(() => {
     if (!choir || !nextService || !firebaseUser || isDirector) {
       setMyNextServiceAvailability(null)
@@ -142,7 +158,6 @@ export function Dashboard() {
     return () => { active = false }
   }, [choir, nextService?.id, firebaseUser, isDirector]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Member: load my availability for all upcoming services (to show inline status)
   useEffect(() => {
     if (!choir || !firebaseUser || isDirector || upcoming.length === 0) return
     let active = true
@@ -161,38 +176,77 @@ export function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="px-5 py-6 max-w-3xl mx-auto md:px-8">
-        {/* Greeting — gradient hero */}
-        <header className="mb-7 animate-fade-in-down">
-          <div className="relative rounded-2xl bg-gradient-hero px-5 py-5 overflow-hidden">
-            {/* Decorative orbs */}
-            <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-white/10 blur-xl" aria-hidden="true" />
-            <div className="absolute bottom-0 left-8 w-20 h-20 rounded-full bg-harmonic-magenta/20 blur-2xl" aria-hidden="true" />
-            <div className="relative">
-              <p className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1">
-                {isDirector ? 'Director' : 'Member'}
-              </p>
-              <h1 className="text-2xl font-bold font-cormorant text-white leading-tight">
+      <div className="px-4 py-5 max-w-3xl mx-auto md:px-8 md:py-8">
+
+        {/* ── Hero greeting ── */}
+        <header className="mb-6 animate-fade-in-down">
+          <div className="relative rounded-card-lg overflow-hidden bg-gradient-hero-vivid px-5 py-6" style={{ backgroundSize: '200% 200%' }}>
+            {/* Animated orbs */}
+            <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-harmonic-neon/25 blur-3xl animate-float" aria-hidden="true" />
+            <div className="absolute -bottom-6 -left-4 w-32 h-32 rounded-full bg-harmonic-hot/20 blur-2xl" style={{ animationDelay: '1s' }} aria-hidden="true" />
+            <div className="absolute top-1/2 right-1/4 w-20 h-20 rounded-full bg-harmonic-electric/20 blur-xl animate-float" style={{ animationDelay: '2s' }} aria-hidden="true" />
+
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill bg-white/15 border border-white/20 text-white/90 text-[10px] font-bold uppercase tracking-widest">
+                  <Zap size={10} className="text-harmonic-amber" />
+                  {isDirector ? 'Director' : 'Member'}
+                </span>
+              </div>
+              <h1 className="text-3xl font-bold font-cormorant text-white leading-tight tracking-tight">
                 Hey, {name.split(' ')[0]}
               </h1>
-              <p className="text-white/75 text-sm font-crimson mt-1">
+              <p className="text-white/65 text-sm mt-1.5 font-crimson">
                 {isDirector
-                  ? "Here's what's happening with your choir."
-                  : "Here's what you need to do this week."}
+                  ? "Here's the pulse of your choir."
+                  : "Here's what's on your plate this week."}
               </p>
             </div>
+
+            {/* Choir name tag */}
+            {choir && (
+              <div className="relative z-10 mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-pill bg-white/10 border border-white/15">
+                <span className="w-2 h-2 rounded-full bg-harmonic-amber animate-beat-pulse" aria-hidden="true" />
+                <span className="text-xs font-semibold text-white/80">{choir.name}</span>
+              </div>
+            )}
           </div>
         </header>
 
-        {/* Next service */}
+        {/* ── Director bento stats ── */}
+        {isDirector && !loading && (
+          <section aria-labelledby="stats-heading" className="mb-6 animate-fade-in-up">
+            <h2 id="stats-heading" className="sr-only">Choir stats</h2>
+            <div className="grid grid-cols-4 gap-2.5">
+              {[
+                { label: 'Members', value: members.length, icon: Users,       accent: STAT_ACCENTS[0] },
+                { label: 'Services', value: upcoming.length, icon: CalendarDays, accent: STAT_ACCENTS[1] },
+                { label: 'Confirmed', value: availabilityCounts?.confirmed ?? '-', icon: Check, accent: STAT_ACCENTS[2] },
+                { label: 'Songs',   value: nextServiceSongs.length || '—', icon: Music2, accent: STAT_ACCENTS[3] },
+              ].map(({ label, value, icon: Icon, accent }) => (
+                <div key={label} className={cn('rounded-xl p-3 text-white text-center flex flex-col items-center gap-1.5', accent.bg, accent.shadow)}>
+                  <Icon size={16} aria-hidden="true" className="opacity-90" />
+                  <span className="text-xl font-bold leading-none">{value}</span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider opacity-80">{label}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── Next service ── */}
         <section aria-labelledby="next-service-heading" className="mb-6 animate-fade-in-up delay-50">
-          <h2
-            id="next-service-heading"
-            className="text-[11px] font-bold text-harmonic-muted uppercase tracking-widest mb-3 flex items-center gap-2"
-          >
-            <span className="w-1 h-3 rounded-full bg-gradient-brand inline-block" aria-hidden="true" />
-            Next service
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 id="next-service-heading" className="eyebrow flex items-center gap-2">
+              <span className="w-1.5 h-4 rounded-full bg-gradient-electric inline-block" aria-hidden="true" />
+              Next service
+            </h2>
+            {nextService && (
+              <Link to="/services" className="text-xs font-semibold text-harmonic-electric hover:opacity-80 flex items-center gap-1">
+                All services <ArrowRight size={11} />
+              </Link>
+            )}
+          </div>
 
           {loading ? (
             <SkeletonCard />
@@ -227,22 +281,16 @@ export function Dashboard() {
           )}
         </section>
 
-        {/* Member: songs to practice */}
+        {/* ── Member: songs to practice ── */}
         {!isDirector && nextService && (
           <section aria-labelledby="practice-heading" className="mb-6 animate-fade-in-up delay-100">
             <div className="flex items-center justify-between mb-3">
-              <h2
-                id="practice-heading"
-                className="text-[11px] font-bold text-harmonic-muted uppercase tracking-widest flex items-center gap-2"
-              >
-                <span className="w-1 h-3 rounded-full bg-gradient-electric inline-block" aria-hidden="true" />
+              <h2 id="practice-heading" className="eyebrow flex items-center gap-2">
+                <span className="w-1.5 h-4 rounded-full bg-gradient-neon inline-block" aria-hidden="true" />
                 Songs to practice
               </h2>
-              <Link
-                to={`/services/${nextService.id}`}
-                className="text-xs font-medium text-harmonic-primary hover:opacity-80"
-              >
-                Full set list
+              <Link to={`/services/${nextService.id}`} className="text-xs font-semibold text-harmonic-electric hover:opacity-80 flex items-center gap-1">
+                Full set list <ArrowRight size={11} />
               </Link>
             </div>
             {songsLoading ? (
@@ -252,37 +300,35 @@ export function Dashboard() {
                 <p className="text-sm text-harmonic-muted text-center">Set list not published yet.</p>
               </Card>
             ) : (
-              <Card className="divide-y divide-harmonic-border/50 overflow-hidden">
+              <Card className="overflow-hidden divide-y divide-harmonic-border/40">
                 {nextServiceSongs.map((item, i) => (
                   <Link
                     key={item.songId}
                     to={`/services/${nextService.id}/songs/${item.songId}`}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-harmonic-primary/5 transition-colors group"
+                    className="flex items-center gap-3 px-4 py-3.5 hover:bg-harmonic-surface/60 transition-colors group"
                     style={{ animationDelay: `${i * 60}ms` }}
                   >
-                    <span className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-gradient-card-accent border border-harmonic-primary/15">
-                      <Music2 size={14} className="text-harmonic-primary" aria-hidden="true" />
+                    <span className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0', SONG_ICON_ACCENTS[i % SONG_ICON_ACCENTS.length])}>
+                      <Music2 size={14} className="text-white" aria-hidden="true" />
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-harmonic-text truncate group-hover:text-harmonic-primary transition-colors">{item.title}</p>
+                      <p className="text-sm font-bold text-harmonic-text truncate group-hover:text-harmonic-electric transition-colors">{item.title}</p>
                       {item.artist && (
                         <p className="text-xs text-harmonic-muted truncate">{item.artist}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {item.key && (
-                        <span className="text-xs font-bold text-harmonic-secondary bg-harmonic-secondary/10 px-2 py-0.5 rounded-full border border-harmonic-secondary/20">
-                          {item.key}
-                        </span>
+                        <span className="key-badge">{item.key}</span>
                       )}
-                      <ChevronRight size={14} className="text-harmonic-muted group-hover:text-harmonic-primary transition-colors" aria-hidden="true" />
+                      <ChevronRight size={14} className="text-harmonic-muted group-hover:text-harmonic-electric transition-colors" aria-hidden="true" />
                     </div>
                   </Link>
                 ))}
                 {nextServiceSongs.length === 4 && (
                   <Link
                     to={`/services/${nextService.id}`}
-                    className="flex items-center justify-center gap-2 px-4 py-3 text-xs font-medium text-harmonic-primary hover:bg-harmonic-surface/50 transition-colors"
+                    className="flex items-center justify-center gap-2 px-4 py-3 text-xs font-semibold text-harmonic-electric hover:bg-harmonic-surface/50 transition-colors"
                   >
                     <BookOpen size={13} aria-hidden="true" />
                     View all songs
@@ -293,53 +339,44 @@ export function Dashboard() {
           </section>
         )}
 
-        {/* Quick actions — Director only */}
+        {/* ── Quick actions — Director only ── */}
         {isDirector && (
           <section aria-labelledby="quick-actions-heading" className="mb-6 animate-fade-in-up delay-100">
-            <h2
-              id="quick-actions-heading"
-              className="text-[11px] font-bold text-harmonic-muted uppercase tracking-widest mb-3 flex items-center gap-2"
-            >
-              <span className="w-1 h-3 rounded-full bg-gradient-warm inline-block" aria-hidden="true" />
+            <h2 id="quick-actions-heading" className="eyebrow flex items-center gap-2 mb-3">
+              <span className="w-1.5 h-4 rounded-full bg-gradient-aurora inline-block" aria-hidden="true" />
               Quick actions
             </h2>
             <div className="grid grid-cols-3 gap-3">
               {[
-                { label: 'Create set list', icon: Music2, to: '/services/new', gradient: 'from-harmonic-primary to-harmonic-tertiary' },
-                { label: 'Post announcement', icon: Megaphone, to: '/announcements/new', gradient: 'from-harmonic-secondary to-harmonic-magenta' },
-                { label: 'View members', icon: Users, to: '/members', gradient: 'from-harmonic-indigo to-harmonic-violet' },
-              ].map(({ label, icon: Icon, to, gradient }) => (
+                { label: 'New service',       icon: Plus,     to: '/services/new',      accent: 'bg-gradient-electric', shadow: 'shadow-btn-electric' },
+                { label: 'Announce',          icon: Megaphone, to: '/announcements/new', accent: 'bg-gradient-neon',     shadow: 'shadow-card-hot' },
+                { label: 'Members',           icon: Users,    to: '/members',            accent: 'bg-gradient-teal',     shadow: 'shadow-card-glow' },
+              ].map(({ label, icon: Icon, to, accent, shadow }) => (
                 <Link
                   key={to}
                   to={to}
                   aria-label={label}
-                  className="flex flex-col items-center gap-2.5 p-4 bg-white rounded-2xl border border-harmonic-border/50 hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 text-center shadow-card"
+                  className="flex flex-col items-center gap-2.5 p-4 bg-white rounded-2xl border border-harmonic-border/60 hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 text-center shadow-card"
                 >
-                  <span className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-sm`}>
+                  <span className={cn('w-10 h-10 rounded-xl flex items-center justify-center', accent, shadow)}>
                     <Icon size={17} className="text-white" aria-hidden="true" />
                   </span>
-                  <span className="text-[11px] font-semibold text-harmonic-text leading-tight">{label}</span>
+                  <span className="text-[11px] font-bold text-harmonic-text leading-tight">{label}</span>
                 </Link>
               ))}
             </div>
           </section>
         )}
 
-        {/* Upcoming services */}
+        {/* ── Upcoming services ── */}
         <section aria-labelledby="upcoming-heading" className="mb-6 animate-fade-in-up delay-150">
           <div className="flex items-center justify-between mb-3">
-            <h2
-              id="upcoming-heading"
-              className="text-[11px] font-bold text-harmonic-muted uppercase tracking-widest flex items-center gap-2"
-            >
-              <span className="w-1 h-3 rounded-full bg-harmonic-success/80 inline-block" aria-hidden="true" />
+            <h2 id="upcoming-heading" className="eyebrow flex items-center gap-2">
+              <span className="w-1.5 h-4 rounded-full bg-gradient-teal inline-block" aria-hidden="true" />
               Upcoming services
             </h2>
-            <Link
-              to="/services"
-              className="text-xs font-medium text-harmonic-primary hover:opacity-80"
-            >
-              See all
+            <Link to="/services" className="text-xs font-semibold text-harmonic-electric hover:opacity-80 flex items-center gap-1">
+              See all <ArrowRight size={11} />
             </Link>
           </div>
 
@@ -353,6 +390,7 @@ export function Dashboard() {
               {upcoming.map((s, i) => {
                 const myStatus = myUpcomingAvailability[s.id]
                 const avMeta = myStatus ? availabilityDisplay[myStatus] : null
+                const accentGrad = SONG_ICON_ACCENTS[i % SONG_ICON_ACCENTS.length]
                 return (
                   <Link key={s.id} to={isDirector ? `/services/${s.id}/setlist` : `/services/${s.id}`}>
                     <Card
@@ -360,20 +398,20 @@ export function Dashboard() {
                       hoverable
                       style={{ animationDelay: `${i * 60}ms` }}
                     >
-                      <div className="w-10 h-10 rounded-xl bg-gradient-card-accent border border-harmonic-primary/15 flex items-center justify-center flex-shrink-0">
-                        <CalendarDays size={16} className="text-harmonic-primary" aria-hidden="true" />
+                      <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', accentGrad)}>
+                        <CalendarDays size={16} className="text-white" aria-hidden="true" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-harmonic-text truncate group-hover:text-harmonic-primary transition-colors">{s.title}</p>
+                        <p className="font-bold text-sm text-harmonic-text truncate group-hover:text-harmonic-electric transition-colors">{s.title}</p>
                         <p className="text-harmonic-muted text-xs mt-0.5">{formatDate(s.date)}</p>
                         {!isDirector && avMeta && (
-                          <span className={cn('flex items-center gap-1 text-xs font-semibold mt-1', avMeta.className)}>
+                          <span className={cn('flex items-center gap-1 text-xs font-bold mt-1', avMeta.className)}>
                             <avMeta.icon size={11} aria-hidden="true" />
                             {avMeta.label}
                           </span>
                         )}
                         {!isDirector && !avMeta && (
-                          <span className="text-xs text-harmonic-muted mt-1 block">Tap to mark availability</span>
+                          <span className="text-xs text-harmonic-electric mt-1 block font-semibold">Tap to respond</span>
                         )}
                       </div>
                       {isDirector && (
@@ -381,7 +419,7 @@ export function Dashboard() {
                           {serviceStatusMeta[s.status].label}
                         </Badge>
                       )}
-                      <ChevronRight size={15} className="text-harmonic-muted group-hover:text-harmonic-primary transition-colors flex-shrink-0" aria-hidden="true" />
+                      <ChevronRight size={15} className="text-harmonic-muted group-hover:text-harmonic-electric transition-colors flex-shrink-0" aria-hidden="true" />
                     </Card>
                   </Link>
                 )
@@ -396,21 +434,15 @@ export function Dashboard() {
           )}
         </section>
 
-        {/* Recent announcements */}
+        {/* ── Announcements ── */}
         <section aria-labelledby="activity-heading" className="animate-fade-in-up delay-200">
           <div className="flex items-center justify-between mb-3">
-            <h2
-              id="activity-heading"
-              className="text-[11px] font-bold text-harmonic-muted uppercase tracking-widest flex items-center gap-2"
-            >
-              <span className="w-1 h-3 rounded-full bg-harmonic-warning/80 inline-block" aria-hidden="true" />
+            <h2 id="activity-heading" className="eyebrow flex items-center gap-2">
+              <span className="w-1.5 h-4 rounded-full bg-gradient-hot inline-block" aria-hidden="true" />
               {isDirector ? 'Recent activity' : 'Latest announcements'}
             </h2>
-            <Link
-              to="/announcements"
-              className="text-xs font-medium text-harmonic-primary hover:opacity-80"
-            >
-              See all
+            <Link to="/announcements" className="text-xs font-semibold text-harmonic-electric hover:opacity-80 flex items-center gap-1">
+              See all <ArrowRight size={11} />
             </Link>
           </div>
 
@@ -422,31 +454,33 @@ export function Dashboard() {
                 <Link key={a.id} to="/announcements">
                   <Card className="p-4 group" hoverable style={{ animationDelay: `${i * 60}ms` }}>
                     <div className="flex items-start gap-3">
-                      <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-harmonic-secondary to-harmonic-magenta flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <span className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0', SONG_ICON_ACCENTS[(i + 2) % SONG_ICON_ACCENTS.length])}>
                         <Megaphone size={15} className="text-white" aria-hidden="true" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-sm text-harmonic-text truncate group-hover:text-harmonic-primary transition-colors">{a.title}</p>
+                        <p className="font-bold text-sm text-harmonic-text truncate group-hover:text-harmonic-electric transition-colors">{a.title}</p>
                         <p className="text-harmonic-muted text-xs mt-0.5 truncate">
                           {a.authorName} &middot; {formatDate(a.createdAt)}
                         </p>
                       </div>
-                      <ChevronRight size={14} className="text-harmonic-muted group-hover:text-harmonic-primary transition-colors flex-shrink-0 mt-1" aria-hidden="true" />
+                      <ChevronRight size={14} className="text-harmonic-muted group-hover:text-harmonic-electric transition-colors flex-shrink-0 mt-1" aria-hidden="true" />
                     </div>
                   </Card>
                 </Link>
               ))}
             </div>
           ) : (
-            <Card className="p-4">
-              <p className="text-sm text-harmonic-muted text-center">
+            <Card className="p-5 text-center">
+              <TrendingUp size={24} className="mx-auto mb-2 text-harmonic-border" />
+              <p className="text-sm text-harmonic-muted">
                 {isDirector
-                  ? 'Activity from your team will show up here once things get going.'
+                  ? 'Activity from your team will appear here.'
                   : 'Messages from your director will appear here.'}
               </p>
             </Card>
           )}
         </section>
+
       </div>
     </AppLayout>
   )
@@ -466,17 +500,18 @@ function NextServiceCard({
   const avMeta = myAvailability ? availabilityDisplay[myAvailability] : null
 
   return (
-    <div className="rounded-2xl bg-gradient-brand-vivid text-white overflow-hidden shadow-card-glow">
-      {/* Header content */}
+    <div className="rounded-card-lg overflow-hidden shadow-card-neon" style={{ background: 'linear-gradient(145deg, #07030F 0%, #1A0050 40%, #7C3AED 80%, #EC4899 100%)' }}>
+      {/* Decorative orbs */}
+      <div className="absolute -top-4 -right-4 w-28 h-28 rounded-full bg-harmonic-neon/20 blur-2xl pointer-events-none" aria-hidden="true" />
+
       <div className="px-5 pt-5 pb-4 relative">
-        <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/8 blur-2xl" aria-hidden="true" />
-        <div className="flex items-start gap-3 relative">
-          <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0 border border-white/20">
-            <CalendarDays size={20} className="text-white" aria-hidden="true" />
+        <div className="flex items-start gap-3">
+          <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center flex-shrink-0 border border-white/20 shadow-inner-glow">
+            <CalendarDays size={22} className="text-white" aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-white text-base leading-tight truncate">{service.title}</p>
-            <p className="text-white/70 text-xs mt-0.5">
+            <p className="text-white/60 text-xs mt-0.5">
               {formatDate(service.date)}
               {service.time ? ` · ${service.time}` : ''}
             </p>
@@ -484,49 +519,44 @@ function NextServiceCard({
         </div>
 
         {isDirector && availabilityCounts && (
-          <div className="flex gap-4 mt-4 p-3 rounded-xl bg-white/10 border border-white/10">
-            <div className="text-center">
-              <p className="text-lg font-bold text-white">{availabilityCounts.confirmed}</p>
-              <p className="text-[10px] text-white/70 font-medium uppercase tracking-wide">Confirmed</p>
-            </div>
-            <div className="w-px bg-white/20" />
-            <div className="text-center">
-              <p className="text-lg font-bold text-white">{availabilityCounts.pending}</p>
-              <p className="text-[10px] text-white/70 font-medium uppercase tracking-wide">Pending</p>
-            </div>
-            <div className="w-px bg-white/20" />
-            <div className="text-center">
-              <p className="text-lg font-bold text-white">{availabilityCounts.unavailable}</p>
-              <p className="text-[10px] text-white/70 font-medium uppercase tracking-wide">Out</p>
-            </div>
+          <div className="flex gap-0 mt-4 rounded-xl overflow-hidden border border-white/15">
+            {[
+              { label: 'Confirmed', value: availabilityCounts.confirmed, accent: 'bg-harmonic-success/20' },
+              { label: 'Pending',   value: availabilityCounts.pending,   accent: 'bg-white/10' },
+              { label: 'Out',       value: availabilityCounts.unavailable, accent: 'bg-harmonic-danger/20' },
+            ].map(({ label, value, accent }, idx, arr) => (
+              <div key={label} className={cn('flex-1 text-center py-3', accent, idx < arr.length - 1 && 'border-r border-white/10')}>
+                <p className="text-lg font-bold text-white">{value}</p>
+                <p className="text-[9px] text-white/65 font-bold uppercase tracking-wider">{label}</p>
+              </div>
+            ))}
           </div>
         )}
 
         {!isDirector && avMeta && (
-          <div className={cn('flex items-center gap-2 mt-3 text-xs font-semibold')}>
-            <avMeta.icon size={13} aria-hidden="true" className="text-white/90" />
-            <span className="text-white/90">Your response: {avMeta.label}</span>
+          <div className="flex items-center gap-2 mt-3 px-3 py-2 rounded-xl bg-white/10 border border-white/10">
+            <avMeta.icon size={14} aria-hidden="true" className="text-white/90" />
+            <span className="text-xs font-bold text-white/90">Your response: {avMeta.label}</span>
           </div>
         )}
         {!isDirector && !avMeta && (
-          <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-white/80">
-            <HelpCircle size={13} aria-hidden="true" />
-            You haven't responded yet
+          <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-harmonic-amber/20 border border-harmonic-amber/30">
+            <HelpCircle size={14} aria-hidden="true" className="text-harmonic-amber" />
+            <span className="text-xs font-bold text-harmonic-amber">Haven't responded yet</span>
           </div>
         )}
       </div>
 
-      {/* Actions */}
-      <div className="px-5 pb-5 flex gap-2">
+      <div className="px-5 pb-5 flex gap-2.5">
         {isDirector ? (
           <>
             <Link to={`/services/${service.id}/setlist`} className="flex-1">
-              <button className="w-full bg-white text-harmonic-primary text-sm font-bold px-4 py-2 rounded-pill hover:bg-white/90 active:scale-95 transition-all duration-150 min-h-[40px]">
+              <button className="w-full bg-white text-harmonic-primary text-sm font-bold px-4 py-2.5 rounded-pill hover:bg-white/90 active:scale-95 transition-all duration-150 min-h-[40px]">
                 Open set list
               </button>
             </Link>
             <Link to="/availability">
-              <button className="bg-white/20 border border-white/30 text-white text-sm font-semibold px-4 py-2 rounded-pill hover:bg-white/30 active:scale-95 transition-all duration-150 min-h-[40px]">
+              <button className="bg-white/15 border border-white/25 text-white text-sm font-semibold px-4 py-2.5 rounded-pill hover:bg-white/25 active:scale-95 transition-all duration-150 min-h-[40px]">
                 Availability
               </button>
             </Link>
@@ -534,12 +564,12 @@ function NextServiceCard({
         ) : (
           <>
             <Link to={`/services/${service.id}/availability`} className="flex-1">
-              <button className="w-full bg-white text-harmonic-primary text-sm font-bold px-4 py-2 rounded-pill hover:bg-white/90 active:scale-95 transition-all duration-150 min-h-[40px]">
+              <button className="w-full bg-white text-harmonic-primary text-sm font-bold px-4 py-2.5 rounded-pill hover:bg-white/90 active:scale-95 transition-all duration-150 min-h-[40px]">
                 {myAvailability ? 'Update availability' : 'Mark availability'}
               </button>
             </Link>
             <Link to={`/services/${service.id}`}>
-              <button className="bg-white/20 border border-white/30 text-white text-sm font-semibold px-4 py-2 rounded-pill hover:bg-white/30 active:scale-95 transition-all duration-150 min-h-[40px]">
+              <button className="bg-white/15 border border-white/25 text-white text-sm font-semibold px-4 py-2.5 rounded-pill hover:bg-white/25 active:scale-95 transition-all duration-150 min-h-[40px]">
                 Set list
               </button>
             </Link>

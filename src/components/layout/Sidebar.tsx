@@ -8,6 +8,7 @@ import {
   Megaphone,
   Bell,
   Settings,
+  Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useChoir } from '@/contexts/ChoirContext'
@@ -28,18 +29,31 @@ export function Sidebar() {
 
   return (
     <aside
-      className="hidden md:flex flex-col w-64 min-h-screen bg-white border-r border-harmonic-border/60 py-6 px-4 fixed left-0 top-0 z-20"
+      className="hidden md:flex flex-col w-64 min-h-screen bg-gradient-sidebar py-6 px-4 fixed left-0 top-0 z-20 border-r border-harmonic-borderDark"
       aria-label="Main navigation"
     >
-      {/* Logo — gradient brand block */}
+      {/* Logo */}
       <div className="mb-8 px-2">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center flex-shrink-0 shadow-nav-active">
-            <Music2 size={16} className="text-white" aria-hidden="true" />
+        <div className="flex items-center gap-3">
+          <div className="relative w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-gradient-electric shadow-neon-border overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-electric opacity-80" />
+            <Music2 size={17} className="text-white relative z-10 animate-float" aria-hidden="true" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-gradient">Harmoniq</span>
+          <div>
+            <span className="block text-lg font-bold tracking-tight text-gradient-aurora">Harmoniq</span>
+            <span className="block text-[10px] text-harmonic-onDarkMuted font-medium mt-0.5">A SoulSPCE project</span>
+          </div>
         </div>
-        <span className="block text-xs text-harmonic-muted font-medium mt-1.5 pl-[42px]">A SoulSPCE project</span>
+      </div>
+
+      {/* Choir name chip */}
+      <div className="mb-5 mx-2">
+        <div className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">
+          <div className="flex items-center gap-2">
+            <Zap size={11} className="text-harmonic-amber flex-shrink-0" />
+            <span className="text-[11px] font-semibold text-harmonic-onDark truncate">Your Choir</span>
+          </div>
+        </div>
       </div>
 
       {/* Nav links */}
@@ -51,10 +65,10 @@ export function Sidebar() {
             aria-label={badge && unreadCount > 0 ? `${label}, ${unreadCount} unread` : label}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group',
                 isActive
-                  ? 'bg-gradient-brand text-white shadow-nav-active'
-                  : 'text-harmonic-muted hover:text-harmonic-text hover:bg-harmonic-surface',
+                  ? 'bg-gradient-electric text-white shadow-sidebar-item'
+                  : 'text-harmonic-onDarkMuted hover:text-harmonic-onDark hover:bg-white/8',
               )
             }
           >
@@ -62,17 +76,21 @@ export function Sidebar() {
               <>
                 <span
                   className={cn(
-                    'relative flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0',
-                    isActive ? 'bg-white/15' : '',
+                    'relative flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0 transition-all duration-200',
+                    isActive ? 'bg-white/20' : 'group-hover:bg-white/10',
                   )}
                 >
                   <Icon
-                    size={16}
+                    size={15}
                     aria-hidden="true"
-                    className={isActive ? 'text-white' : 'text-harmonic-muted'}
+                    className={cn(
+                      'transition-transform duration-200',
+                      isActive ? 'text-white' : 'text-harmonic-onDarkMuted group-hover:text-harmonic-neon',
+                      isActive && 'scale-110',
+                    )}
                   />
                   {badge && unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-harmonic-magenta text-white text-[10px] font-semibold flex items-center justify-center">
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-harmonic-hot text-white text-[10px] font-bold flex items-center justify-center shadow-card-hot">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
@@ -83,6 +101,14 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
+      {/* Bottom glow accent */}
+      <div className="mt-4 px-2">
+        <div className="h-px bg-gradient-electric opacity-30 rounded-full" />
+        <p className="text-[10px] text-harmonic-onDarkMuted text-center mt-3 font-medium">
+          Vocal excellence, coordinated.
+        </p>
+      </div>
     </aside>
   )
 }

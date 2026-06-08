@@ -7,15 +7,20 @@
     --harmonic-primary:    #18005F;
     --harmonic-secondary:  #560056;
     --harmonic-tertiary:   #37005B;
+    --harmonic-electric:   #4F46E5;
+    --harmonic-neon:       #A855F7;
+    --harmonic-hot:        #EC4899;
+    --harmonic-amber:      #F59E0B;
+    --harmonic-teal:       #14B8A6;
     --harmonic-neutral:    #0C0C10;
-    --harmonic-surface:    #EDEAEF;
-    --harmonic-background: #F4F2F5;
+    --harmonic-surface:    #EDE8F6;
+    --harmonic-background: #F0EBFA;
     --harmonic-text:       #0C0C10;
     --harmonic-muted:      #6B6770;
-    --harmonic-border:     #DAD6DD;
-    --harmonic-success:    #2E7D5B;
-    --harmonic-warning:    #B8860B;
-    --harmonic-danger:     #E5342B;
+    --harmonic-border:     #D5CDE8;
+    --harmonic-success:    #059669;
+    --harmonic-warning:    #D97706;
+    --harmonic-danger:     #DC2626;
   }
 
   * {
@@ -32,42 +37,42 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 }
 
 @layer components {
   /* Button variants */
   .btn-primary {
-    @apply bg-harmonic-primary text-white rounded-pill px-6 py-2.5 font-medium text-sm transition-all hover:opacity-90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-primary focus-visible:ring-offset-2;
+    @apply bg-harmonic-primary text-white rounded-pill px-6 py-2.5 font-semibold text-sm transition-all hover:opacity-90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-primary focus-visible:ring-offset-2;
   }
 
   .btn-secondary {
-    @apply bg-harmonic-surface text-harmonic-text rounded-pill px-6 py-2.5 font-medium text-sm transition-all hover:opacity-90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-border focus-visible:ring-offset-2;
+    @apply bg-harmonic-surface text-harmonic-text rounded-pill px-6 py-2.5 font-semibold text-sm transition-all hover:opacity-90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-border focus-visible:ring-offset-2;
   }
 
   .btn-inverted {
-    @apply bg-harmonic-neutral text-white rounded-pill px-6 py-2.5 font-medium text-sm transition-all hover:opacity-90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-neutral focus-visible:ring-offset-2;
+    @apply bg-harmonic-neutral text-white rounded-pill px-6 py-2.5 font-semibold text-sm transition-all hover:opacity-90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-neutral focus-visible:ring-offset-2;
   }
 
   .btn-outlined {
-    @apply bg-transparent border border-harmonic-border text-harmonic-text rounded-pill px-6 py-2.5 font-medium text-sm transition-all hover:bg-harmonic-surface active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-border focus-visible:ring-offset-2;
+    @apply bg-transparent border border-harmonic-border text-harmonic-text rounded-pill px-6 py-2.5 font-semibold text-sm transition-all hover:bg-harmonic-surface active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-border focus-visible:ring-offset-2;
   }
 
   .btn-danger {
-    @apply bg-harmonic-danger text-white rounded-pill px-6 py-2.5 font-medium text-sm transition-all hover:opacity-90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-danger focus-visible:ring-offset-2;
+    @apply bg-harmonic-danger text-white rounded-pill px-6 py-2.5 font-semibold text-sm transition-all hover:opacity-90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-danger focus-visible:ring-offset-2;
   }
 
   /* Gradient button */
   .btn-gradient {
     background: linear-gradient(135deg, #3D1DB5 0%, #913d8c 100%);
-    @apply text-white rounded-pill px-6 py-2.5 font-medium text-sm transition-all hover:shadow-btn-glow hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-secondary focus-visible:ring-offset-2;
+    @apply text-white rounded-pill px-6 py-2.5 font-semibold text-sm transition-all hover:shadow-btn-glow hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-secondary focus-visible:ring-offset-2;
   }
 
   /* Card */
   .card {
-    @apply bg-white rounded-card shadow-card border border-harmonic-border/40 transition-all duration-200;
+    @apply bg-white rounded-card shadow-card border border-harmonic-border/50 transition-all duration-200;
   }
 
   .card-hover {
@@ -75,7 +80,7 @@
   }
 
   .card-lg {
-    @apply bg-white rounded-card-lg shadow-card border border-harmonic-border/40;
+    @apply bg-white rounded-card-lg shadow-card border border-harmonic-border/50;
   }
 
   /* Gradient card */
@@ -84,24 +89,19 @@
     @apply rounded-card-lg text-white;
   }
 
+  /* Glass card */
+  .card-glass {
+    @apply bg-white/70 backdrop-blur-xl rounded-card-lg border border-white/40 shadow-card;
+  }
+
   /* Input */
   .input-pill {
-    @apply bg-harmonic-surface rounded-pill px-4 py-2.5 text-sm outline-none border border-transparent focus:border-harmonic-primary transition-colors placeholder:text-harmonic-muted;
+    @apply bg-harmonic-surface rounded-pill px-4 py-2.5 text-sm outline-none border border-transparent focus:border-harmonic-electric transition-colors placeholder:text-harmonic-muted;
   }
 
   /* Label */
   .label {
-    @apply text-sm font-medium tracking-tight text-harmonic-text;
-  }
-
-  /* Muted text */
-  .text-muted {
-    @apply text-harmonic-muted;
-  }
-
-  /* Accent underline */
-  .accent-underline {
-    @apply border-b-2 border-harmonic-secondary;
+    @apply text-sm font-semibold tracking-tight text-harmonic-text;
   }
 
   /* Nav active — gradient pill */
@@ -119,7 +119,21 @@
   }
 
   .text-gradient-vivid {
-    background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%);
+    background: linear-gradient(135deg, #A855F7 0%, #EC4899 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-electric {
+    background: linear-gradient(135deg, #4F46E5 0%, #A855F7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-aurora {
+    background: linear-gradient(135deg, #4338CA 0%, #A855F7 50%, #EC4899 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -127,7 +141,7 @@
 
   /* Shimmer loading */
   .shimmer-bg {
-    background: linear-gradient(90deg, #EDEAEF 25%, #F4F2F5 50%, #EDEAEF 75%);
+    background: linear-gradient(90deg, #EDE8F6 25%, #F0EBFA 50%, #EDE8F6 75%);
     background-size: 200% 100%;
     @apply animate-shimmer;
   }
@@ -140,4 +154,27 @@
   .delay-300 { animation-delay: 300ms; }
   .delay-400 { animation-delay: 400ms; }
   .delay-500 { animation-delay: 500ms; }
+
+  /* Neon glow utility */
+  .neon-glow-purple {
+    box-shadow: 0 0 16px rgba(168, 85, 247, 0.50), 0 0 32px rgba(168, 85, 247, 0.20);
+  }
+  .neon-glow-pink {
+    box-shadow: 0 0 16px rgba(236, 72, 153, 0.50), 0 0 32px rgba(236, 72, 153, 0.20);
+  }
+  .neon-glow-electric {
+    box-shadow: 0 0 16px rgba(79, 70, 229, 0.50), 0 0 32px rgba(79, 70, 229, 0.20);
+  }
+
+  /* Pill badge for key/genre */
+  .key-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-pill text-xs font-bold;
+    background: linear-gradient(135deg, #4F46E5, #A855F7);
+    color: white;
+  }
+
+  /* Section eyebrow label */
+  .eyebrow {
+    @apply text-[10px] font-bold uppercase tracking-[0.12em] text-harmonic-muted;
+  }
 }

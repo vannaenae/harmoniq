@@ -104,10 +104,10 @@ export function MembersDirectory() {
               aria-selected={part === f.id}
               onClick={() => setPart(f.id)}
               className={cn(
-                'px-4 py-2 rounded-pill text-sm font-medium transition-colors whitespace-nowrap min-h-[40px]',
+                'px-4 py-2 rounded-pill text-sm font-semibold transition-all duration-200 whitespace-nowrap min-h-[40px]',
                 part === f.id
-                  ? 'bg-gradient-brand text-white shadow-nav-active'
-                  : 'bg-harmonic-surface text-harmonic-muted hover:text-harmonic-text hover:bg-harmonic-border/40',
+                  ? 'bg-gradient-electric text-white shadow-btn-electric'
+                  : 'bg-harmonic-surface text-harmonic-muted hover:text-harmonic-text hover:bg-harmonic-surfaceMid border border-harmonic-border/50',
               )}
             >
               {f.label}
@@ -148,14 +148,14 @@ export function MembersDirectory() {
                     <Avatar src={m.photoURL} name={m.preferredName || m.displayName} size="md" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm text-harmonic-text truncate group-hover:text-harmonic-primary transition-colors">
+                        <p className="font-bold text-sm text-harmonic-text truncate group-hover:text-harmonic-electric transition-colors">
                           {m.preferredName || m.displayName}
                         </p>
-                        {m.role === 'director' && <Badge tone="primary">Director</Badge>}
+                        {m.role === 'director' && <Badge tone="electric">Director</Badge>}
                         {m.canLead && (
                           <Mic2
                             size={13}
-                            className="text-harmonic-primary flex-shrink-0"
+                            className="text-harmonic-neon flex-shrink-0"
                             aria-label="Can lead songs"
                           />
                         )}
@@ -165,7 +165,7 @@ export function MembersDirectory() {
                       </p>
                     </div>
                     <Badge tone={meta.tone}>{meta.label}</Badge>
-                    <ChevronRight size={15} className="text-harmonic-muted group-hover:translate-x-0.5 group-hover:text-harmonic-primary transition-all flex-shrink-0" aria-hidden="true" />
+                    <ChevronRight size={15} className="text-harmonic-muted group-hover:translate-x-0.5 group-hover:text-harmonic-electric transition-all flex-shrink-0" aria-hidden="true" />
                   </Card>
                 </Link>
               )

@@ -21,14 +21,14 @@ export function PageHeader({ title, subtitle, back, actions }: PageHeaderProps) 
           <button
             onClick={() => (typeof back === 'string' ? navigate(back) : navigate(-1))}
             aria-label="Go back"
-            className="p-1.5 -ml-1.5 mt-0.5 rounded-full hover:bg-harmonic-surface transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center flex-shrink-0"
+            className="p-1.5 -ml-1.5 mt-0.5 rounded-full hover:bg-harmonic-surface transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center flex-shrink-0 border border-harmonic-border/60"
           >
-            <ChevronLeft size={20} className="text-harmonic-text" />
+            <ChevronLeft size={20} className="text-harmonic-electric" />
           </button>
         )}
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold font-cormorant text-harmonic-text truncate">{title}</h1>
-          {subtitle && <p className="text-sm font-crimson text-harmonic-muted mt-0.5">{subtitle}</p>}
+          <h1 className="text-2xl font-bold tracking-tight text-harmonic-text truncate">{title}</h1>
+          {subtitle && <p className="text-sm text-harmonic-muted mt-0.5 font-medium">{subtitle}</p>}
         </div>
       </div>
       {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
