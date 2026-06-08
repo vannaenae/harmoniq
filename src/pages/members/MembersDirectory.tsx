@@ -106,8 +106,8 @@ export function MembersDirectory() {
               className={cn(
                 'px-4 py-2 rounded-pill text-sm font-medium transition-colors whitespace-nowrap min-h-[40px]',
                 part === f.id
-                  ? 'bg-harmonic-neutral text-white'
-                  : 'bg-harmonic-surface text-harmonic-muted hover:text-harmonic-text',
+                  ? 'bg-gradient-brand text-white shadow-nav-active'
+                  : 'bg-harmonic-surface text-harmonic-muted hover:text-harmonic-text hover:bg-harmonic-border/40',
               )}
             >
               {f.label}
@@ -144,11 +144,11 @@ export function MembersDirectory() {
               const meta = availabilityMeta[statusFor(m.uid)]
               return (
                 <Link key={m.uid} to={`/members/${m.uid}`}>
-                  <Card className="p-4 flex items-center gap-3 hover:shadow-card-hover transition-shadow">
+                  <Card className="p-4 flex items-center gap-3 group" hoverable>
                     <Avatar src={m.photoURL} name={m.preferredName || m.displayName} size="md" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm text-harmonic-text truncate">
+                        <p className="font-semibold text-sm text-harmonic-text truncate group-hover:text-harmonic-primary transition-colors">
                           {m.preferredName || m.displayName}
                         </p>
                         {m.role === 'director' && <Badge tone="primary">Director</Badge>}
@@ -165,7 +165,7 @@ export function MembersDirectory() {
                       </p>
                     </div>
                     <Badge tone={meta.tone}>{meta.label}</Badge>
-                    <ChevronRight size={16} className="text-harmonic-muted flex-shrink-0" aria-hidden="true" />
+                    <ChevronRight size={15} className="text-harmonic-muted group-hover:translate-x-0.5 group-hover:text-harmonic-primary transition-all flex-shrink-0" aria-hidden="true" />
                   </Card>
                 </Link>
               )
