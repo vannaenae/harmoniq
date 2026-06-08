@@ -145,12 +145,28 @@ export function SetListDetail() {
           </Card>
         )}
 
-        {service?.theme && (
-          <Card className="p-4 mb-5">
-            <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Theme</p>
-            <p className="text-sm text-harmonic-text mt-1">{service.theme}</p>
-            {service.scriptureRef && (
-              <p className="text-sm text-harmonic-muted mt-1 italic">{service.scriptureRef}</p>
+        {(service?.location || service?.theme || service?.notes) && (
+          <Card className="p-4 mb-5 flex flex-col gap-3">
+            {service.location && (
+              <div>
+                <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Location</p>
+                <p className="text-sm text-harmonic-text mt-1">{service.location}</p>
+              </div>
+            )}
+            {service.theme && (
+              <div>
+                <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Theme</p>
+                <p className="text-sm text-harmonic-text mt-1">{service.theme}</p>
+                {service.scriptureRef && (
+                  <p className="text-sm text-harmonic-muted mt-1 italic">{service.scriptureRef}</p>
+                )}
+              </div>
+            )}
+            {service.notes && (
+              <div>
+                <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Notes</p>
+                <p className="text-sm text-harmonic-text mt-1 whitespace-pre-line">{service.notes}</p>
+              </div>
             )}
           </Card>
         )}

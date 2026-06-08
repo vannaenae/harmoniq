@@ -72,19 +72,20 @@ export function AttendanceTracker() {
 
   const service = services.find(s => s.id === serviceId)
   const locked = service ? isAttendanceLocked(service.date) : false
-  const presentCount = Object.values(statuses).filter(s => s === 'present').length
+  const presentCount = Object.values(statuses).filter(s => s === 'present' || s === 'late').length
 
-  const toggle = async (uid: string) => {
+  const cycle = async (uid: string) => {
     if (!choir || !firebaseUser || locked) return
     const prev_status = statuses[uid]
-    const next: AttendanceStatus = prev_status === 'present' ? 'absent' : 'present'
+    const next: AttendanceStatus =
+      prev_status === 'present' ? 'late' :
+      prev_status === 'late' ? 'absent' : 'present'
     setStatuses(prev => ({ ...prev, [uid]: next }))
     setSaveError(null)
     try {
       await setAttendance(choir.id, serviceId, uid, next, firebaseUser.uid)
     } catch (err) {
       console.error('Save attendance error:', err)
-      // Revert optimistic update on failure
       setStatuses(prev => ({ ...prev, [uid]: prev_status }))
       setSaveError('Failed to save. Please try again.')
     }
@@ -140,32 +141,31 @@ export function AttendanceTracker() {
             ) : (
               <div className="flex flex-col gap-3">
                 {members.map(m => {
-                  const present = statuses[m.uid] === 'present'
+                  const status = statuses[m.uid]
+                  const name = m.preferredName || m.displayName
                   return (
                     <Card key={m.uid} className="p-4 flex items-center gap-3">
-                      <Avatar src={m.photoURL} name={m.preferredName || m.displayName} size="md" />
+                      <Avatar src={m.photoURL} name={name} size="md" />
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-harmonic-text truncate">
-                          {m.preferredName || m.displayName}
-                        </p>
+                        <p className="font-medium text-sm text-harmonic-text truncate">{name}</p>
                         <p className="text-xs text-harmonic-muted">{voicePartLabel[m.voicePart] ?? m.voicePart}</p>
                       </div>
-                      {/* Present/Absent toggle */}
+                      {/* Present / Late / Absent cycle */}
                       <button
-                        role="switch"
-                        aria-checked={present}
-                        aria-label={`Mark ${m.preferredName || m.displayName} ${present ? 'absent' : 'present'}`}
+                        aria-label={`Cycle attendance for ${name} (currently ${status ?? 'absent'})`}
                         disabled={locked}
-                        onClick={() => toggle(m.uid)}
+                        onClick={() => cycle(m.uid)}
                         className={cn(
                           'px-4 py-2 rounded-pill text-sm font-medium transition-colors min-h-[40px] min-w-[88px]',
                           'disabled:opacity-50 disabled:cursor-not-allowed',
-                          present
+                          status === 'present'
                             ? 'bg-harmonic-success text-white'
-                            : 'bg-harmonic-surface text-harmonic-muted',
+                            : status === 'late'
+                              ? 'bg-harmonic-warning text-white'
+                              : 'bg-harmonic-surface text-harmonic-muted',
                         )}
                       >
-                        {present ? 'Present' : 'Absent'}
+                        {status === 'present' ? 'Present' : status === 'late' ? 'Late' : 'Absent'}
                       </button>
                     </Card>
                   )

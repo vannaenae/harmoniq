@@ -248,7 +248,9 @@ export interface Service {
   serviceType?: ServiceType
   date: Date
   time?: string
+  location?: string
   theme?: string
+  notes?: string
   scriptureRef?: string
   status: ServiceStatus
   availabilityDeadline?: Date
@@ -350,7 +352,7 @@ export interface AppNotification {
 
 // ── Attendance ────────────────────────────────────────────────────────────────
 
-export type AttendanceStatus = 'present' | 'absent' | 'unavailable'
+export type AttendanceStatus = 'present' | 'late' | 'absent' | 'unavailable'
 
 export interface AttendanceRecord {
   id: string

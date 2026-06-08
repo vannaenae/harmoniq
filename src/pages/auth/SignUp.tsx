@@ -18,27 +18,28 @@ export function SignUp() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [formErrors, setFormErrors] = useState<{ name?: string; email?: string; password?: string; confirmPassword?: string; general?: string }>({})
 
   if (harmonicUser) {
     navigate(harmonicUser.onboardingComplete ? '/dashboard' : '/onboarding/role', { replace: true })
     return null
   }
 
-  const validate = (): string | null => {
-    if (!name.trim()) return 'Please enter your name.'
-    if (!email.trim()) return 'Please enter your email.'
-    if (password.length < 8) return 'Password must be at least 8 characters.'
-    if (password !== confirmPassword) return 'Passwords do not match.'
-    return null
+  const validate = () => {
+    const errors: { name?: string; email?: string; password?: string; confirmPassword?: string; general?: string } = {}
+    if (!name.trim()) errors.name = 'Please enter your name.'
+    if (!email.trim()) errors.email = 'Please enter your email.'
+    if (password.length < 8) errors.password = 'Password must be at least 8 characters.'
+    if (password !== confirmPassword) errors.confirmPassword = 'Passwords do not match.'
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
   }
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    const validationError = validate()
-    if (validationError) { setError(validationError); return }
+    if (!validate()) return
 
-    setError(null)
+    setFormErrors({}) // Clear previous errors
     setLoading(true)
     try {
       await signUpWithEmail(email.trim(), password, name.trim())
@@ -46,13 +47,13 @@ export function SignUp() {
     } catch (err: unknown) {
       const code = (err as { code?: string }).code
       if (code === 'auth/email-already-in-use') {
-        setError('An account with this email already exists. Try signing in instead.')
+        setFormErrors({ general: 'An account with this email already exists. Try signing in instead.' })
       } else if (code === 'auth/invalid-email') {
-        setError('Please enter a valid email address.')
+        setFormErrors({ general: 'Please enter a valid email address.' })
       } else if (code === 'auth/weak-password') {
-        setError('Choose a stronger password (at least 8 characters).')
+        setFormErrors({ general: 'Choose a stronger password (at least 8 characters).' })
       } else {
-        setError('Something went wrong. Please try again.')
+        setFormErrors({ general: 'Something went wrong. Please try again.' })
       }
     } finally {
       setLoading(false)
@@ -60,16 +61,16 @@ export function SignUp() {
   }
 
   const handleGoogleSignIn = async () => {
-    setError(null)
+    setFormErrors({}) // Clear previous errors
     setGoogleLoading(true)
     try {
       await signInWithGoogle()
     } catch (err: unknown) {
       const code = (err as { code?: string }).code
       if (code === 'auth/popup-blocked') {
-        setError('Pop-up was blocked. Please allow pop-ups and try again.')
+        setFormErrors({ general: 'Pop-up was blocked. Please allow pop-ups and try again.' })
       } else if (code !== 'auth/popup-closed-by-user') {
-        setError('Google sign-in failed. Please try again.')
+        setFormErrors({ general: 'Google sign-in failed. Please try again.' })
       }
     } finally {
       setGoogleLoading(false)
@@ -91,9 +92,9 @@ export function SignUp() {
             <p className="text-sm text-harmonic-muted mt-0.5">Join your choir on Harmoniq</p>
           </div>
 
-          {error && (
+          {formErrors.general && (
             <div role="alert" className="bg-red-50 border border-harmonic-danger/20 rounded-xl px-4 py-3 text-sm text-harmonic-danger">
-              {error}
+              {formErrors.general}
             </div>
           )}
 
@@ -104,6 +105,8 @@ export function SignUp() {
               value={name}
               onChange={e => setName(e.target.value)}
               autoComplete="name"
+              name="name"
+              error={formErrors.name}
               required
             />
 
@@ -114,6 +117,8 @@ export function SignUp() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               autoComplete="email"
+              name="email"
+              error={formErrors.email}
               required
             />
 
@@ -125,6 +130,8 @@ export function SignUp() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 autoComplete="new-password"
+                name="password"
+                error={formErrors.password}
                 className="pr-11"
                 required
               />
@@ -157,6 +164,8 @@ export function SignUp() {
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
+                name="confirm-password"
+                error={formErrors.confirmPassword}
                 required
               />
             </div>

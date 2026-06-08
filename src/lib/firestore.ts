@@ -95,7 +95,9 @@ export interface ServiceInput {
   serviceType?: import('@/types').ServiceType
   date: Date
   time?: string
+  location?: string
   theme?: string
+  notes?: string
   scriptureRef?: string
   status: Service['status']
   availabilityDeadline?: Date
@@ -116,7 +118,9 @@ export async function createService(
     serviceType: input.serviceType ?? null,
     date: input.date,
     time: input.time ?? null,
+    location: input.location ?? null,
     theme: input.theme ?? null,
+    notes: input.notes ?? null,
     scriptureRef: input.scriptureRef ?? null,
     status: input.status,
     availabilityDeadline: input.availabilityDeadline ?? null,

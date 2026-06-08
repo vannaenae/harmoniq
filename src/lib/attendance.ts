@@ -101,11 +101,11 @@ export async function getMemberAttendanceHistory(
   return entries
 }
 
-/** Consecutive 'present' services from the most recent backwards. */
+/** Consecutive attended (present or late) services from the most recent backwards. */
 export function computeStreak(history: AttendanceHistoryEntry[]): number {
   let streak = 0
   for (const e of history) {
-    if (e.status === 'present') streak++
+    if (e.status === 'present' || e.status === 'late') streak++
     else if (e.status === 'unavailable') continue // excused doesn't break a streak
     else break
   }

@@ -2,7 +2,7 @@ export function AuthLogo() {
   return (
     <div className="flex flex-col items-center gap-3">
       <div
-        className="w-16 h-16 rounded-3xl flex items-center justify-center flex-shrink-0 relative overflow-hidden bg-featured-song-gradient"
+        className="w-16 h-16 rounded-3xl flex items-center justify-center flex-shrink-0 relative overflow-hidden bg-harmonic-primary"
       >
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
           <path

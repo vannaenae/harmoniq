@@ -16,7 +16,7 @@ export function SignIn() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [formErrors, setFormErrors] = useState<{ email?: string; password?: string; general?: string }>({})
 
   if (harmonicUser) {
     const pendingInvite = localStorage.getItem('harmonic_pending_invite')
@@ -30,19 +30,27 @@ export function SignIn() {
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim() || !password) return
-    setError(null)
+    setFormErrors({}) // Clear previous errors
+
+    const errors: { email?: string; password?: string; general?: string } = {}
+    if (!email.trim()) errors.email = 'Please enter your email.'
+    if (!password) errors.password = 'Please enter your password.'
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors)
+      return
+    }
+
     setLoading(true)
     try {
       await signInWithEmail(email.trim(), password)
     } catch (err: unknown) {
       const code = (err as { code?: string }).code
       if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-        setError('Incorrect email or password. Please try again.')
+        setFormErrors({ general: 'Incorrect email or password. Please try again.' })
       } else if (code === 'auth/too-many-requests') {
-        setError('Too many attempts. Please wait a moment and try again.')
+        setFormErrors({ general: 'Too many attempts. Please wait a moment and try again.' })
       } else {
-        setError('Something went wrong. Please try again.')
+        setFormErrors({ general: 'Something went wrong. Please try again.' })
       }
     } finally {
       setLoading(false)
@@ -50,16 +58,16 @@ export function SignIn() {
   }
 
   const handleGoogleSignIn = async () => {
-    setError(null)
+    setFormErrors({}) // Clear previous errors
     setGoogleLoading(true)
     try {
       await signInWithGoogle()
     } catch (err: unknown) {
       const code = (err as { code?: string }).code
       if (code === 'auth/popup-blocked') {
-        setError('Pop-up was blocked. Please allow pop-ups for this site and try again.')
+        setFormErrors({ general: 'Pop-up was blocked. Please allow pop-ups for this site and try again.' })
       } else if (code !== 'auth/popup-closed-by-user') {
-        setError('Google sign-in failed. Please try again.')
+        setFormErrors({ general: 'Google sign-in failed. Please try again.' })
       }
     } finally {
       setGoogleLoading(false)
@@ -77,9 +85,9 @@ export function SignIn() {
             <p className="text-sm text-harmonic-muted mt-0.5">Sign in to your choir workspace</p>
           </div>
 
-          {error && (
+          {formErrors.general && (
             <div role="alert" className="bg-red-50 border border-harmonic-danger/20 rounded-xl px-4 py-3 text-sm text-harmonic-danger">
-              {error}
+              {formErrors.general}
             </div>
           )}
 
@@ -91,6 +99,8 @@ export function SignIn() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               autoComplete="email"
+              name="email"
+              error={formErrors.email}
               required
             />
 
@@ -102,6 +112,8 @@ export function SignIn() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 autoComplete="current-password"
+                name="password"
+                error={formErrors.password}
                 className="pr-11"
                 required
               />

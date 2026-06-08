@@ -30,6 +30,8 @@ export function ServiceForm() {
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [theme, setTheme] = useState('')
+  const [location, setLocation] = useState('')
+  const [notes, setNotes] = useState('')
   const [scriptureRef, setScriptureRef] = useState('')
   const [availabilityDeadline, setAvailabilityDeadline] = useState('')
   const [setListDeadline, setSetListDeadline] = useState('')
@@ -50,6 +52,8 @@ export function ServiceForm() {
         setDate(s.date.toISOString().slice(0, 10))
         setTime(s.time ?? '')
         setTheme(s.theme ?? '')
+        setLocation(s.location ?? '')
+        setNotes(s.notes ?? '')
         setScriptureRef(s.scriptureRef ?? '')
         if (s.availabilityDeadline) setAvailabilityDeadline(s.availabilityDeadline.toISOString().slice(0, 10))
         if (s.setListDeadline) setSetListDeadline(s.setListDeadline.toISOString().slice(0, 10))
@@ -90,6 +94,8 @@ export function ServiceForm() {
         date: new Date(`${date}T${time || '00:00'}`),
         time: time || undefined,
         theme: theme.trim() || undefined,
+        location: location.trim() || undefined,
+        notes: notes.trim() || undefined,
         scriptureRef: scriptureRef.trim() || undefined,
         availabilityDeadline: availabilityDeadline ? new Date(availabilityDeadline) : undefined,
         setListDeadline: setListDeadline ? new Date(setListDeadline) : undefined,
@@ -194,6 +200,21 @@ export function ServiceForm() {
               placeholder="e.g. Faithfulness"
               value={theme}
               onChange={e => setTheme(e.target.value)}
+            />
+
+            <Input
+              label="Location (optional)"
+              placeholder="e.g. Main Sanctuary, Fellowship Hall"
+              value={location}
+              onChange={e => setLocation(e.target.value)}
+            />
+
+            <Textarea
+              label="Notes (optional)"
+              placeholder="Any details the team should know…"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              className="min-h-[80px]"
             />
 
             <Textarea

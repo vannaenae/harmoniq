@@ -11,6 +11,7 @@ export const availabilityMeta: Record<AvailabilityStatus, { label: string; tone:
 
 export const attendanceMeta: Record<AttendanceStatus, { label: string; tone: Tone }> = {
   present:      { label: 'Present',     tone: 'success' },
+  late:         { label: 'Late',        tone: 'warning' },
   absent:       { label: 'Absent',      tone: 'danger' },
   unavailable:  { label: 'Excused',     tone: 'muted' },
 }
