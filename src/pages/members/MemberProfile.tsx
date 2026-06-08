@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Mail, Shield, Music2, Trash2, Mic2 } from 'lucide-react'
+import { Mail, Shield, Music2, Trash2, Mic2, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -11,7 +11,15 @@ import { Modal } from '@/components/ui/Modal'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useChoir } from '@/contexts/ChoirContext'
-import { updateMemberRole, updateMemberVoicePart, updateMemberCanLead, removeMember } from '@/lib/members'
+import {
+  updateMemberRole,
+  updateMemberVoicePart,
+  updateMemberCanLead,
+  removeMember,
+  listVoicePartRequestsForMember,
+  resolveVoicePartRequest,
+  type VoicePartRequest,
+} from '@/lib/members'
 import { getMemberAttendanceHistory, type AttendanceHistoryEntry } from '@/lib/attendance'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { voicePartLabel } from '@/lib/utils'
@@ -30,6 +38,12 @@ const ROLE_OPTIONS = [
   { value: 'director', label: 'Director' },
 ]
 
+const requestStatusMeta: Record<VoicePartRequest['status'], { label: string; icon: typeof Clock; color: string }> = {
+  pending:  { label: 'Pending',  icon: Clock,         color: 'text-harmonic-warning' },
+  approved: { label: 'Approved', icon: CheckCircle2,  color: 'text-harmonic-success' },
+  declined: { label: 'Declined', icon: XCircle,       color: 'text-harmonic-danger'  },
+}
+
 export function MemberProfile() {
   const { uid } = useParams<{ uid: string }>()
   const navigate = useNavigate()
@@ -38,6 +52,9 @@ export function MemberProfile() {
   const [working, setWorking] = useState(false)
   const [history, setHistory] = useState<AttendanceHistoryEntry[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
+  const [voicePartRequests, setVoicePartRequests] = useState<VoicePartRequest[]>([])
+  const [loadingRequests, setLoadingRequests] = useState(false)
+  const [resolvingId, setResolvingId] = useState<string | null>(null)
 
   const member = members.find(m => m.uid === uid)
 
@@ -51,6 +68,17 @@ export function MemberProfile() {
       .finally(() => { if (active) setLoadingHistory(false) })
     return () => { active = false }
   }, [choir, uid])
+
+  useEffect(() => {
+    if (!choir || !uid || !isDirector) return
+    let active = true
+    setLoadingRequests(true)
+    listVoicePartRequestsForMember(choir.id, uid)
+      .then(reqs => { if (active) setVoicePartRequests(reqs) })
+      .catch(err => console.error('Load voice part requests error:', err))
+      .finally(() => { if (active) setLoadingRequests(false) })
+    return () => { active = false }
+  }, [choir, uid, isDirector])
 
   if (!member) {
     return (
@@ -91,6 +119,24 @@ export function MemberProfile() {
     try { await removeMember(choir.id, member.uid); await refreshMembers(); navigate('/members') }
     finally { setWorking(false) }
   }
+  const handleResolveRequest = async (req: VoicePartRequest, decision: 'approved' | 'declined') => {
+    if (!choir) return
+    setResolvingId(req.id)
+    try {
+      await resolveVoicePartRequest(choir.id, req.id, decision, req.uid, req.requestedPart)
+      setVoicePartRequests(prev =>
+        prev.map(r => r.id === req.id ? { ...r, status: decision } : r),
+      )
+      if (decision === 'approved') await refreshMembers()
+    } catch (err) {
+      console.error('Resolve voice part request error:', err)
+    } finally {
+      setResolvingId(null)
+    }
+  }
+
+  const pendingRequests = voicePartRequests.filter(r => r.status === 'pending')
+  const pastRequests = voicePartRequests.filter(r => r.status !== 'pending')
 
   return (
     <AppLayout>
@@ -114,6 +160,77 @@ export function MemberProfile() {
             </Button>
           </a>
         </Card>
+
+        {/* Voice part change requests (director only) */}
+        {isDirector && (
+          <section className="mb-5">
+            <h3 className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-3">
+              Voice part requests
+            </h3>
+            {loadingRequests ? (
+              <Skeleton className="h-20 w-full rounded-card" />
+            ) : voicePartRequests.length === 0 ? (
+              <Card className="p-4">
+                <p className="text-sm text-harmonic-muted text-center">No voice part change requests.</p>
+              </Card>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {pendingRequests.map(req => (
+                  <Card key={req.id} className="p-4 border-harmonic-warning/40 bg-harmonic-warning/5">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <p className="text-sm font-semibold text-harmonic-text">
+                          {voicePartLabel[req.currentPart]} → {voicePartLabel[req.requestedPart]}
+                        </p>
+                        {req.note && (
+                          <p className="text-xs text-harmonic-muted mt-0.5 italic">"{req.note}"</p>
+                        )}
+                      </div>
+                      <Badge tone="warning">Pending</Badge>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => handleResolveRequest(req, 'approved')}
+                        disabled={resolvingId === req.id}
+                      >
+                        <CheckCircle2 size={14} /> Approve
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="sm"
+                        onClick={() => handleResolveRequest(req, 'declined')}
+                        disabled={resolvingId === req.id}
+                      >
+                        <XCircle size={14} /> Decline
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+                {pastRequests.length > 0 && (
+                  <Card className="divide-y divide-harmonic-border">
+                    {pastRequests.map(req => {
+                      const meta = requestStatusMeta[req.status]
+                      const Icon = meta.icon
+                      return (
+                        <div key={req.id} className="flex items-center justify-between px-4 py-3 gap-3">
+                          <span className="text-sm text-harmonic-text">
+                            {voicePartLabel[req.currentPart]} → {voicePartLabel[req.requestedPart]}
+                          </span>
+                          <span className={`flex items-center gap-1 text-xs font-medium ${meta.color}`}>
+                            <Icon size={13} aria-hidden="true" />
+                            {meta.label}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </Card>
+                )}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Attendance history */}
         <section className="mb-5">

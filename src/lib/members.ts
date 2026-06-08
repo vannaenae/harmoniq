@@ -7,6 +7,8 @@ import {
   deleteDoc,
   query,
   where,
+  orderBy,
+  limit,
   serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -90,4 +92,35 @@ export async function listPendingVoicePartRequests(choirId: string): Promise<Voi
     const data = d.data()
     return { ...data, id: d.id, createdAt: toDate(data.createdAt) } as VoicePartRequest
   })
+}
+
+export async function listVoicePartRequestsForMember(
+  choirId: string,
+  uid: string,
+): Promise<VoicePartRequest[]> {
+  const snap = await getDocs(
+    query(requestsCol(choirId), where('uid', '==', uid), orderBy('createdAt', 'desc'), limit(5)),
+  )
+  return snap.docs.map(d => {
+    const data = d.data()
+    return { ...data, id: d.id, createdAt: toDate(data.createdAt) } as VoicePartRequest
+  })
+}
+
+/** Approve or decline a voice part change request.
+ *  When approved, automatically updates the member's voice part. */
+export async function resolveVoicePartRequest(
+  choirId: string,
+  requestId: string,
+  decision: 'approved' | 'declined',
+  memberId: string,
+  newPart: VoicePart,
+): Promise<void> {
+  await updateDoc(doc(db, 'choirs', choirId, 'voicePartRequests', requestId), {
+    status: decision,
+    resolvedAt: serverTimestamp(),
+  })
+  if (decision === 'approved') {
+    await updateMemberVoicePart(choirId, memberId, newPart)
+  }
 }

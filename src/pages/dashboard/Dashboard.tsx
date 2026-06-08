@@ -7,7 +7,10 @@ import {
   Music2,
   Plus,
   ChevronRight,
-  Sparkles,
+  Check,
+  HelpCircle,
+  X,
+  BookOpen,
 } from 'lucide-react'
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -19,10 +22,22 @@ import { SkeletonCard } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
-import { subscribeServices, toDate } from '@/lib/firestore'
-import { formatDate } from '@/lib/utils'
+import { subscribeServices, getSetList, toDate } from '@/lib/firestore'
+import { getMyAvailability } from '@/lib/availability'
+import { formatDate, cn } from '@/lib/utils'
 import { serviceStatusMeta } from '@/lib/status'
-import type { Service, Announcement, Availability, Song } from '@/types'
+import type { Service, Announcement, Availability, SetListItem } from '@/types'
+
+type AvailabilityStatus = 'available' | 'not_sure' | 'unavailable' | null
+
+const availabilityDisplay: Record<
+  NonNullable<AvailabilityStatus>,
+  { label: string; icon: typeof Check; className: string }
+> = {
+  available:   { label: "I'm in",     icon: Check,       className: 'text-harmonic-success' },
+  not_sure:    { label: "Not sure",   icon: HelpCircle,  className: 'text-harmonic-warning' },
+  unavailable: { label: "Can't make it", icon: X,        className: 'text-harmonic-danger'  },
+}
 
 export function Dashboard() {
   const { harmonicUser, firebaseUser } = useAuth()
@@ -34,7 +49,11 @@ export function Dashboard() {
   const [availabilityCounts, setAvailabilityCounts] = useState<{
     confirmed: number; pending: number; unavailable: number
   } | null>(null)
-  const [featuredSong, setFeaturedSong] = useState<Pick<Song, 'title' | 'artist' | 'defaultKey'> | null>(null)
+  // Member-specific state
+  const [myNextServiceAvailability, setMyNextServiceAvailability] = useState<AvailabilityStatus>(null)
+  const [nextServiceSongs, setNextServiceSongs] = useState<SetListItem[]>([])
+  const [songsLoading, setSongsLoading] = useState(false)
+  const [myUpcomingAvailability, setMyUpcomingAvailability] = useState<Record<string, AvailabilityStatus>>({})
 
   const name =
     harmonicUser?.preferredName ?? harmonicUser?.displayName ?? firebaseUser?.displayName ?? 'there'
@@ -71,29 +90,13 @@ export function Dashboard() {
     return unsub
   }, [choir])
 
-  // Featured song — latest song added to the choir library
-  useEffect(() => {
-    if (!choir) { setFeaturedSong(null); return }
-    const q = query(
-      collection(db, 'choirs', choir.id, 'songs'),
-      orderBy('createdAt', 'desc'),
-      limit(1),
-    )
-    const unsub = onSnapshot(q, snap => {
-      if (snap.empty) { setFeaturedSong(null); return }
-      const data = snap.docs[0].data()
-      setFeaturedSong({ title: data.title, artist: data.artist ?? undefined, defaultKey: data.defaultKey ?? data.key ?? undefined })
-    }, () => { setFeaturedSong(null) })
-    return unsub
-  }, [choir])
-
   const now = new Date()
   const upcoming = services
     .filter(s => s.date >= now && (s.status === 'published' || isDirector))
     .slice(0, 3)
   const nextService = upcoming[0]
 
-  // Real-time availability counts for the next service
+  // Real-time availability counts for the next service (director view)
   useEffect(() => {
     if (!choir || !nextService) { setAvailabilityCounts(null); return }
     const unsub = onSnapshot(
@@ -108,7 +111,6 @@ export function Dashboard() {
           else if (status === 'unavailable') unavailable++
           else pending++
         })
-        // Members who haven't responded count as pending
         const responded = snap.docs.length
         const totalMembers = members.length
         if (totalMembers > responded) pending += totalMembers - responded
@@ -119,6 +121,44 @@ export function Dashboard() {
     return unsub
   }, [choir, nextService?.id, members.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Member: load my availability for next service + songs to practice
+  useEffect(() => {
+    if (!choir || !nextService || !firebaseUser || isDirector) {
+      setMyNextServiceAvailability(null)
+      setNextServiceSongs([])
+      return
+    }
+    let active = true
+    setSongsLoading(true)
+    Promise.all([
+      getMyAvailability(choir.id, nextService.id, firebaseUser.uid),
+      getSetList(choir.id, nextService.id),
+    ]).then(([avail, songs]) => {
+      if (!active) return
+      setMyNextServiceAvailability((avail?.status as AvailabilityStatus) ?? null)
+      setNextServiceSongs(songs.slice(0, 4))
+    }).catch(err => console.error('Load member dashboard data error:', err))
+      .finally(() => { if (active) setSongsLoading(false) })
+    return () => { active = false }
+  }, [choir, nextService?.id, firebaseUser, isDirector]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Member: load my availability for all upcoming services (to show inline status)
+  useEffect(() => {
+    if (!choir || !firebaseUser || isDirector || upcoming.length === 0) return
+    let active = true
+    Promise.all(
+      upcoming.map(s =>
+        getMyAvailability(choir.id, s.id, firebaseUser.uid).then(a => ({ id: s.id, status: (a?.status as AvailabilityStatus) ?? null })),
+      ),
+    ).then(results => {
+      if (!active) return
+      const map: Record<string, AvailabilityStatus> = {}
+      results.forEach(r => { map[r.id] = r.status })
+      setMyUpcomingAvailability(map)
+    }).catch(() => {})
+    return () => { active = false }
+  }, [choir, firebaseUser, isDirector, upcoming.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <AppLayout>
       <div className="px-6 py-8 max-w-3xl mx-auto md:px-8">
@@ -128,7 +168,7 @@ export function Dashboard() {
           <p className="text-harmonic-muted text-sm font-crimson mt-0.5">
             {isDirector
               ? "Here's what's happening with your choir."
-              : "Here's what's coming up for your choir."}
+              : "Here's what you need to do this week."}
           </p>
         </header>
 
@@ -144,7 +184,12 @@ export function Dashboard() {
           {loading ? (
             <SkeletonCard />
           ) : nextService ? (
-            <NextServiceCard service={nextService} isDirector={isDirector} availabilityCounts={availabilityCounts} />
+            <NextServiceCard
+              service={nextService}
+              isDirector={isDirector}
+              availabilityCounts={availabilityCounts}
+              myAvailability={myNextServiceAvailability}
+            />
           ) : (
             <Card className="p-6">
               <EmptyState
@@ -168,6 +213,70 @@ export function Dashboard() {
             </Card>
           )}
         </section>
+
+        {/* Member: songs to practice */}
+        {!isDirector && nextService && (
+          <section aria-labelledby="practice-heading" className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2
+                id="practice-heading"
+                className="text-xs font-semibold font-cormorant text-harmonic-muted uppercase tracking-widest"
+              >
+                Songs to practice
+              </h2>
+              <Link
+                to={`/services/${nextService.id}`}
+                className="text-xs font-medium text-harmonic-primary hover:opacity-80"
+              >
+                Full set list
+              </Link>
+            </div>
+            {songsLoading ? (
+              <SkeletonCard />
+            ) : nextServiceSongs.length === 0 ? (
+              <Card className="p-4">
+                <p className="text-sm text-harmonic-muted text-center">Set list not published yet.</p>
+              </Card>
+            ) : (
+              <Card className="divide-y divide-harmonic-border">
+                {nextServiceSongs.map(item => (
+                  <Link
+                    key={item.songId}
+                    to={`/services/${nextService.id}/songs/${item.songId}`}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-harmonic-surface/50 transition-colors"
+                  >
+                    <span className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-harmonic-surface">
+                      <Music2 size={14} className="text-harmonic-primary" aria-hidden="true" />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-harmonic-text truncate">{item.title}</p>
+                      {item.artist && (
+                        <p className="text-xs text-harmonic-muted truncate">{item.artist}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {item.key && (
+                        <span className="text-xs font-medium text-harmonic-primary bg-harmonic-surface px-2 py-0.5 rounded-full">
+                          {item.key}
+                        </span>
+                      )}
+                      <ChevronRight size={14} className="text-harmonic-muted" aria-hidden="true" />
+                    </div>
+                  </Link>
+                ))}
+                {nextServiceSongs.length === 4 && (
+                  <Link
+                    to={`/services/${nextService.id}`}
+                    className="flex items-center justify-center gap-2 px-4 py-3 text-xs font-medium text-harmonic-primary hover:bg-harmonic-surface/50 transition-colors"
+                  >
+                    <BookOpen size={13} aria-hidden="true" />
+                    View all songs
+                  </Link>
+                )}
+              </Card>
+            )}
+          </section>
+        )}
 
         {/* Quick actions — Director only */}
         {isDirector && (
@@ -200,34 +309,6 @@ export function Dashboard() {
           </section>
         )}
 
-        {/* Member: featured song (latest added to library) */}
-        {!isDirector && featuredSong && (
-          <section aria-labelledby="sotw-heading" className="mb-6">
-            <h2
-              id="sotw-heading"
-              className="text-xs font-semibold font-cormorant text-harmonic-muted uppercase tracking-widest mb-3"
-            >
-              Featured song
-            </h2>
-            <Link to="/library">
-              <Card className="p-4 flex items-center gap-4 hover:bg-harmonic-surface/50 transition-colors">
-                <span
-                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-harmonic-primary"
-                  aria-hidden="true"
-                >
-                  <Sparkles size={20} className="text-white" />
-                </span>
-                <div className="min-w-0">
-                  <p className="font-semibold text-sm text-harmonic-text truncate">{featuredSong.title}</p>
-                  <p className="text-xs text-harmonic-muted">
-                    {[featuredSong.artist, featuredSong.defaultKey ? `Key of ${featuredSong.defaultKey}` : ''].filter(Boolean).join(' \u00B7 ') || 'View in library'}
-                  </p>
-                </div>
-              </Card>
-            </Link>
-          </section>
-        )}
-
         {/* Upcoming services */}
         <section aria-labelledby="upcoming-heading" className="mb-6">
           <div className="flex items-center justify-between mb-3">
@@ -252,20 +333,35 @@ export function Dashboard() {
             </div>
           ) : upcoming.length > 0 ? (
             <div className="flex flex-col gap-3">
-              {upcoming.map(s => (
-                <Link key={s.id} to={isDirector ? `/services/${s.id}/setlist` : `/services/${s.id}`}>
-                  <Card className="p-4 flex items-center gap-4 hover:bg-harmonic-surface/50 transition-colors">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm text-harmonic-text truncate">{s.title}</p>
-                      <p className="text-harmonic-muted text-xs mt-0.5">{formatDate(s.date)}</p>
-                    </div>
-                    <Badge tone={serviceStatusMeta[s.status].tone}>
-                      {serviceStatusMeta[s.status].label}
-                    </Badge>
-                    <ChevronRight size={16} className="text-harmonic-muted flex-shrink-0" aria-hidden="true" />
-                  </Card>
-                </Link>
-              ))}
+              {upcoming.map(s => {
+                const myStatus = myUpcomingAvailability[s.id]
+                const avMeta = myStatus ? availabilityDisplay[myStatus] : null
+                return (
+                  <Link key={s.id} to={isDirector ? `/services/${s.id}/setlist` : `/services/${s.id}`}>
+                    <Card className="p-4 flex items-center gap-4 hover:bg-harmonic-surface/50 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-harmonic-text truncate">{s.title}</p>
+                        <p className="text-harmonic-muted text-xs mt-0.5">{formatDate(s.date)}</p>
+                        {!isDirector && avMeta && (
+                          <span className={cn('flex items-center gap-1 text-xs font-medium mt-1', avMeta.className)}>
+                            <avMeta.icon size={11} aria-hidden="true" />
+                            {avMeta.label}
+                          </span>
+                        )}
+                        {!isDirector && !avMeta && (
+                          <span className="text-xs text-harmonic-muted mt-1 block">Tap to mark availability</span>
+                        )}
+                      </div>
+                      {isDirector && (
+                        <Badge tone={serviceStatusMeta[s.status].tone}>
+                          {serviceStatusMeta[s.status].label}
+                        </Badge>
+                      )}
+                      <ChevronRight size={16} className="text-harmonic-muted flex-shrink-0" aria-hidden="true" />
+                    </Card>
+                  </Link>
+                )
+              })}
             </div>
           ) : (
             <Card className="p-6">
@@ -330,11 +426,19 @@ export function Dashboard() {
   )
 }
 
-function NextServiceCard({ service, isDirector, availabilityCounts }: {
+function NextServiceCard({
+  service,
+  isDirector,
+  availabilityCounts,
+  myAvailability,
+}: {
   service: Service
   isDirector: boolean
   availabilityCounts: { confirmed: number; pending: number; unavailable: number } | null
+  myAvailability: AvailabilityStatus
 }) {
+  const avMeta = myAvailability ? availabilityDisplay[myAvailability] : null
+
   return (
     <Card className="p-5">
       <div className="flex items-start gap-4">
@@ -350,12 +454,23 @@ function NextServiceCard({ service, isDirector, availabilityCounts }: {
             {formatDate(service.date)}
             {service.time ? ` · ${service.time}` : ''}
           </p>
-          {availabilityCounts && (
+          {isDirector && availabilityCounts && (
             <div className="flex gap-3 mt-2 flex-wrap">
               <span className="text-xs font-medium text-harmonic-success">{availabilityCounts.confirmed} confirmed</span>
               <span className="text-xs font-medium text-harmonic-warning">{availabilityCounts.pending} pending</span>
               <span className="text-xs font-medium text-harmonic-danger">{availabilityCounts.unavailable} unavailable</span>
             </div>
+          )}
+          {!isDirector && avMeta && (
+            <span className={cn('flex items-center gap-1 text-xs font-medium mt-2', avMeta.className)}>
+              <avMeta.icon size={12} aria-hidden="true" />
+              Your response: {avMeta.label}
+            </span>
+          )}
+          {!isDirector && !avMeta && (
+            <span className="text-xs text-harmonic-warning font-medium mt-2 block">
+              You haven't responded yet
+            </span>
           )}
         </div>
       </div>
@@ -373,7 +488,9 @@ function NextServiceCard({ service, isDirector, availabilityCounts }: {
         ) : (
           <>
             <Link to={`/services/${service.id}/availability`}>
-              <Button variant="primary" size="sm">Mark availability</Button>
+              <Button variant="primary" size="sm">
+                {myAvailability ? 'Update availability' : 'Mark availability'}
+              </Button>
             </Link>
             <Link to={`/services/${service.id}`}>
               <Button variant="outlined" size="sm">View set list</Button>
