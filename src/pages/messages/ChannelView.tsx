@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom'
 import { ArrowLeft, Hash, Pin, Send, MoreVertical, Smile, Trash2 } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/utils'
@@ -13,7 +13,7 @@ import {
   toggleReaction,
   editMessage,
 } from '@/lib/messaging'
-import type { Message } from '@/types'
+import type { Channel, Message } from '@/types'
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '🙏', '🔥', '🎵']
 
@@ -217,11 +217,17 @@ function MessageBubble({ msg, isMine, isDirector, choirId, channelId, currentUse
   )
 }
 
+interface OutletCtx { channels: Channel[]; visibleChannels: Channel[] }
+
 export function ChannelView() {
   const { channelId } = useParams<{ channelId: string }>()
   const navigate = useNavigate()
   const { harmonicUser } = useAuth()
   const { choir, isDirector } = useChoir()
+  const { channels } = useOutletContext<OutletCtx>()
+
+  const channel = channels.find(c => c.id === channelId)
+  const channelName = channel?.name ?? channelId ?? ''
 
   const [messages, setMessages] = useState<Message[]>([])
   const [text, setText] = useState('')
@@ -277,8 +283,6 @@ export function ChannelView() {
       grouped[grouped.length - 1].messages.push(msg)
     }
   }
-
-  const channelName = channelId ?? ''
 
   return (
     <>
