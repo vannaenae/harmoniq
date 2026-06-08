@@ -40,32 +40,48 @@
 @layer components {
   /* Button variants */
   .btn-primary {
-    @apply bg-harmonic-primary text-white rounded-pill px-6 py-2.5 font-medium text-sm transition-opacity hover:opacity-90 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-primary focus-visible:ring-offset-2;
+    @apply bg-harmonic-primary text-white rounded-pill px-6 py-2.5 font-medium text-sm transition-all hover:opacity-90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-primary focus-visible:ring-offset-2;
   }
 
   .btn-secondary {
-    @apply bg-harmonic-surface text-harmonic-text rounded-pill px-6 py-2.5 font-medium text-sm transition-opacity hover:opacity-90 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-border focus-visible:ring-offset-2;
+    @apply bg-harmonic-surface text-harmonic-text rounded-pill px-6 py-2.5 font-medium text-sm transition-all hover:opacity-90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-border focus-visible:ring-offset-2;
   }
 
   .btn-inverted {
-    @apply bg-harmonic-neutral text-white rounded-pill px-6 py-2.5 font-medium text-sm transition-opacity hover:opacity-90 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-neutral focus-visible:ring-offset-2;
+    @apply bg-harmonic-neutral text-white rounded-pill px-6 py-2.5 font-medium text-sm transition-all hover:opacity-90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-neutral focus-visible:ring-offset-2;
   }
 
   .btn-outlined {
-    @apply bg-transparent border border-harmonic-border text-harmonic-text rounded-pill px-6 py-2.5 font-medium text-sm transition-colors hover:bg-harmonic-surface active:bg-harmonic-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-border focus-visible:ring-offset-2;
+    @apply bg-transparent border border-harmonic-border text-harmonic-text rounded-pill px-6 py-2.5 font-medium text-sm transition-all hover:bg-harmonic-surface active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-border focus-visible:ring-offset-2;
   }
 
   .btn-danger {
-    @apply bg-harmonic-danger text-white rounded-pill px-6 py-2.5 font-medium text-sm transition-opacity hover:opacity-90 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-danger focus-visible:ring-offset-2;
+    @apply bg-harmonic-danger text-white rounded-pill px-6 py-2.5 font-medium text-sm transition-all hover:opacity-90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-danger focus-visible:ring-offset-2;
+  }
+
+  /* Gradient button */
+  .btn-gradient {
+    background: linear-gradient(135deg, #3D1DB5 0%, #913d8c 100%);
+    @apply text-white rounded-pill px-6 py-2.5 font-medium text-sm transition-all hover:shadow-btn-glow hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-secondary focus-visible:ring-offset-2;
   }
 
   /* Card */
   .card {
-    @apply bg-harmonic-surface rounded-card shadow-card;
+    @apply bg-white rounded-card shadow-card border border-harmonic-border/40 transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply hover:shadow-card-hover hover:-translate-y-0.5;
   }
 
   .card-lg {
-    @apply bg-harmonic-surface rounded-card-lg shadow-card;
+    @apply bg-white rounded-card-lg shadow-card border border-harmonic-border/40;
+  }
+
+  /* Gradient card */
+  .card-gradient {
+    background: linear-gradient(135deg, #18005F 0%, #37005B 50%, #560056 100%);
+    @apply rounded-card-lg text-white;
   }
 
   /* Input */
@@ -88,8 +104,40 @@
     @apply border-b-2 border-harmonic-secondary;
   }
 
-  /* Nav active circle */
+  /* Nav active — gradient pill */
   .nav-active {
-    @apply bg-harmonic-neutral text-white rounded-full;
+    background: linear-gradient(135deg, #18005F 0%, #560056 100%);
+    @apply text-white rounded-full shadow-nav-active;
   }
+
+  /* Gradient text */
+  .text-gradient {
+    background: linear-gradient(135deg, #18005F 0%, #913d8c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-vivid {
+    background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Shimmer loading */
+  .shimmer-bg {
+    background: linear-gradient(90deg, #EDEAEF 25%, #F4F2F5 50%, #EDEAEF 75%);
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+
+  /* Staggered animation delay utilities */
+  .delay-50  { animation-delay: 50ms; }
+  .delay-100 { animation-delay: 100ms; }
+  .delay-150 { animation-delay: 150ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
 }

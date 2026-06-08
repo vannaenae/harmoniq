@@ -28,17 +28,22 @@ export function Sidebar() {
 
   return (
     <aside
-      className="hidden md:flex flex-col w-64 min-h-screen bg-white border-r border-harmonic-border py-6 px-4 fixed left-0 top-0 z-20"
+      className="hidden md:flex flex-col w-64 min-h-screen bg-white border-r border-harmonic-border/60 py-6 px-4 fixed left-0 top-0 z-20"
       aria-label="Main navigation"
     >
-      {/* Logo */}
+      {/* Logo — gradient brand block */}
       <div className="mb-8 px-2">
-        <span className="text-xl font-bold text-harmonic-primary tracking-tight">Harmoniq</span>
-        <span className="block text-xs text-harmonic-muted font-medium mt-0.5">A SoulSPCE project</span>
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center flex-shrink-0 shadow-nav-active">
+            <Music2 size={16} className="text-white" aria-hidden="true" />
+          </div>
+          <span className="text-xl font-bold tracking-tight text-gradient">Harmoniq</span>
+        </div>
+        <span className="block text-xs text-harmonic-muted font-medium mt-1.5 pl-[42px]">A SoulSPCE project</span>
       </div>
 
       {/* Nav links */}
-      <nav className="flex flex-col gap-1 flex-1">
+      <nav className="flex flex-col gap-0.5 flex-1">
         {navItems.map(({ to, label, icon: Icon, badge }) => (
           <NavLink
             key={to}
@@ -46,9 +51,9 @@ export function Sidebar() {
             aria-label={badge && unreadCount > 0 ? `${label}, ${unreadCount} unread` : label}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
                 isActive
-                  ? 'bg-harmonic-neutral text-white'
+                  ? 'bg-gradient-brand text-white shadow-nav-active'
                   : 'text-harmonic-muted hover:text-harmonic-text hover:bg-harmonic-surface',
               )
             }
@@ -57,17 +62,17 @@ export function Sidebar() {
               <>
                 <span
                   className={cn(
-                    'relative flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0',
-                    isActive ? 'bg-white/10' : '',
+                    'relative flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0',
+                    isActive ? 'bg-white/15' : '',
                   )}
                 >
                   <Icon
-                    size={18}
+                    size={16}
                     aria-hidden="true"
                     className={isActive ? 'text-white' : 'text-harmonic-muted'}
                   />
                   {badge && unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-harmonic-secondary text-white text-[10px] font-semibold flex items-center justify-center">
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-harmonic-magenta text-white text-[10px] font-semibold flex items-center justify-center">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}

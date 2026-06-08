@@ -10,13 +10,13 @@ interface BadgeProps {
 }
 
 const toneClasses: Record<BadgeTone, string> = {
-  neutral:  'bg-harmonic-neutral/10 text-harmonic-neutral',
-  primary:  'bg-harmonic-primary/10 text-harmonic-primary',
-  tertiary: 'bg-harmonic-tertiary/10 text-harmonic-tertiary',
-  success:  'bg-harmonic-success/10 text-harmonic-success',
-  warning:  'bg-harmonic-warning/10 text-harmonic-warning',
-  danger:   'bg-harmonic-danger/10 text-harmonic-danger',
-  muted:    'bg-harmonic-muted/10 text-harmonic-muted',
+  neutral:  'bg-harmonic-neutral/12 text-harmonic-neutral border border-harmonic-neutral/20',
+  primary:  'bg-harmonic-primary/12 text-harmonic-primary border border-harmonic-primary/20',
+  tertiary: 'bg-gradient-card-accent text-harmonic-tertiary border border-harmonic-tertiary/20',
+  success:  'bg-harmonic-success/15 text-harmonic-success border border-harmonic-success/25',
+  warning:  'bg-harmonic-warning/15 text-harmonic-warning border border-harmonic-warning/25',
+  danger:   'bg-harmonic-danger/12 text-harmonic-danger border border-harmonic-danger/20',
+  muted:    'bg-harmonic-muted/10 text-harmonic-muted border border-harmonic-border',
 }
 
 export function Badge({ tone = 'neutral', children, className }: BadgeProps) {
