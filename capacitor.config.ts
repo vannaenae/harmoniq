@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.harmoniq.app',
+  appId: 'com.Soulspce.harmoniq.app',
   appName: 'Harmoniq',
   webDir: 'dist',
   server: {
