@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, Plus, Music2, ChevronRight, Heart, Loader2, Youtube, ExternalLink, BookOpen } from 'lucide-react'
+import { Search, Plus, Music2, ChevronRight, Heart, Loader2, Youtube, ExternalLink } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -17,10 +17,8 @@ import { listSongs, addCustomSong, GENRES, ALL_KEYS } from '@/lib/songs'
 import {
   fetchSpotifyResults,
   fetchYoutubeResults,
-  fetchCcliResults,
   type SpotifyTrackResult,
   type YoutubeVideoResult,
-  type CcliSongResult,
 } from '@/lib/integrations'
 import type { Song } from '@/types'
 
@@ -49,11 +47,8 @@ export function SongLibrary() {
   const [spotifyLoading, setSpotifyLoading] = useState(false)
   const [youtubeResults, setYoutubeResults] = useState<YoutubeVideoResult[]>([])
   const [youtubeLoading, setYoutubeLoading] = useState(false)
-  const [ccliResults, setCcliResults] = useState<CcliSongResult[]>([])
-  const [ccliLoading, setCcliLoading] = useState(false)
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [savingId, setSavingId] = useState<string | null>(null)
-  const [savingCcli, setSavingCcli] = useState<number | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -75,25 +70,20 @@ export function SongLibrary() {
     if (term.length < 3) {
       setSpotifyResults([])
       setYoutubeResults([])
-      setCcliResults([])
       return
     }
 
     debounceRef.current = setTimeout(async () => {
       setSpotifyLoading(true)
       setYoutubeLoading(true)
-      setCcliLoading(true)
-      const [sp, yt, cc] = await Promise.all([
+      const [sp, yt] = await Promise.all([
         fetchSpotifyResults(term),
         fetchYoutubeResults(term),
-        fetchCcliResults(term),
       ])
       setSpotifyResults(sp)
       setSpotifyLoading(false)
       setYoutubeResults(yt)
       setYoutubeLoading(false)
-      setCcliResults(cc)
-      setCcliLoading(false)
     }, 800)
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
@@ -114,25 +104,6 @@ export function SongLibrary() {
       console.error('Save song error:', err)
     } finally {
       setSavingId(null)
-    }
-  }
-
-  const handleSaveCcliSong = async (song: CcliSongResult) => {
-    if (!choir || !firebaseUser) return
-    setSavingCcli(song.songNumber)
-    try {
-      await addCustomSong(choir.id, firebaseUser.uid, {
-        title: song.title,
-        artist: song.authors.join(', ') || undefined,
-        ccliNumber: song.songNumber,
-      })
-      setSavedIds(prev => new Set([...prev, `ccli-${song.songNumber}`]))
-      const updated = await listSongs(choir.id)
-      setSongs(updated)
-    } catch (err) {
-      console.error('Save CCLI song error:', err)
-    } finally {
-      setSavingCcli(null)
     }
   }
 
@@ -179,7 +150,7 @@ export function SongLibrary() {
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-harmonic-muted" aria-hidden="true" />
           <Input
             aria-label="Search songs"
-            placeholder="Search library, SongSelect, Spotify, YouTube…"
+            placeholder="Search library, Spotify, YouTube…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-10"
@@ -229,7 +200,6 @@ export function SongLibrary() {
                           <div className="flex items-center gap-1.5 mt-1">
                             {song.defaultKey && <Badge tone="muted">{song.defaultKey}</Badge>}
                             {song.genre && <Badge tone="tertiary">{song.genre}</Badge>}
-                            {song.ccliNumber && <Badge tone="muted">CCLI #{song.ccliNumber}</Badge>}
                             {song.isCustom && <Badge tone="primary">Custom</Badge>}
                           </div>
                         </div>
@@ -245,7 +215,7 @@ export function SongLibrary() {
                   <EmptyState
                     icon={Music2}
                     title="No songs match"
-                    description="Try a different filter — or search by name to discover songs on SongSelect, Spotify, and YouTube."
+                    description="Try a different filter — or search by name to discover songs on Spotify and YouTube."
                   />
                 </Card>
               )}
@@ -263,84 +233,6 @@ export function SongLibrary() {
                 </div>
               )}
             </section>
-
-            {/* ── CCLI SongSelect results ───────────────────────── */}
-            {isSearching && (
-              <section>
-                <div className="flex items-center gap-2 mb-3">
-                  <BookOpen size={14} className="text-[#e74c3c]" />
-                  <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">CCLI SongSelect</p>
-                </div>
-
-                {ccliLoading ? (
-                  <Card className="p-4 flex items-center gap-3">
-                    <Loader2 size={18} className="animate-spin text-harmonic-muted" />
-                    <p className="text-sm text-harmonic-muted">Searching SongSelect…</p>
-                  </Card>
-                ) : ccliResults.length > 0 ? (
-                  <div className="flex flex-col gap-2">
-                    {ccliResults.slice(0, SEARCH_CAP).map(song => (
-                      <Card key={song.songNumber} className="p-3 flex items-center gap-3">
-                        <div className="w-14 h-14 rounded-xl bg-[#e74c3c]/10 flex-shrink-0 flex items-center justify-center">
-                          <BookOpen size={22} className="text-[#e74c3c]" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm text-harmonic-text truncate">{song.title}</p>
-                          <p className="text-xs text-harmonic-muted truncate">
-                            {song.authors.join(', ')}
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] font-medium text-harmonic-muted">#{song.songNumber}</span>
-                            {song.themes.slice(0, 2).map(t => (
-                              <Badge key={t} tone="muted">{t}</Badge>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          {isDirector && (
-                            savedIds.has(`ccli-${song.songNumber}`) ? (
-                              <Button variant="secondary" size="sm" disabled>
-                                <Heart size={13} className="fill-current" /> Saved
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outlined"
-                                size="sm"
-                                onClick={() => handleSaveCcliSong(song)}
-                                disabled={savingCcli === song.songNumber}
-                              >
-                                {savingCcli === song.songNumber
-                                  ? <Loader2 size={13} className="animate-spin" />
-                                  : <Heart size={13} />}
-                                Save
-                              </Button>
-                            )
-                          )}
-                        </div>
-                      </Card>
-                    ))}
-                    <a
-                      href={`https://songselect.ccli.com/search/results?Search=${encodeURIComponent(search.trim())}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex justify-center pt-1"
-                    >
-                      <Button variant="outlined" size="sm">
-                        <ExternalLink size={13} /> See all on SongSelect
-                      </Button>
-                    </a>
-                  </div>
-                ) : (
-                  <Card className="p-4 text-center">
-                    <p className="text-sm text-harmonic-muted">
-                      {!ccliLoading
-                        ? 'No SongSelect results — CCLI credentials may not be configured yet.'
-                        : `No CCLI results for "${search.trim()}"`}
-                    </p>
-                  </Card>
-                )}
-              </section>
-            )}
 
             {/* ── Spotify results ───────────────────────────────── */}
             {isSearching && (

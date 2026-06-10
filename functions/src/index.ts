@@ -8,8 +8,6 @@
  *   firebase functions:secrets:set GENIUS_TOKEN
  *   firebase functions:secrets:set YOUTUBE_API_KEY     ← YouTube Data API v3 key
  *   firebase functions:secrets:set OPENAI_API_KEY       ← OpenAI API key (song context)
- *   firebase functions:secrets:set CCLI_CLIENT_ID       ← CCLI SongSelect API client ID
- *   firebase functions:secrets:set CCLI_CLIENT_SECRET   ← CCLI SongSelect API client secret
  *
  * Deploy:  npm --prefix functions run deploy
  */
@@ -26,8 +24,6 @@ const SPOTIFY_CLIENT_SECRET = defineSecret('SPOTIFY_CLIENT_SECRET')
 const GENIUS_TOKEN          = defineSecret('GENIUS_TOKEN')
 const YOUTUBE_API_KEY       = defineSecret('YOUTUBE_API_KEY')
 const OPENAI_API_KEY        = defineSecret('OPENAI_API_KEY')
-const CCLI_CLIENT_ID        = defineSecret('CCLI_CLIENT_ID')
-const CCLI_CLIENT_SECRET    = defineSecret('CCLI_CLIENT_SECRET')
 
 // ── Spotify: Client Credentials token (cached in memory per instance) ──────
 let cachedToken: { value: string; expiresAt: number } | null = null
@@ -151,7 +147,7 @@ export const geniusSearch = onCall({ secrets: [GENIUS_TOKEN] }, async (request) 
 })
 
 // ── fetchLyrics ──────────────────────────────────────────────────────────────
-// Fetch actual lyrics text via the free lyrics.ovh API (no auth required).
+// Fetch lyrics via lrclib.net (primary, free, no auth) with lyrics.ovh fallback.
 // Cached in /lyricsCache. Falls back gracefully to null.
 export const fetchLyrics = onCall(async (request) => {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required')
@@ -164,17 +160,32 @@ export const fetchLyrics = onCall(async (request) => {
   if (cached.exists) return cached.data() as { lyrics: string | null }
 
   let lyrics: string | null = null
+
+  // 1. lrclib.net — free, open-source, no auth, excellent coverage
   try {
-    const artistPath = encodeURIComponent((artist ?? '').trim() || '_')
-    const titlePath  = encodeURIComponent(title.trim())
-    const res = await fetch(`https://api.lyrics.ovh/v1/${artistPath}/${titlePath}`)
+    const params = new URLSearchParams({ track_name: title.trim() })
+    if (artist?.trim()) params.set('artist_name', artist.trim())
+    const res = await fetch(`https://lrclib.net/api/get?${params}`, {
+      headers: { 'Lrclib-Client': 'Harmoniq/1.0 (worship choir app)' },
+    })
     if (res.ok) {
-      const json = (await res.json()) as { lyrics?: string; error?: string }
-      if (json.lyrics && !json.error) {
-        lyrics = json.lyrics.trim()
-      }
+      const json = (await res.json()) as { plainLyrics?: string | null }
+      if (json.plainLyrics) lyrics = json.plainLyrics.trim()
     }
-  } catch { /* no lyrics available */ }
+  } catch { /* try fallback */ }
+
+  // 2. lyrics.ovh — fallback
+  if (!lyrics) {
+    try {
+      const artistPath = encodeURIComponent((artist ?? '').trim() || '_')
+      const titlePath  = encodeURIComponent(title.trim())
+      const res = await fetch(`https://api.lyrics.ovh/v1/${artistPath}/${titlePath}`)
+      if (res.ok) {
+        const json = (await res.json()) as { lyrics?: string; error?: string }
+        if (json.lyrics && !json.error) lyrics = json.lyrics.trim()
+      }
+    } catch { /* no lyrics available */ }
+  }
 
   const result = { lyrics }
   await cacheRef.set(result)
@@ -329,130 +340,6 @@ export const youtubeSearch = onCall({ secrets: [YOUTUBE_API_KEY] }, async (reque
   await cacheRef.set(payload)
   return payload
 })
-
-// ── CCLI SongSelect ───────────────────────────────────────────────────────────
-// Requires CCLI developer credentials from developer.ccli.com.
-// Tokens are cached in memory per function instance.
-
-const CCLI_AUTH_URL    = 'https://auth.ccli.com/connect/token'
-const CCLI_API_BASE    = 'https://api.ccli.com/v1'
-
-let ccliToken: { value: string; expiresAt: number } | null = null
-
-async function getCcliToken(id: string, secret: string): Promise<string> {
-  if (ccliToken && ccliToken.expiresAt > Date.now() + 60_000) return ccliToken.value
-  const res = await fetch(CCLI_AUTH_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: 'Basic ' + Buffer.from(`${id}:${secret}`).toString('base64'),
-    },
-    body: 'grant_type=client_credentials&scope=SongSelectAPI',
-  })
-  if (!res.ok) throw new HttpsError('internal', `CCLI auth failed: ${res.status}`)
-  const json = (await res.json()) as { access_token: string; expires_in: number }
-  ccliToken = { value: json.access_token, expiresAt: Date.now() + json.expires_in * 1000 }
-  return ccliToken.value
-}
-
-// ccliSearch — search CCLI SongSelect for worship songs.
-// Returns up to 5 results with title, authors, CCLI number.
-export const ccliSearch = onCall(
-  { secrets: [CCLI_CLIENT_ID, CCLI_CLIENT_SECRET] },
-  async (request) => {
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required')
-    const { query } = request.data as { query: string }
-    if (!query?.trim()) throw new HttpsError('invalid-argument', 'query is required')
-
-    const cacheKey = query.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')
-    const cacheRef = db.collection('ccliSearchCache').doc(cacheKey)
-    const cached = await cacheRef.get()
-    if (cached.exists) return cached.data()
-
-    const token = await getCcliToken(CCLI_CLIENT_ID.value(), CCLI_CLIENT_SECRET.value())
-    const res = await fetch(
-      `${CCLI_API_BASE}/search/songs?query=${encodeURIComponent(query.trim())}&pageSize=5&pageNumber=1`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    )
-    if (!res.ok) throw new HttpsError('internal', `CCLI search failed: ${res.status}`)
-
-    const json = (await res.json()) as {
-      totalCount?: number
-      items: Array<{
-        songNumber: number
-        title: string
-        authors: string[]
-        themes?: string[]
-        copyright?: string
-      }>
-    }
-
-    const results = (json.items ?? []).map(s => ({
-      songNumber: s.songNumber,
-      title: s.title,
-      authors: s.authors ?? [],
-      themes: s.themes ?? [],
-      copyright: s.copyright ?? null,
-    }))
-
-    const payload = { results }
-    await cacheRef.set(payload)
-    return payload
-  },
-)
-
-// ccliGetSong — fetch full lyrics for a CCLI song number.
-// Returns structured sections (Verse 1, Chorus, Bridge, etc.) and copyright info.
-export const ccliGetSong = onCall(
-  { secrets: [CCLI_CLIENT_ID, CCLI_CLIENT_SECRET] },
-  async (request) => {
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required')
-    const { songNumber } = request.data as { songNumber: number }
-    if (!songNumber) throw new HttpsError('invalid-argument', 'songNumber is required')
-
-    const cacheRef = db.collection('ccliSongCache').doc(String(songNumber))
-    const cached = await cacheRef.get()
-    if (cached.exists) return cached.data()
-
-    const token = await getCcliToken(CCLI_CLIENT_ID.value(), CCLI_CLIENT_SECRET.value())
-    const res = await fetch(
-      `${CCLI_API_BASE}/songs/${songNumber}/lyrics`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    )
-    if (!res.ok) throw new HttpsError('internal', `CCLI song fetch failed: ${res.status}`)
-
-    const json = (await res.json()) as {
-      songNumber: number
-      title: string
-      authors: string[]
-      copyright: string
-      sections: Array<{
-        type: string
-        number?: number
-        content: string
-      }>
-    }
-
-    const fullLyrics = (json.sections ?? [])
-      .map(sec => {
-        const header = sec.number ? `${sec.type} ${sec.number}` : sec.type
-        return `[${header}]\n${sec.content}`
-      })
-      .join('\n\n')
-
-    const result = {
-      songNumber: json.songNumber,
-      title: json.title,
-      authors: json.authors ?? [],
-      copyright: json.copyright ?? null,
-      sections: json.sections ?? [],
-      fullLyrics: fullLyrics || null,
-    }
-
-    await cacheRef.set(result)
-    return result
-  },
-)
 
 // ── createCalendarEvent ───────────────────────────────────────────────────────
 export const createCalendarEvent = onCall(async (request) => {

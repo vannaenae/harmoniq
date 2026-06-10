@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Save,
   Music2, Youtube, ExternalLink, ChevronDown as ChevronExpand,
-  Sparkles, BookOpen,
+  Sparkles,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
@@ -17,9 +17,9 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
 import { getSong, getPracticeNotes, savePracticeNotes } from '@/lib/songs'
 import {
-  fetchSpotify, fetchGenius, fetchLyricsData, fetchSongContext, fetchCcliSong,
+  fetchSpotify, fetchGenius, fetchLyricsData, fetchSongContext,
   spotifyEmbedUrl,
-  type SpotifyData, type GeniusData, type LyricsData, type SongContextData, type CcliSongDetail,
+  type SpotifyData, type GeniusData, type LyricsData, type SongContextData,
 } from '@/lib/integrations'
 import { listServices, getSetList, saveSetList } from '@/lib/firestore'
 import type { Song, Service } from '@/types'
@@ -59,7 +59,6 @@ export function SongLibraryDetail() {
   const [genius,  setGenius]  = useState<GeniusData | null>(null)
   const [lyricsData,  setLyricsData]  = useState<LyricsData | null>(null)
   const [context, setContext] = useState<SongContextData | null>(null)
-  const [ccliDetail, setCcliDetail] = useState<CcliSongDetail | null>(null)
   const [mediaLoading,   setMediaLoading]   = useState(true)
   const [lyricsLoading,  setLyricsLoading]  = useState(true)
   const [contextLoading, setContextLoading] = useState(true)
@@ -94,21 +93,12 @@ export function SongLibraryDetail() {
       setLoading(false)
 
       // Fire all enrichment in parallel — each settles independently
-      const promises: [
-        Promise<SpotifyData | null>,
-        Promise<GeniusData | null>,
-        Promise<LyricsData>,
-        Promise<SongContextData>,
-        Promise<CcliSongDetail | null>,
-      ] = [
+      const [sp, ge, ly, ctx] = await Promise.allSettled([
         fetchSpotify(s.title, s.artist),
         fetchGenius(s.title, s.artist),
         fetchLyricsData(s.title, s.artist),
         fetchSongContext(s.title, s.artist),
-        s.ccliNumber ? fetchCcliSong(s.ccliNumber) : Promise.resolve(null),
-      ]
-
-      const [sp, ge, ly, ctx, cc] = await Promise.allSettled(promises)
+      ])
 
       if (!active) return
       if (sp.status === 'fulfilled') setSpotify(sp.value)
@@ -121,8 +111,6 @@ export function SongLibraryDetail() {
 
       if (ctx.status === 'fulfilled') setContext(ctx.value)
       setContextLoading(false)
-
-      if (cc.status === 'fulfilled' && cc.value) setCcliDetail(cc.value)
     }).catch(err => {
       console.error('Load song error:', err)
       setLoading(false)
@@ -167,9 +155,7 @@ export function SongLibraryDetail() {
   const trackId   = spotify?.trackId  ?? song?.spotifyTrackId ?? null
   const artUrl    = spotify?.albumArtUrl ?? song?.albumArtUrl ?? null
   const lyricsUrl = genius?.url ?? song?.geniusUrl ?? song?.lyricsUrl ?? null
-  // CCLI lyrics take priority — they are the official licensed version
-  const lyrics    = ccliDetail?.fullLyrics ?? lyricsData?.lyrics ?? null
-  const lyricsCopyright = ccliDetail?.copyright ?? null
+  const lyrics    = lyricsData?.lyrics ?? null
   const chords    = KEY_CHORDS[selectedKey] ?? null
   const songQuery = encodeURIComponent(`${song?.title ?? ''} ${song?.artist ?? ''}`.trim())
 
@@ -256,11 +242,6 @@ export function SongLibraryDetail() {
                 {spotify?.tempo && (
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/15 text-white backdrop-blur-sm">
                     {spotify.tempo} BPM
-                  </span>
-                )}
-                {song.ccliNumber && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#e74c3c]/70 text-white flex items-center gap-1">
-                    <BookOpen size={10} /> CCLI #{song.ccliNumber}
                   </span>
                 )}
                 {song.isCustom && (
@@ -371,14 +352,7 @@ export function SongLibraryDetail() {
 
           {/* ── Lyrics ──────────────────────────────────────────────────── */}
           <Card className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Lyrics</p>
-              {ccliDetail && (
-                <span className="flex items-center gap-1 text-[10px] font-medium text-[#e74c3c]">
-                  <BookOpen size={10} /> Via CCLI SongSelect
-                </span>
-              )}
-            </div>
+            <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-4">Lyrics</p>
 
             {lyricsLoading ? (
               <div className="space-y-2">
@@ -405,10 +379,7 @@ export function SongLibraryDetail() {
                   <ChevronExpand size={14} className={`transition-transform ${lyricsExpanded ? 'rotate-180' : ''}`} />
                   {lyricsExpanded ? 'Show less' : 'Show full lyrics'}
                 </button>
-                {lyricsCopyright && (
-                  <p className="mt-2 text-[10px] text-harmonic-muted">© {lyricsCopyright}</p>
-                )}
-                {!lyricsCopyright && lyricsUrl && (
+                {lyricsUrl && (
                   <a
                     href={lyricsUrl}
                     target="_blank"
@@ -422,18 +393,7 @@ export function SongLibraryDetail() {
             ) : (
               <div className="space-y-2">
                 <p className="text-sm text-harmonic-muted mb-3">Lyrics not available in-app for this song.</p>
-                {song?.ccliNumber && (
-                  <a
-                    href={`https://songselect.ccli.com/Songs/${song.ccliNumber}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button variant="outlined" fullWidth>
-                      <BookOpen size={15} /> View on CCLI SongSelect
-                    </Button>
-                  </a>
-                )}
-                {!song?.ccliNumber && lyricsUrl && (
+                {lyricsUrl && (
                   <a href={lyricsUrl} target="_blank" rel="noopener noreferrer">
                     <Button variant="outlined" fullWidth>
                       <ExternalLink size={15} /> View lyrics on Genius

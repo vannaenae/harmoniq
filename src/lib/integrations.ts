@@ -50,28 +50,6 @@ export interface YoutubeVideoResult {
   thumbnailUrl: string | null
 }
 
-export interface CcliSongResult {
-  songNumber: number
-  title: string
-  authors: string[]
-  themes: string[]
-  copyright: string | null
-}
-
-export interface CcliSongSection {
-  type: string
-  number?: number
-  content: string
-}
-
-export interface CcliSongDetail {
-  songNumber: number
-  title: string
-  authors: string[]
-  copyright: string | null
-  sections: CcliSongSection[]
-  fullLyrics: string | null
-}
 
 const cacheKeyFor = (title: string, artist?: string) =>
   `${title}__${artist ?? ''}`.toLowerCase().replace(/[^a-z0-9]+/g, '_')
@@ -179,29 +157,6 @@ export async function fetchSongContext(title: string, artist?: string): Promise<
   }
 }
 
-/** Search CCLI SongSelect for worship songs. Returns [] if credentials are not configured. */
-export async function fetchCcliResults(query: string): Promise<CcliSongResult[]> {
-  try {
-    const call = httpsCallable<{ query: string }, { results: CcliSongResult[] }>(functions, 'ccliSearch')
-    const { data } = await call({ query })
-    return data.results ?? []
-  } catch (err) {
-    console.warn('[ccli] search failed:', err)
-    return []
-  }
-}
-
-/** Fetch full lyrics and details for a CCLI song number. Returns null if not found. */
-export async function fetchCcliSong(songNumber: number): Promise<CcliSongDetail | null> {
-  try {
-    const call = httpsCallable<{ songNumber: number }, CcliSongDetail>(functions, 'ccliGetSong')
-    const { data } = await call({ songNumber })
-    return data
-  } catch (err) {
-    console.warn('[ccli] song fetch failed:', err)
-    return null
-  }
-}
 
 /** Spotify embed URL — works without Premium. */
 export const spotifyEmbedUrl = (trackId: string) =>
