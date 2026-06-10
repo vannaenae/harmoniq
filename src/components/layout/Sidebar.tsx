@@ -28,12 +28,14 @@ export function Sidebar() {
 
   return (
     <aside
-      className="hidden md:flex flex-col w-64 min-h-screen bg-white border-r border-harmonic-border py-6 px-4 fixed left-0 top-0 z-20"
+      className="hidden md:flex flex-col w-64 min-h-screen bg-white/80 backdrop-blur-xl border-r border-white/60 shadow-glass py-6 px-4 fixed left-0 top-0 z-20"
       aria-label="Main navigation"
     >
       {/* Logo */}
       <div className="mb-8 px-2">
-        <span className="text-xl font-bold text-harmonic-primary tracking-tight">Harmoniq</span>
+        <span className="text-xl font-bold bg-gradient-to-r from-violet-600 to-rose-500 bg-clip-text text-transparent tracking-tight">
+          Harmoniq
+        </span>
         <span className="block text-xs text-harmonic-muted font-medium mt-0.5">A SoulSPCE project</span>
       </div>
 
@@ -46,10 +48,10 @@ export function Sidebar() {
             aria-label={badge && unreadCount > 0 ? `${label}, ${unreadCount} unread` : label}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all',
                 isActive
-                  ? 'bg-harmonic-neutral text-white'
-                  : 'text-harmonic-muted hover:text-harmonic-text hover:bg-harmonic-surface',
+                  ? 'bg-gradient-to-r from-violet-600 to-rose-500 text-white shadow-md shadow-violet-500/25'
+                  : 'text-harmonic-muted hover:text-harmonic-text hover:bg-white/60',
               )
             }
           >
@@ -58,7 +60,7 @@ export function Sidebar() {
                 <span
                   className={cn(
                     'relative flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0',
-                    isActive ? 'bg-white/10' : '',
+                    isActive ? 'bg-white/15' : '',
                   )}
                 >
                   <Icon

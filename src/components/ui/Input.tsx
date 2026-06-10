@@ -22,12 +22,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'bg-harmonic-surface rounded-pill px-4 py-2.5 text-sm',
-            'outline-none border border-transparent',
-            'focus:border-harmonic-primary transition-colors',
+            'bg-white/70 backdrop-blur-sm border border-white/60 rounded-pill px-4 py-2.5 text-sm',
+            'outline-none transition-all',
+            'focus:border-violet-400 focus:bg-white/90 focus:ring-2 focus:ring-violet-400/20',
             'placeholder:text-harmonic-muted',
             'min-h-[44px]',
-            error && 'border-harmonic-danger',
+            error && 'border-harmonic-danger focus:border-harmonic-danger focus:ring-red-400/20',
             className,
           )}
           {...props}

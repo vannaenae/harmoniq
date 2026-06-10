@@ -4,18 +4,18 @@
 
 @layer base {
   :root {
-    --harmonic-primary:    #18005F;
-    --harmonic-secondary:  #560056;
-    --harmonic-tertiary:   #37005B;
-    --harmonic-neutral:    #0C0C10;
-    --harmonic-surface:    #EDEAEF;
-    --harmonic-background: #F4F2F5;
-    --harmonic-text:       #0C0C10;
-    --harmonic-muted:      #6B6770;
-    --harmonic-border:     #DAD6DD;
-    --harmonic-success:    #2E7D5B;
-    --harmonic-warning:    #B8860B;
-    --harmonic-danger:     #E5342B;
+    --harmonic-primary:    #7C3AED;
+    --harmonic-secondary:  #F43F5E;
+    --harmonic-accent:     #0EA5E9;
+    --harmonic-neutral:    #1E1B4B;
+    --harmonic-surface:    #F5F3FF;
+    --harmonic-background: #FAF8FF;
+    --harmonic-text:       #1E1B4B;
+    --harmonic-muted:      #7C7CA8;
+    --harmonic-border:     #EDE9FE;
+    --harmonic-success:    #10B981;
+    --harmonic-warning:    #F59E0B;
+    --harmonic-danger:     #EF4444;
   }
 
   * {
@@ -33,44 +33,63 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
   }
 }
 
 @layer components {
   /* Button variants */
   .btn-primary {
-    @apply bg-harmonic-primary text-white rounded-pill px-6 py-2.5 font-medium text-sm transition-opacity hover:opacity-90 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-primary focus-visible:ring-offset-2;
+    @apply bg-gradient-to-r from-violet-600 to-rose-500 text-white rounded-pill px-6 py-2.5 font-semibold text-sm
+           shadow-lg shadow-violet-500/25 transition-all
+           hover:shadow-violet-500/40 hover:brightness-105
+           active:scale-[0.98]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2;
   }
 
   .btn-secondary {
-    @apply bg-harmonic-surface text-harmonic-text rounded-pill px-6 py-2.5 font-medium text-sm transition-opacity hover:opacity-90 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-border focus-visible:ring-offset-2;
+    @apply bg-white/70 backdrop-blur-sm border border-white/70 text-harmonic-text rounded-pill px-6 py-2.5 font-medium text-sm
+           shadow-card transition-all
+           hover:bg-white/90 hover:shadow-card-hover
+           active:scale-[0.98]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-border focus-visible:ring-offset-2;
   }
 
   .btn-inverted {
-    @apply bg-harmonic-neutral text-white rounded-pill px-6 py-2.5 font-medium text-sm transition-opacity hover:opacity-90 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-neutral focus-visible:ring-offset-2;
+    @apply bg-harmonic-neutral text-white rounded-pill px-6 py-2.5 font-medium text-sm
+           transition-all hover:opacity-90 active:scale-[0.98]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-neutral focus-visible:ring-offset-2;
   }
 
   .btn-outlined {
-    @apply bg-transparent border border-harmonic-border text-harmonic-text rounded-pill px-6 py-2.5 font-medium text-sm transition-colors hover:bg-harmonic-surface active:bg-harmonic-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-border focus-visible:ring-offset-2;
+    @apply bg-transparent border border-harmonic-border text-harmonic-text rounded-pill px-6 py-2.5 font-medium text-sm
+           transition-all hover:bg-white/60 hover:border-violet-300
+           active:scale-[0.98]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-border focus-visible:ring-offset-2;
   }
 
   .btn-danger {
-    @apply bg-harmonic-danger text-white rounded-pill px-6 py-2.5 font-medium text-sm transition-opacity hover:opacity-90 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-danger focus-visible:ring-offset-2;
+    @apply bg-harmonic-danger text-white rounded-pill px-6 py-2.5 font-medium text-sm
+           shadow-lg shadow-red-500/20 transition-all
+           hover:opacity-90 active:scale-[0.98]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-danger focus-visible:ring-offset-2;
   }
 
-  /* Card */
+  /* Glass card */
   .card {
-    @apply bg-harmonic-surface rounded-card shadow-card;
+    @apply bg-white/70 backdrop-blur-xl border border-white/60 rounded-card shadow-glass;
   }
 
   .card-lg {
-    @apply bg-harmonic-surface rounded-card-lg shadow-card;
+    @apply bg-white/70 backdrop-blur-xl border border-white/60 rounded-card-lg shadow-glass;
   }
 
-  /* Input */
+  /* Glass input */
   .input-pill {
-    @apply bg-harmonic-surface rounded-pill px-4 py-2.5 text-sm outline-none border border-transparent focus:border-harmonic-primary transition-colors placeholder:text-harmonic-muted;
+    @apply bg-white/70 backdrop-blur-sm border border-white/60 rounded-pill px-4 py-2.5 text-sm
+           outline-none transition-all
+           focus:border-violet-400 focus:bg-white/90 focus:ring-2 focus:ring-violet-400/20
+           placeholder:text-harmonic-muted;
   }
 
   /* Label */
@@ -88,8 +107,8 @@
     @apply border-b-2 border-harmonic-secondary;
   }
 
-  /* Nav active circle */
+  /* Nav active — gradient pill */
   .nav-active {
-    @apply bg-harmonic-neutral text-white rounded-full;
+    @apply bg-gradient-to-br from-violet-600 to-rose-500 text-white rounded-full shadow-lg shadow-violet-500/30;
   }
 }
