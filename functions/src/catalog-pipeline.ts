@@ -28,11 +28,21 @@
 
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 import { onCall, HttpsError } from 'firebase-functions/v2/https'
-import { getFirestore, FieldValue } from 'firebase-admin/firestore'
+import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firestore'
+import { initializeApp, getApps } from 'firebase-admin/app'
 import { EXPANSION_CATALOGUE } from './catalog-expansion.js'
 import { CATALOG_BATCH_V2, type BatchSong } from './catalog-batch-v2.js'
 
-const db = getFirestore()
+/* This module is imported (and its top level evaluated) before index.ts runs
+   its own initializeApp(), so the app must be initialised lazily here. */
+let _db: Firestore | null = null
+function db(): Firestore {
+  if (!_db) {
+    if (getApps().length === 0) initializeApp()
+    _db = getFirestore()
+  }
+  return _db
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const SONGS_COLLECTION    = 'songs'
@@ -80,7 +90,7 @@ function buildFullCatalog(): BatchSong[] {
 /** Fetch canonical keys of all songs already in /songs */
 async function fetchExistingKeys(): Promise<Set<string>> {
   // Project only title + artist to keep read cost minimal
-  const snap = await db.collection(SONGS_COLLECTION).select('title', 'artist').get()
+  const snap = await db().collection(SONGS_COLLECTION).select('title', 'artist').get()
   const keys = new Set<string>()
   for (const doc of snap.docs) {
     const { title, artist } = doc.data() as { title?: string; artist?: string }
@@ -114,9 +124,9 @@ async function runPipeline(dryRun = false): Promise<PipelineResult> {
     let offset = 0
     while (offset < toAdd.length) {
       const chunk = toAdd.slice(offset, offset + FIRESTORE_MAX_BATCH)
-      const batch = db.batch()
+      const batch = db().batch()
       for (const song of chunk) {
-        const ref = db.collection(SONGS_COLLECTION).doc(song.id)
+        const ref = db().collection(SONGS_COLLECTION).doc(song.id)
         batch.set(ref, {
           ...song,
           origin: 'seed',
@@ -141,7 +151,7 @@ async function runPipeline(dryRun = false): Promise<PipelineResult> {
   }
 
   // Always log the run
-  await db.collection(PIPELINE_LOG_COL).add({
+  await db().collection(PIPELINE_LOG_COL).add({
     ...result,
     songsQueued: toAdd.map(s => ({ id: s.id, title: s.title, artist: s.artist })),
   })
