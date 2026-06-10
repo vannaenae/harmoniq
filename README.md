@@ -41,3 +41,27 @@ Path alias: `@/` → `src/`.
 - Build gate: `npx tsc --noEmit -p tsconfig.app.json` must be 0 before any push.
 
 See `CLAUDE.md` for the full engineering ground truth.
+
+## Native app (iOS / Android) via Capacitor
+
+Harmoniq uses [Capacitor](https://capacitorjs.com) to wrap the web app as a native iOS and Android app. Config lives in `capacitor.config.ts` (app ID: `com.harmoniq.app`). The `ios/` and `android/` directories are git-ignored — generate them locally before opening in Xcode / Android Studio.
+
+```bash
+# 1. Build the web assets (required before every sync)
+npm run build
+
+# 2. Sync web assets into native projects
+npx cap sync
+
+# One-time setup — generate native project directories
+npx cap add ios
+npx cap add android
+
+# Open in Xcode (requires macOS + Xcode)
+npx cap open ios
+
+# Open in Android Studio
+npx cap open android
+```
+
+After making web changes, always run `npm run build && npx cap sync` before opening in Xcode / Android Studio.

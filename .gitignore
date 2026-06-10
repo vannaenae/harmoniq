@@ -37,6 +37,10 @@ yarn-error.*
 .expo/
 expo-env.d.ts
 
+# Capacitor native platform directories (generated — run `npx cap add ios/android` to restore)
+ios/
+android/
+
 # claude specific files
 .claude/
 .vercel
