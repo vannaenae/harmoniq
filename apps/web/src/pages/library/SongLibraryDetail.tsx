@@ -1,0 +1,1272 @@
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import {
+  ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Save,
+  Music2, Youtube, ExternalLink, ChevronDown as ChevronExpand,
+  Sparkles, Pencil, Trash2, RotateCcw, Lock, Unlock, Archive, ArchiveRestore,
+  BookOpen, Play, Pause, RefreshCw,
+} from 'lucide-react'
+import { AppLayout } from '@/components/layout/AppLayout'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { Modal } from '@/components/ui/Modal'
+import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { ServiceSelect } from '@/components/ServiceSelect'
+import { LyricSheet } from '@/components/LyricSheet'
+import { PdfThumb } from '@/components/PdfThumb'
+import { SatbAudioPlayer } from '@/components/SatbAudioPlayer'
+import { SongMediaUpload, type SongMediaKind } from '@/components/SongMediaUpload'
+import { useAuth } from '@harmoniq/shared'
+import { useChoir } from '@harmoniq/shared'
+import { getSong, getPracticeNotes, savePracticeNotes, updateCustomSong, deleteCustomSong, subscribeSongOverride, saveSongOverride, cacheSongMedia, ALL_KEYS, GENRES } from '@harmoniq/shared'
+import type { SongOverride } from '@harmoniq/shared'
+import {
+  fetchSpotify, fetchGenius, fetchAutoLyrics, fetchSongContext, fetchItunesResults,
+  spotifyEmbedUrl, youtubeEmbedUrl,
+  type SpotifyData, type GeniusData, type AutoLyricsResult, type SongContextData,
+} from '@harmoniq/shared'
+import { LyricsAutoFetch } from '@/components/LyricsAutoFetch'
+import { useAudioPlayerStore } from '@harmoniq/shared'
+import { listServices, getSetList, saveSetList } from '@harmoniq/shared'
+import { semitoneDelta, inferPreference, transposeChord } from '@harmoniq/shared'
+import type { Song, Service, Language, LyricSection } from '@harmoniq/shared'
+
+// ── Key / chord utilities ─────────────────────────────────────────────────────
+const CHROMATIC = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
+
+function toChromaticKey(k: string): string {
+  return ({ Db: 'C#', 'D#': 'Eb', Gb: 'F#', 'G#': 'Ab', 'A#': 'Bb' } as Record<string, string>)[k] ?? k
+}
+function transposeKey(key: string, semitones: number): string {
+  const idx = CHROMATIC.indexOf(toChromaticKey(key))
+  if (idx === -1) return key
+  return CHROMATIC[((idx + semitones) % 12 + 12) % 12]
+}
+function fmtDuration(sec: number) {
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+export function SongLibraryDetail() {
+  const { songId } = useParams<{ songId: string }>()
+  const navigate = useNavigate()
+  const { firebaseUser } = useAuth()
+  const { choir, isDirector } = useChoir()
+  const { track: playerTrack, playing: playerPlaying, playTrack, setPlaying: setPlayerPlaying } = useAudioPlayerStore()
+
+  const [song,      setSong]      = useState<Song | null>(null)
+  const [loading,   setLoading]   = useState(true)
+  const [spotify,   setSpotify]   = useState<SpotifyData | null>(null)
+  const [genius,    setGenius]    = useState<GeniusData | null>(null)
+  const [itunesUrl, setItunesUrl] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [lyricsData,  setLyricsData]  = useState<AutoLyricsResult | null>(null)
+  const [lyricsSaving, setLyricsSaving] = useState(false)
+  const [lyricsSaved,  setLyricsSaved]  = useState(false)
+  const [context, setContext] = useState<SongContextData | null>(null)
+  const [mediaLoading,   setMediaLoading]   = useState(true)
+  const [lyricsLoading,  setLyricsLoading]  = useState(true)
+  const [contextLoading, setContextLoading] = useState(true)
+  const [lyricsExpanded, setLyricsExpanded] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
+
+  // Edit / delete (custom songs, director only)
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editArtist, setEditArtist] = useState('')
+  const [editKey, setEditKey] = useState('')
+  const [editGenre, setEditGenre] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  // Key transposer
+  const [selectedKey, setSelectedKey] = useState('')
+  const [transposeDelta, setTransposeDelta] = useState(0)
+
+  // Song override (per-choir)
+  const [override, setOverride] = useState<SongOverride | null>(null)
+  const [overrideSaving, setOverrideSaving] = useState(false)
+
+  // Practice notes
+  const [notes,       setNotes]       = useState('')
+  const [notesLoading, setNotesLoading] = useState(false)
+  const [notesSaving,  setNotesSaving]  = useState(false)
+  const [notesSaved,   setNotesSaved]   = useState(false)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Load song then fire all enrichment fetches in parallel
+  useEffect(() => {
+    if (!choir || !songId) return
+    let active = true
+    setLoading(true)
+    setMediaLoading(true)
+    setLyricsLoading(true)
+    setContextLoading(true)
+
+    getSong(choir.id, songId).then(async s => {
+      if (!active) return
+      setSong(s)
+      if (!s) { setLoading(false); return }
+
+      setSelectedKey(toChromaticKey(s.defaultKey ?? 'C'))
+      setLoading(false)
+
+      // Fire all enrichment in parallel — each settles independently
+      const [sp, ge, ly, ctx, it] = await Promise.allSettled([
+        fetchSpotify(s.title, s.artist),
+        fetchGenius(s.title, s.artist),
+        fetchAutoLyrics(s.title, s.artist),
+        fetchSongContext(s.title, s.artist),
+        fetchItunesResults(`${s.title} ${s.artist ?? ''}`.trim()),
+      ])
+
+      if (!active) return
+      const resolvedItunesUrl = it.status === 'fulfilled' ? (it.value[0]?.externalUrl ?? null) : null
+      if (resolvedItunesUrl) setItunesUrl(resolvedItunesUrl)
+
+      if (sp.status === 'fulfilled') {
+        setSpotify(sp.value)
+        // Lazy-persist album art URL + Apple Music URL for custom songs missing them
+        if (s.id.startsWith('custom-') && s.choirId) {
+          const patch: Parameters<typeof cacheSongMedia>[2] = {}
+          if (sp.value?.albumArtUrl && !s.albumArtUrl) patch.albumArtUrl = sp.value.albumArtUrl
+          if (resolvedItunesUrl && !s.media?.appleMusicUrl) patch.appleMusicUrl = resolvedItunesUrl
+          if (Object.keys(patch).length > 0) cacheSongMedia(s.choirId, s.id, patch).catch(() => {})
+        }
+      }
+      setMediaLoading(false)
+
+      if (ge.status === 'fulfilled') setGenius(ge.value)
+
+      if (ly.status === 'fulfilled') setLyricsData(ly.value)
+      setLyricsLoading(false)
+
+      if (ctx.status === 'fulfilled') setContext(ctx.value)
+      setContextLoading(false)
+    }).catch(err => {
+      console.error('Load song error:', err)
+      setLoading(false)
+      setMediaLoading(false)
+      setLyricsLoading(false)
+      setContextLoading(false)
+    })
+
+    return () => { active = false }
+  }, [choir, songId])
+
+  // Song override subscription (real-time)
+  useEffect(() => {
+    if (!choir || !songId) return
+    return subscribeSongOverride(choir.id, songId, setOverride)
+  }, [choir, songId])
+
+  // When override has a performanceKey, apply it as the selected key
+  useEffect(() => {
+    if (override?.performanceKey && override.keyLocked) {
+      const chromatic = toChromaticKey(override.performanceKey)
+      setSelectedKey(chromatic)
+      if (song?.defaultKey) {
+        setTransposeDelta(semitoneDelta(toChromaticKey(song.defaultKey), chromatic))
+      }
+    }
+  }, [override?.performanceKey, override?.keyLocked, song?.defaultKey])
+
+  // Practice notes
+  useEffect(() => {
+    if (!choir || !songId || !firebaseUser) return
+    let active = true
+    setNotesLoading(true)
+    getPracticeNotes(choir.id, songId, firebaseUser.uid)
+      .then(n => { if (active) setNotes(n) })
+      .catch(() => {})
+      .finally(() => { if (active) setNotesLoading(false) })
+    return () => { active = false }
+  }, [choir, songId, firebaseUser])
+
+  const handleNotesChange = (val: string) => {
+    setNotes(val)
+    setNotesSaved(false)
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(async () => {
+      if (!choir || !songId || !firebaseUser) return
+      setNotesSaving(true)
+      try {
+        await savePracticeNotes(choir.id, songId, firebaseUser.uid, val)
+        setNotesSaved(true)
+      } catch (err) {
+        console.error('Save notes error:', err)
+      } finally {
+        setNotesSaving(false)
+      }
+    }, 1000)
+  }
+
+  const handleOverrideSave = async (input: Parameters<typeof saveSongOverride>[3]) => {
+    if (!choir || !songId || !firebaseUser) return
+    setOverrideSaving(true)
+    try {
+      await saveSongOverride(choir.id, songId, firebaseUser.uid, input)
+    } catch (err) {
+      console.error('Save override error:', err)
+    } finally {
+      setOverrideSaving(false)
+    }
+  }
+
+  const handleToggleKeyLock = () => {
+    const newLocked = !override?.keyLocked
+    handleOverrideSave({
+      keyLocked: newLocked,
+      ...(newLocked ? { performanceKey: selectedKey } : {}),
+    })
+  }
+
+  const handleToggleArchive = () => {
+    handleOverrideSave({ archived: !override?.archived })
+  }
+
+  const keyIsLocked = override?.keyLocked ?? false
+
+  const trackId       = spotify?.trackId  ?? song?.media?.spotifyTrackId ?? song?.spotifyTrackId ?? null
+  const artUrl        = spotify?.albumArtUrl ?? song?.albumArtUrl ?? null
+  const lyricsUrl     = genius?.url ?? song?.geniusUrl ?? song?.lyricsUrl ?? null
+  const appleMusicUrl = itunesUrl ?? song?.media?.appleMusicUrl ?? null
+  const lyrics   = lyricsData?.lyrics ?? null
+  // Extract unique chords from the song's actual lyric sections
+  const songChords: string[] | null = (() => {
+    const sections = song?.lyrics ?? []
+    const seen = new Set<string>()
+    const unique: string[] = []
+    for (const section of sections) {
+      for (const line of section.chordsAboveLines ?? []) {
+        // Extract individual chord tokens from the chord line
+        const tokens = line.trim().split(/\s+/).filter(Boolean)
+        for (const token of tokens) {
+          if (/^[A-G]/.test(token) && !seen.has(token)) {
+            seen.add(token)
+            unique.push(token)
+          }
+        }
+      }
+    }
+    return unique.length > 0 ? unique : null
+  })()
+  // Transpose extracted chords to the selected key
+  const chords = songChords
+    ? songChords.map(c => transposeChord(c, transposeDelta, inferPreference(selectedKey)))
+    : null
+  const songQuery = encodeURIComponent(`${song?.title ?? ''} ${song?.artist ?? ''}`.trim())
+
+  // YouTube video IDs from media links
+  const ytVideoId = song?.media?.youtubeVideoId ?? null
+  const ytOfficialAudioId = song?.media?.youtubeOfficialAudioId ?? null
+  const hasBothYt = Boolean(ytVideoId && ytOfficialAudioId)
+  const [ytMode, setYtMode] = useState<'video' | 'audio'>('video')
+  const activeYtId = hasBothYt
+    ? (ytMode === 'video' ? ytVideoId : ytOfficialAudioId)
+    : (ytVideoId ?? ytOfficialAudioId)
+
+  const openEdit = () => {
+    if (!song) return
+    setEditTitle(song.title)
+    setEditArtist(song.artist ?? '')
+    setEditKey(song.defaultKey ?? '')
+    setEditGenre(song.genre ?? '')
+    setEditNotes(song.notes ?? '')
+    setEditError(null)
+    setEditOpen(true)
+  }
+
+  const handleEditSave = async () => {
+    if (!choir || !songId || !editTitle.trim()) return
+    setEditSaving(true)
+    setEditError(null)
+    try {
+      await updateCustomSong(choir.id, songId, {
+        title: editTitle.trim(),
+        artist: editArtist.trim() || undefined,
+        defaultKey: editKey || undefined,
+        genre: editGenre as Song['genre'] || undefined,
+        notes: editNotes.trim() || undefined,
+      })
+      setSong(prev => prev ? { ...prev, title: editTitle.trim(), artist: editArtist.trim() || undefined, defaultKey: editKey || undefined, genre: editGenre as Song['genre'] || undefined, notes: editNotes.trim() || undefined } : prev)
+      setEditOpen(false)
+    } catch {
+      setEditError('Save failed. Please try again.')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!choir || !songId) return
+    setDeleting(true)
+    try {
+      await deleteCustomSong(choir.id, songId)
+      navigate('/library', { replace: true })
+    } catch {
+      setDeleting(false)
+    }
+  }
+
+  /** Parse a plain-text lyrics blob into basic LyricSection[] (verse-per-paragraph). */
+  const parseLyricsText = (text: string): LyricSection[] => {
+    const paragraphs = text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
+    return paragraphs.map((para, i) => ({
+      kind: 'verse' as const,
+      number: i + 1,
+      lines: para.split('\n').map(l => l.trim()).filter(Boolean),
+      language: (song?.primaryLanguage ?? 'en') as Language,
+    }))
+  }
+
+  /** Save auto-fetched lyrics to the song's `lyrics` field in Firestore (custom songs only). */
+  const handleSaveLyricsToSong = async () => {
+    if (!choir || !songId || !song?.isCustom) return
+    const raw = lyricsData?.lyrics
+    if (!raw) return
+    setLyricsSaving(true)
+    try {
+      const sections = parseLyricsText(raw)
+      await updateCustomSong(choir.id, songId, { lyrics: sections } as Parameters<typeof updateCustomSong>[2])
+      setSong(prev => prev ? { ...prev, lyrics: sections } : prev)
+      setLyricsSaved(true)
+    } catch (err) {
+      console.error('Save lyrics error:', err)
+    } finally {
+      setLyricsSaving(false)
+    }
+  }
+
+  const handleRefreshMetadata = async () => {
+    if (!song || !choir || refreshing) return
+    setRefreshing(true)
+    try {
+      const [sp, it] = await Promise.allSettled([
+        fetchSpotify(song.title, song.artist),
+        fetchItunesResults(`${song.title} ${song.artist ?? ''}`.trim()),
+      ])
+      if (sp.status === 'fulfilled' && sp.value) setSpotify(sp.value)
+      const freshItunesUrl = it.status === 'fulfilled' ? (it.value[0]?.externalUrl ?? null) : null
+      if (freshItunesUrl) setItunesUrl(freshItunesUrl)
+      // Persist for custom songs
+      if (song.id.startsWith('custom-')) {
+        const patch: Parameters<typeof cacheSongMedia>[2] = {}
+        if (sp.status === 'fulfilled' && sp.value?.albumArtUrl) patch.albumArtUrl = sp.value.albumArtUrl
+        if (sp.status === 'fulfilled' && sp.value?.trackId) patch.spotifyTrackId = sp.value.trackId
+        if (freshItunesUrl) patch.appleMusicUrl = freshItunesUrl
+        if (Object.keys(patch).length > 0) await cacheSongMedia(choir.id, song.id, patch).catch(() => {})
+      }
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="max-w-2xl mx-auto animate-pulse">
+          <div className="h-72 bg-harmonic-surface" />
+          <div className="px-5 py-5 space-y-3">
+            <div className="h-44 bg-harmonic-surface rounded-2xl" />
+            <div className="h-5 bg-harmonic-surface rounded-full w-2/3" />
+            <div className="h-4 bg-harmonic-surface rounded-full w-1/2" />
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  if (!song) {
+    return (
+      <AppLayout>
+        <div className="px-6 py-8 max-w-2xl mx-auto">
+          <Link to="/library" className="inline-flex items-center gap-1.5 text-sm text-harmonic-muted mb-6 hover:text-harmonic-text">
+            <ArrowLeft size={16} /> Library
+          </Link>
+          <Card className="p-2">
+            <EmptyState title="Song not found" description="It may have been removed from the library." />
+          </Card>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  return (
+    <AppLayout>
+      <div className="max-w-2xl mx-auto pb-12">
+
+        {/* ── Hero ───────────────────────────────────────────────────────── */}
+        <div className="relative h-72 sm:h-80 overflow-hidden select-none">
+          {artUrl ? (
+            <img
+              src={artUrl}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover scale-110 blur-[32px] brightness-[0.38] saturate-[1.5]"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-harmonic-primary via-harmonic-secondary to-purple-900" />
+          )}
+          {/* Gradient fade to page bg */}
+          <div className="absolute inset-0 bg-gradient-to-t from-harmonic-background/95 via-black/10 to-black/30" />
+
+          {/* Back */}
+          <Link
+            to="/library"
+            className="absolute top-safe-top top-5 left-5 z-10 w-9 h-9 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/50 transition-colors"
+            aria-label="Back to library"
+          >
+            <ArrowLeft size={17} />
+          </Link>
+
+          {/* Content anchored to bottom */}
+          <div className="absolute inset-x-0 bottom-0 px-5 pb-6 z-10 flex items-end gap-4">
+            {artUrl && (
+              <img
+                src={artUrl}
+                alt={`${song.title} artwork`}
+                className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover shadow-2xl flex-shrink-0 ring-1 ring-white/15"
+              />
+            )}
+            <div className="flex-1 min-w-0 pb-0.5">
+              <h1 className="text-xl sm:text-2xl font-bold text-white leading-tight">{song.title}</h1>
+              <p className="text-sm text-white/65 mt-0.5 truncate">
+                {spotify?.artistName ?? song.artist}
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {song.genre && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/15 text-white backdrop-blur-sm">
+                    {song.genre}
+                  </span>
+                )}
+                {spotify?.tempo && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/15 text-white backdrop-blur-sm">
+                    {spotify.tempo} BPM
+                  </span>
+                )}
+                {song.isCustom && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-harmonic-primary/70 text-white">
+                    Custom
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 space-y-4 mt-3">
+
+          {/* ── Listen: Spotify + YouTube in-app embeds ──────────────── */}
+          {mediaLoading ? (
+            <Skeleton className="h-[152px] w-full rounded-2xl" />
+          ) : (trackId || activeYtId) ? (
+            <div className="space-y-3">
+              {/* Spotify embed */}
+              {trackId && (
+                <div className="space-y-1">
+                  <iframe
+                    title={`Play ${song.title} on Spotify`}
+                    src={spotifyEmbedUrl(trackId)}
+                    width="100%"
+                    height="152"
+                    frameBorder="0"
+                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                    loading="lazy"
+                    className="rounded-2xl shadow-card"
+                  />
+                </div>
+              )}
+
+              {/* Spotify 30s preview — in-app player button */}
+              {spotify?.previewUrl && (
+                <button
+                  onClick={() => {
+                    const previewUrl = spotify.previewUrl!
+                    if (playerTrack?.url === previewUrl) {
+                      setPlayerPlaying(!playerPlaying)
+                    } else {
+                      playTrack({
+                        url: previewUrl,
+                        title: song.title,
+                        artist: spotify.artistName ?? song.artist ?? '',
+                        source: 'spotify_preview',
+                        artUrl,
+                      })
+                    }
+                  }}
+                  className="flex items-center gap-2 w-full px-4 py-3 rounded-2xl bg-[#1DB954]/10 hover:bg-[#1DB954]/20 transition-colors text-sm font-medium text-harmonic-text"
+                  aria-label={playerTrack?.url === spotify.previewUrl && playerPlaying ? 'Pause 30s preview' : 'Play 30s Spotify preview'}
+                >
+                  <span className="w-8 h-8 rounded-full bg-[#1DB954] flex items-center justify-center text-white flex-shrink-0">
+                    {playerTrack?.url === spotify.previewUrl && playerPlaying
+                      ? <Pause size={14} />
+                      : <Play size={14} className="ml-0.5" />}
+                  </span>
+                  <span className="flex-1 text-left">Play 30s preview in app</span>
+                  <Music2 size={14} className="text-[#1DB954] flex-shrink-0" />
+                </button>
+              )}
+
+              {/* YouTube embed */}
+              {activeYtId && (
+                <div className="space-y-1.5">
+                  {hasBothYt && (
+                    <div className="flex items-center gap-1 bg-harmonic-surface rounded-xl p-1">
+                      <button
+                        onClick={() => setYtMode('video')}
+                        className={`flex-1 text-xs font-medium py-1.5 px-3 rounded-lg transition-colors ${
+                          ytMode === 'video'
+                            ? 'bg-white text-harmonic-text shadow-sm'
+                            : 'text-harmonic-muted hover:text-harmonic-text'
+                        }`}
+                      >
+                        Lyric Video
+                      </button>
+                      <button
+                        onClick={() => setYtMode('audio')}
+                        className={`flex-1 text-xs font-medium py-1.5 px-3 rounded-lg transition-colors ${
+                          ytMode === 'audio'
+                            ? 'bg-white text-harmonic-text shadow-sm'
+                            : 'text-harmonic-muted hover:text-harmonic-text'
+                        }`}
+                      >
+                        Official Audio
+                      </button>
+                    </div>
+                  )}
+                  <iframe
+                    title={`Watch ${song.title} on YouTube`}
+                    src={youtubeEmbedUrl(activeYtId)}
+                    width="100%"
+                    height="200"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    loading="lazy"
+                    className="rounded-2xl shadow-card"
+                  />
+                </div>
+              )}
+
+              {/* Links row */}
+              <div className="flex items-center justify-center flex-wrap gap-x-4 gap-y-1 pt-1">
+                {trackId && (
+                  <a
+                    href={`https://open.spotify.com/track/${trackId}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
+                  >
+                    <Music2 size={12} className="text-[#1DB954]" /> Open in Spotify
+                  </a>
+                )}
+                {appleMusicUrl && (
+                  <a
+                    href={appleMusicUrl}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
+                  >
+                    <Music2 size={12} className="text-[#FC3C44]" /> Open in Apple Music
+                  </a>
+                )}
+                {activeYtId ? (
+                  <a
+                    href={`https://www.youtube.com/watch?v=${activeYtId}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
+                  >
+                    <Youtube size={12} className="text-[#FF0000]" /> Open on YouTube
+                  </a>
+                ) : (
+                  <a
+                    href={`https://www.youtube.com/results?search_query=${songQuery}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
+                  >
+                    <Youtube size={12} className="text-[#FF0000]" /> Search YouTube
+                  </a>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <a href={`https://open.spotify.com/search/${songQuery}`} target="_blank" rel="noopener noreferrer" className="flex-1">
+                <Button variant="outlined" fullWidth>
+                  <Music2 size={15} className="text-[#1DB954]" /> Search Spotify
+                </Button>
+              </a>
+              <a href={`https://www.youtube.com/results?search_query=${songQuery}`} target="_blank" rel="noopener noreferrer" className="flex-1">
+                <Button variant="outlined" fullWidth>
+                  <Youtube size={15} className="text-[#FF0000]" /> Search YouTube
+                </Button>
+              </a>
+            </div>
+          )}
+
+          {/* ── Archived banner ─────────────────────────────────────────── */}
+          {override?.archived && (
+            <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+              <Archive size={16} className="flex-shrink-0" />
+              <span>This song is archived for your choir.</span>
+              {isDirector && (
+                <button
+                  onClick={handleToggleArchive}
+                  disabled={overrideSaving}
+                  className="ml-auto text-xs font-semibold text-amber-700 hover:underline"
+                >
+                  Restore
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* ── Director actions ────────────────────────────────────────── */}
+          {isDirector && (
+            <div className="space-y-2">
+              <Button variant="primary" fullWidth onClick={() => setAddOpen(true)}>
+                <Plus size={15} /> Add to set list
+              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant={keyIsLocked ? 'secondary' : 'outlined'}
+                  fullWidth
+                  onClick={handleToggleKeyLock}
+                  disabled={overrideSaving}
+                >
+                  {keyIsLocked ? <Lock size={15} /> : <Unlock size={15} />}
+                  {keyIsLocked ? 'Key locked' : 'Lock key for choir'}
+                </Button>
+                {!override?.archived && (
+                  <Button variant="outlined" fullWidth onClick={handleToggleArchive} disabled={overrideSaving}>
+                    <Archive size={15} /> Archive
+                  </Button>
+                )}
+                {override?.archived && (
+                  <Button variant="outlined" fullWidth onClick={handleToggleArchive} disabled={overrideSaving}>
+                    <ArchiveRestore size={15} /> Restore
+                  </Button>
+                )}
+              </div>
+              {song.isCustom && (
+                <div className="flex gap-2">
+                  <Button variant="outlined" fullWidth onClick={openEdit}>
+                    <Pencil size={15} /> Edit song
+                  </Button>
+                  <Button variant="danger" fullWidth onClick={() => setDeleteOpen(true)}>
+                    <Trash2 size={15} /> Delete
+                  </Button>
+                </div>
+              )}
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={handleRefreshMetadata}
+                disabled={refreshing}
+              >
+                <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+                {refreshing ? 'Refreshing…' : 'Refresh metadata'}
+              </Button>
+            </div>
+          )}
+
+          {/* ── Translation review — hidden per founder directive (revisit July 2026) ── */}
+
+          {/* ── AI Knowledge card ───────────────────────────────────────── */}
+          <Card className="p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Sparkles size={14} className="text-harmonic-primary" />
+              <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">About this song</p>
+            </div>
+
+            {contextLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-4/6" />
+                <div className="flex gap-1.5 pt-1">
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                  <Skeleton className="h-6 w-24 rounded-full" />
+                </div>
+              </div>
+            ) : context?.about ? (
+              <div className="space-y-3">
+                <p className="text-sm text-harmonic-text leading-relaxed">{context.about}</p>
+                {context.themes.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {context.themes.map(theme => (
+                      <Badge key={theme} tone="tertiary">{theme}</Badge>
+                    ))}
+                  </div>
+                )}
+                {context.resonance && (
+                  <p className="text-xs text-harmonic-muted italic border-l-2 border-harmonic-primary/30 pl-3">
+                    {context.resonance}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-harmonic-muted">No context available for this song.</p>
+            )}
+          </Card>
+
+          {/* ── Lyrics ──────────────────────────────────────────────────── */}
+          <Card className="p-5">
+            <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-4">Lyrics</p>
+
+            {/* Structured lyrics via LyricSheet (rev-2 schema) */}
+            {song.lyrics && song.lyrics.length > 0 ? (
+              <LyricSheet
+                sections={song.lyrics}
+                showChords
+                transposeDelta={transposeDelta}
+                accidentalPreference={inferPreference(selectedKey)}
+              />
+            ) : lyricsLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} className={`h-4 ${i % 4 === 3 ? 'w-1/3' : i % 2 === 0 ? 'w-full' : 'w-5/6'}`} />
+                ))}
+              </div>
+            ) : lyrics ? (
+              <div className="relative">
+                <div
+                  className={`overflow-hidden transition-all duration-500 ${lyricsExpanded ? 'max-h-[9999px]' : 'max-h-72'}`}
+                >
+                  <pre className="text-sm text-harmonic-text whitespace-pre-wrap font-sans leading-7">
+                    {lyrics}
+                  </pre>
+                </div>
+                {!lyricsExpanded && (
+                  <div className="absolute bottom-0 inset-x-0 h-20 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+                )}
+                <button
+                  onClick={() => setLyricsExpanded(e => !e)}
+                  className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-harmonic-primary hover:underline"
+                >
+                  <ChevronExpand size={14} className={`transition-transform ${lyricsExpanded ? 'rotate-180' : ''}`} />
+                  {lyricsExpanded ? 'Show less' : 'Show full lyrics'}
+                </button>
+                <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
+                  {lyricsUrl && (
+                    <a
+                      href={lyricsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
+                    >
+                      <ExternalLink size={11} /> Full lyrics on Genius
+                    </a>
+                  )}
+                  {lyricsData?.source && lyricsData.source !== 'none' && (
+                    <span className="text-xs text-harmonic-muted">
+                      via {lyricsData.source === 'lyrics.ovh' ? 'lyrics.ovh' : 'cache'}
+                    </span>
+                  )}
+                </div>
+                {/* Director: save raw lyrics to song document */}
+                {isDirector && song.isCustom && (
+                  <div className="mt-3">
+                    {lyricsSaved ? (
+                      <span className="flex items-center gap-1.5 text-xs text-harmonic-success font-medium">
+                        <Check size={13} /> Lyrics saved to song
+                      </span>
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        onClick={handleSaveLyricsToSong}
+                        disabled={lyricsSaving}
+                      >
+                        <Save size={15} />
+                        {lyricsSaving ? 'Saving…' : 'Save lyrics to song'}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : song.rights?.status === 'unknown' ? (
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-4 rounded-card bg-harmonic-surface border border-harmonic-border">
+                  <BookOpen size={18} className="text-harmonic-primary shrink-0 mt-0.5" aria-hidden="true" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-harmonic-text">Traditional hymn</p>
+                    <p className="text-xs text-harmonic-muted mt-1">
+                      Full lyrics for this hymn are likely in the public domain. Search on Hymnary.org or Genius for the complete text.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <a
+                    href={`https://hymnary.org/search?qu=title%3A${encodeURIComponent(song.title)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex-1"
+                  >
+                    <Button variant="outlined" fullWidth>
+                      <BookOpen size={15} /> Search Hymnary.org
+                    </Button>
+                  </a>
+                  {lyricsUrl && (
+                    <a href={lyricsUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                      <Button variant="outlined" fullWidth>
+                        <ExternalLink size={15} /> View on Genius
+                      </Button>
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-harmonic-muted">
+                  {isDirector
+                    ? 'No lyrics saved yet. Auto-fetch them below, or paste a lyrics link when adding the song.'
+                    : 'Lyrics haven\u2019t been added for this song yet.'}
+                </p>
+                <LyricsAutoFetch
+                  title={song.title}
+                  artist={song.artist}
+                  enabled={isDirector}
+                  onFetched={(rawLyrics) => {
+                    setLyricsData({ lyrics: rawLyrics, source: 'none' })
+                    setLyricsLoading(false)
+                  }}
+                />
+                {lyricsUrl && (
+                  <a href={lyricsUrl} target="_blank" rel="noopener noreferrer">
+                    <Button variant="outlined" fullWidth>
+                      <ExternalLink size={15} /> View lyrics on Genius
+                    </Button>
+                  </a>
+                )}
+              </div>
+            )}
+          </Card>
+
+          {/* ── Song info grid ───────────────────────────────────────────── */}
+          {(spotify?.albumName || spotify?.releaseYear || spotify?.tempo || spotify?.keyNote) && (
+            <Card className="p-5">
+              <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-4">Song info</p>
+              <div className="grid grid-cols-2 gap-3">
+                {spotify.albumName && (
+                  <InfoCell label="Album" value={spotify.albumName} />
+                )}
+                {spotify.releaseYear && (
+                  <InfoCell label="Year" value={String(spotify.releaseYear)} />
+                )}
+                {spotify.tempo && (
+                  <InfoCell label="Tempo" value={`${spotify.tempo} BPM`} />
+                )}
+                {spotify.keyNote && (
+                  <InfoCell label="Key (Spotify)" value={spotify.keyNote} />
+                )}
+                {spotify.durationSec && (
+                  <InfoCell label="Duration" value={fmtDuration(spotify.durationSec)} />
+                )}
+              </div>
+            </Card>
+          )}
+
+          {/* ── Sheet music / chord charts ──────────────────────────────── */}
+          {(song.chordChartUrl || song.sheetMusicUrl || song.leadSheetUrl) && (
+            <Card className="p-5 space-y-3">
+              <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-2">Sheet music</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {song.chordChartUrl && (
+                  <Link to={`/library/${song.id}/pdf/chord_chart`} className="group">
+                    <PdfThumb url={song.chordChartUrl} className="aspect-[3/4] mb-2" />
+                    <p className="text-xs font-medium text-harmonic-text group-hover:text-harmonic-primary transition-colors">Chord chart</p>
+                  </Link>
+                )}
+                {song.sheetMusicUrl && (
+                  <Link to={`/library/${song.id}/pdf/sheet_music`} className="group">
+                    <PdfThumb url={song.sheetMusicUrl} className="aspect-[3/4] mb-2" />
+                    <p className="text-xs font-medium text-harmonic-text group-hover:text-harmonic-primary transition-colors">Sheet music</p>
+                  </Link>
+                )}
+                {song.leadSheetUrl && (
+                  <Link to={`/library/${song.id}/pdf/lead_sheet`} className="group">
+                    <PdfThumb url={song.leadSheetUrl} className="aspect-[3/4] mb-2" />
+                    <p className="text-xs font-medium text-harmonic-text group-hover:text-harmonic-primary transition-colors">Lead sheet</p>
+                  </Link>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {/* ── SATB practice audio ──────────────────────────────────────── */}
+          {song.satbParts && song.satbParts.length > 0 && (
+            <Card className="p-5 space-y-3">
+              <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Practice audio</p>
+              <SatbAudioPlayer
+                parts={song.satbParts}
+                songTitle={song.title}
+                artist={spotify?.artistName ?? song.artist}
+                artUrl={artUrl}
+              />
+            </Card>
+          )}
+
+          {/* ── Key & chords ────────────────────────────────────────────── */}
+          <Card className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Key & chords</p>
+              {keyIsLocked && !isDirector && (
+                <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                  <Lock size={12} /> Key locked by director
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-4">
+              {/* Transpose down — hidden for members when locked */}
+              {(isDirector || !keyIsLocked) ? (
+                <button
+                  onClick={() => {
+                    setSelectedKey(k => transposeKey(k, -1))
+                    setTransposeDelta(d => d - 1)
+                  }}
+                  className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors"
+                  aria-label="Transpose down"
+                >
+                  <ChevronDown size={18} />
+                </button>
+              ) : <div className="w-10" />}
+
+              <div className="flex-1 text-center">
+                <p className="text-4xl font-bold text-harmonic-primary">{selectedKey}</p>
+                {song.defaultKey && toChromaticKey(song.defaultKey) !== selectedKey && (
+                  <p className="text-xs text-harmonic-muted mt-1">
+                    Original: {song.defaultKey}{' · '}
+                    {transposeDelta !== 0 && (
+                      <span className="text-harmonic-primary font-medium">
+                        {transposeDelta > 0 ? `+${transposeDelta}` : transposeDelta}
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+
+              {/* Transpose up — hidden for members when locked */}
+              {(isDirector || !keyIsLocked) ? (
+                <button
+                  onClick={() => {
+                    setSelectedKey(k => transposeKey(k, 1))
+                    setTransposeDelta(d => d + 1)
+                  }}
+                  className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors"
+                  aria-label="Transpose up"
+                >
+                  <ChevronUp size={18} />
+                </button>
+              ) : <div className="w-10" />}
+            </div>
+
+            {/* Reset to default key — hidden for members when locked */}
+            {transposeDelta !== 0 && song.defaultKey && (isDirector || !keyIsLocked) && (
+              <button
+                onClick={() => {
+                  setSelectedKey(toChromaticKey(song.defaultKey!))
+                  setTransposeDelta(0)
+                }}
+                className="flex items-center gap-1.5 mx-auto text-xs font-medium text-harmonic-primary hover:underline"
+              >
+                <RotateCcw size={12} /> Reset to default key
+              </button>
+            )}
+
+            {chords ? (
+              <div className="flex flex-wrap gap-2">
+                {chords.map((chord, i) => (
+                  <div key={i} className="flex items-center justify-center bg-harmonic-surface rounded-xl px-3 py-2 min-w-[3rem]">
+                    <p className="text-sm font-bold text-harmonic-text">{chord}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-harmonic-muted italic">No chord data</p>
+            )}
+
+            {/* Chromatic key selector — hidden for members when locked */}
+            {(isDirector || !keyIsLocked) && (
+              <div className="flex flex-wrap gap-1.5">
+                {CHROMATIC.map(k => {
+                  const delta = semitoneDelta(toChromaticKey(song.defaultKey ?? 'C'), k)
+                  return (
+                    <button
+                      key={k}
+                      onClick={() => {
+                        setSelectedKey(k)
+                        setTransposeDelta(delta)
+                      }}
+                      className={
+                        selectedKey === k
+                          ? 'px-2.5 py-1 rounded-full text-xs font-semibold bg-harmonic-primary text-white'
+                          : 'px-2.5 py-1 rounded-full text-xs font-medium bg-harmonic-surface text-harmonic-muted hover:bg-harmonic-border transition-colors'
+                      }
+                    >
+                      {k}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </Card>
+
+          {/* ── Usage history ────────────────────────────────────────────── */}
+          <Card className="px-5 py-4">
+            <UsageHistory choirId={choir!.id} songId={song.id} />
+          </Card>
+
+          {/* ── Practice notes ───────────────────────────────────────────── */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">My practice notes</p>
+              <span className="text-xs text-harmonic-muted flex items-center gap-1">
+                {notesSaving
+                  ? <><Save size={12} className="animate-pulse" /> Saving…</>
+                  : notesSaved
+                  ? <><Check size={12} className="text-harmonic-success" /> Saved</>
+                  : null}
+              </span>
+            </div>
+            {notesLoading ? (
+              <Skeleton className="h-24 w-full rounded-xl" />
+            ) : (
+              <textarea
+                value={notes}
+                onChange={e => handleNotesChange(e.target.value)}
+                placeholder="Add your own notes — key tips, chord changes, cues, anything that helps you prepare…"
+                rows={4}
+                className="w-full resize-none rounded-xl bg-harmonic-surface border border-harmonic-border px-4 py-3 text-sm text-harmonic-text placeholder-harmonic-muted focus:outline-none focus:ring-2 focus:ring-harmonic-primary/30 transition"
+              />
+            )}
+          </Card>
+        </div>
+      </div>
+
+      {song && choir && (
+        <AddToSetListModal open={addOpen} onOpenChange={setAddOpen} choirId={choir.id} song={song} />
+      )}
+
+      {/* Edit modal (custom songs only) */}
+      <Modal
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        title="Edit song"
+        footer={
+          <>
+            <Button variant="outlined" onClick={() => setEditOpen(false)} disabled={editSaving}>Cancel</Button>
+            <Button variant="primary" onClick={handleEditSave} disabled={!editTitle.trim() || editSaving}>
+              {editSaving ? 'Saving…' : 'Save changes'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input label="Title" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
+          <Input label="Artist" value={editArtist} onChange={e => setEditArtist(e.target.value)} />
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Key" value={editKey} onValueChange={setEditKey}
+              options={ALL_KEYS.map(k => ({ value: k, label: k }))} placeholder="Key…" />
+            <Select label="Genre" value={editGenre} onValueChange={setEditGenre}
+              options={GENRES.map(g => ({ value: g, label: g }))} placeholder="Genre…" />
+          </div>
+          <Input label="Notes" value={editNotes} onChange={e => setEditNotes(e.target.value)} />
+
+          {/* Media uploads in edit modal */}
+          {choir && song && (
+            <div className="space-y-3 pt-2 border-t border-harmonic-border">
+              <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Sheet music & audio</p>
+              {(['chord_chart', 'sheet_music', 'lead_sheet'] as const).map(kind => (
+                <SongMediaUpload
+                  key={kind}
+                  kind={kind}
+                  choirId={choir.id}
+                  songId={song.id}
+                  existingUrl={
+                    kind === 'chord_chart' ? song.chordChartUrl
+                    : kind === 'sheet_music' ? song.sheetMusicUrl
+                    : song.leadSheetUrl
+                  }
+                  onUploaded={url => {
+                    const field = kind === 'chord_chart' ? 'chordChartUrl'
+                      : kind === 'sheet_music' ? 'sheetMusicUrl' : 'leadSheetUrl'
+                    updateCustomSong(choir.id, song.id, { [field]: url } as Record<string, string>)
+                    setSong(prev => prev ? { ...prev, [field]: url } : prev)
+                  }}
+                  onRemoved={() => {
+                    const field = kind === 'chord_chart' ? 'chordChartUrl'
+                      : kind === 'sheet_music' ? 'sheetMusicUrl' : 'leadSheetUrl'
+                    updateCustomSong(choir.id, song.id, { [field]: null } as unknown as Record<string, string>)
+                    setSong(prev => prev ? { ...prev, [field]: undefined } : prev)
+                  }}
+                />
+              ))}
+              {(['soprano', 'alto', 'tenor', 'bass'] as const).map(voice => (
+                <SongMediaUpload
+                  key={voice}
+                  kind={`satb_${voice}` as SongMediaKind}
+                  choirId={choir.id}
+                  songId={song.id}
+                  existingUrl={song.satbParts?.find(p => p.voice === voice)?.audioUrl}
+                  onUploaded={url => {
+                    const existing = song.satbParts ?? []
+                    const updated = existing.filter(p => p.voice !== voice)
+                    updated.push({ voice, audioUrl: url })
+                    updateCustomSong(choir.id, song.id, { satbParts: updated } as Record<string, unknown>)
+                    setSong(prev => prev ? { ...prev, satbParts: updated } : prev)
+                  }}
+                  onRemoved={() => {
+                    const updated = (song.satbParts ?? []).filter(p => p.voice !== voice)
+                    updateCustomSong(choir.id, song.id, { satbParts: updated.length ? updated : null } as Record<string, unknown>)
+                    setSong(prev => prev ? { ...prev, satbParts: updated.length ? updated : undefined } : prev)
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {editError && <p role="alert" className="text-sm text-harmonic-danger">{editError}</p>}
+        </div>
+      </Modal>
+
+      {/* Delete confirmation modal */}
+      <Modal
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Delete "${song?.title}"?`}
+        description="This removes the song from your choir's library. It cannot be undone."
+        footer={
+          <>
+            <Button variant="outlined" onClick={() => setDeleteOpen(false)} disabled={deleting}>Cancel</Button>
+            <Button variant="danger" onClick={handleDelete} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete song'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-harmonic-muted">
+          This only removes the custom song from {choir?.name}. Global songs cannot be deleted.
+        </p>
+      </Modal>
+    </AppLayout>
+  )
+}
+
+// ── Info cell ─────────────────────────────────────────────────────────────────
+function InfoCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-harmonic-surface rounded-xl px-4 py-3">
+      <p className="text-[10px] font-semibold text-harmonic-muted uppercase tracking-widest">{label}</p>
+      <p className="text-sm font-semibold text-harmonic-text mt-0.5 truncate">{value}</p>
+    </div>
+  )
+}
+
+// ── Usage history ─────────────────────────────────────────────────────────────
+function UsageHistory({ choirId, songId }: { choirId: string; songId: string }) {
+  const [last, setLast] = useState<{ title: string; date: Date } | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      try {
+        const services = await listServices(choirId)
+        for (const svc of [...services].sort((a, b) => +b.date - +a.date)) {
+          const list = await getSetList(choirId, svc.id)
+          if (list.some(i => i.songId === songId)) {
+            if (active) setLast({ title: svc.title, date: svc.date })
+            break
+          }
+        }
+      } catch { /* ignore */ }
+      finally { if (active) setLoading(false) }
+    })()
+    return () => { active = false }
+  }, [choirId, songId])
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-1">Usage history</p>
+      {loading ? (
+        <Skeleton className="h-4 w-2/3" />
+      ) : last ? (
+        <p className="text-sm text-harmonic-text">
+          Last used at <span className="font-medium">{last.title}</span>
+          {' · '}
+          {last.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+        </p>
+      ) : (
+        <p className="text-sm text-harmonic-muted">Not used in a service yet.</p>
+      )}
+    </div>
+  )
+}
+
+// ── Add to set list modal ─────────────────────────────────────────────────────
+function AddToSetListModal({
+  open, onOpenChange, choirId, song,
+}: { open: boolean; onOpenChange: (o: boolean) => void; choirId: string; song: Song }) {
+  const [services, setServices] = useState<Service[]>([])
+  const [serviceId, setServiceId] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [done, setDone] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    listServices(choirId).then(s => {
+      const upcoming = s.filter(x => x.date >= new Date())
+      setServices(upcoming.length ? upcoming : s)
+      if (upcoming[0]) setServiceId(upcoming[0].id)
+      else if (s[0]) setServiceId(s[0].id)
+    })
+  }, [open, choirId])
+
+  const handleAdd = async () => {
+    if (!serviceId) return
+    setSaving(true)
+    try {
+      const existing = await getSetList(choirId, serviceId)
+      if (!existing.some(i => i.songId === song.id)) {
+        await saveSetList(choirId, serviceId, [
+          ...existing,
+          { songId: song.id, title: song.title, artist: song.artist, key: song.defaultKey, leadVocalist: '', notes: '', order: existing.length },
+        ])
+      }
+      setDone(true)
+      setTimeout(() => { onOpenChange(false); setDone(false) }, 1200)
+    } catch (err) {
+      console.error('Add to set list error:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal open={open} onOpenChange={onOpenChange} title="Add to set list" description={`Pick a service for "${song.title}".`}>
+      {done ? (
+        <div className="flex flex-col items-center text-center gap-2 py-6">
+          <Check size={40} className="text-harmonic-success" />
+          <p className="text-sm font-medium text-harmonic-text">Added to the set list</p>
+        </div>
+      ) : services.length === 0 ? (
+        <p className="text-sm text-harmonic-muted py-6 text-center">No services yet. Create one first.</p>
+      ) : (
+        <div className="space-y-4">
+          <ServiceSelect services={services} value={serviceId} onValueChange={setServiceId} />
+          <Button variant="primary" fullWidth onClick={handleAdd} disabled={!serviceId || saving}>
+            {saving ? 'Adding…' : 'Add to set list'}
+          </Button>
+        </div>
+      )}
+    </Modal>
+  )
+}
