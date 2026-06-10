@@ -27,7 +27,8 @@ name: TestFlight
 on:
   workflow_dispatch:
   push:
-    tags: ['testflight-*']
+    branches: [main]
+    paths: ['.testflight-version']
 
 concurrency:
   group: testflight
