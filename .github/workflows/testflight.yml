@@ -1,0 +1,149 @@
+# Builds the iOS app with Capacitor and uploads it to TestFlight.
+# Trigger manually: GitHub → Actions → "TestFlight" → Run workflow.
+#
+# One-time setup — repository secrets (Settings → Secrets and variables → Actions):
+#
+#   Apple (App Store Connect → Users and Access → Integrations → App Store Connect API,
+#   create a key with App Manager role):
+#     ASC_API_KEY_ID      Key ID, e.g. 2X9R4HXF34
+#     ASC_API_ISSUER_ID   Issuer ID (UUID shown above the key list)
+#     ASC_API_KEY_P8      Full contents of the downloaded AuthKey_XXXX.p8 file
+#     APPLE_TEAM_ID       10-char Team ID (developer.apple.com → Membership)
+#
+#   Firebase web config (same values as the Vercel env / local .env — these are
+#   browser-visible by design, but secrets keep them out of the workflow file):
+#     VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID,
+#     VITE_FIREBASE_STORAGE_BUCKET, VITE_FIREBASE_MESSAGING_SENDER_ID,
+#     VITE_FIREBASE_APP_ID, VITE_FIREBASE_MEASUREMENT_ID
+#
+# Also required (one time, in the Apple ecosystem):
+#   • An Apple Developer Program membership.
+#   • An app record in App Store Connect with bundle ID com.soulspce.harmoniqapp.
+#   Signing is cloud-managed (Xcode automatic signing + the API key) — no
+#   certificates or provisioning profiles need to be uploaded to GitHub.
+
+name: TestFlight
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  build-and-upload:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required secrets
+        env:
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+        run: |
+          missing=""
+          for v in ASC_API_KEY_ID ASC_API_ISSUER_ID ASC_API_KEY_P8 APPLE_TEAM_ID VITE_FIREBASE_API_KEY; do
+            [ -z "${!v}" ] && missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing — see the comment at the top of .github/workflows/testflight.yml"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build web app
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+        run: npm run build --workspace @harmoniq/web
+
+      - name: Generate iOS project
+        run: npx cap add ios
+
+      - name: Generate app icons and splash screens
+        run: npx @capacitor/assets generate --ios
+
+      - name: Sync web assets into iOS project
+        run: npx cap sync ios
+
+      - name: Write App Store Connect API key
+        env:
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: printf '%s' "$ASC_API_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
+
+      - name: Archive
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+        run: >
+          xcodebuild archive
+          -workspace ios/App/App.xcworkspace
+          -scheme App
+          -configuration Release
+          -destination 'generic/platform=iOS'
+          -archivePath "$RUNNER_TEMP/App.xcarchive"
+          CODE_SIGN_STYLE=Automatic
+          DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
+          MARKETING_VERSION=0.1.0
+          CURRENT_PROJECT_VERSION=${{ github.run_number }}
+          -allowProvisioningUpdates
+          -allowProvisioningDeviceRegistration
+          -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8"
+          -authenticationKeyID "$ASC_API_KEY_ID"
+          -authenticationKeyIssuerID "$ASC_API_ISSUER_ID"
+
+      - name: Write export options
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store</string>
+            <key>destination</key><string>upload</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>manageAppVersionAndBuildNumber</key><true/>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Export and upload to TestFlight
+        env:
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+        run: >
+          xcodebuild -exportArchive
+          -archivePath "$RUNNER_TEMP/App.xcarchive"
+          -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+          -exportPath "$RUNNER_TEMP/export"
+          -allowProvisioningUpdates
+          -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8"
+          -authenticationKeyID "$ASC_API_KEY_ID"
+          -authenticationKeyIssuerID "$ASC_API_ISSUER_ID"
+
+      - name: Summary
+        run: |
+          echo "## TestFlight upload complete 🎵" >> "$GITHUB_STEP_SUMMARY"
+          echo "Build **0.1.0 (${{ github.run_number }})** uploaded for bundle \`com.soulspce.harmoniqapp\`." >> "$GITHUB_STEP_SUMMARY"
+          echo "It appears in App Store Connect → TestFlight after Apple finishes processing (usually 5–15 min)." >> "$GITHUB_STEP_SUMMARY"
