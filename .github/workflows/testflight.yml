@@ -26,6 +26,8 @@ name: TestFlight
 
 on:
   workflow_dispatch:
+  push:
+    tags: ['testflight-*']
 
 concurrency:
   group: testflight
