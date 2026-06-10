@@ -38,7 +38,7 @@ export function BottomNav() {
       {/* More drawer overlay */}
       {moreOpen && (
         <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 md:hidden"
+          className="fixed inset-0 bg-black/25 z-30 md:hidden animate-fade-in"
           onClick={() => setMoreOpen(false)}
           aria-hidden="true"
         />
@@ -47,7 +47,7 @@ export function BottomNav() {
       {/* More drawer */}
       {moreOpen && (
         <div
-          className="fixed bottom-20 left-4 right-4 bg-white/85 backdrop-blur-xl border border-white/70 rounded-card-lg shadow-glass z-40 p-4 md:hidden"
+          className="fixed bottom-20 left-4 right-4 bg-white/95 backdrop-blur-2xl border border-black/[0.06] rounded-card-lg shadow-pop z-40 p-4 md:hidden animate-slide-up"
           role="dialog"
           aria-label="More navigation options"
         >
@@ -56,7 +56,7 @@ export function BottomNav() {
             <button
               onClick={() => setMoreOpen(false)}
               aria-label="Close menu"
-              className="p-1 rounded-full hover:bg-harmonic-surface transition-colors"
+              className="p-1 rounded-full hover:bg-harmonic-surface transition-colors duration-150"
             >
               <X size={18} className="text-harmonic-muted" />
             </button>
@@ -70,17 +70,17 @@ export function BottomNav() {
                 aria-label={to === '/notifications' && unreadCount > 0 ? `${label}, ${unreadCount} unread` : label}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all',
+                    'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-150',
                     isActive
-                      ? 'bg-gradient-to-r from-violet-600 to-rose-500 text-white shadow-md shadow-violet-500/20'
-                      : 'text-harmonic-text hover:bg-white/60',
+                      ? 'bg-harmonic-primary/10 text-harmonic-primary'
+                      : 'text-harmonic-text hover:bg-harmonic-surface',
                   )
                 }
               >
                 <Icon size={18} aria-hidden="true" />
                 <span className="flex-1">{label}</span>
                 {to === '/notifications' && unreadCount > 0 && (
-                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-harmonic-secondary text-white text-[10px] font-semibold flex items-center justify-center">
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-harmonic-danger text-white text-[10px] font-semibold flex items-center justify-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -90,9 +90,9 @@ export function BottomNav() {
         </div>
       )}
 
-      {/* Bottom bar */}
+      {/* Bottom bar — iOS-style frosted tab bar */}
       <nav
-        className="fixed bottom-0 left-0 right-0 bg-white/85 backdrop-blur-xl border-t border-white/60 shadow-lg shadow-black/5 z-30 md:hidden"
+        className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl border-t border-black/[0.07] z-30 md:hidden"
         aria-label="Mobile navigation"
       >
         <div className="flex items-center justify-around h-16 px-2">
@@ -103,14 +103,12 @@ export function BottomNav() {
               aria-label={label}
               className={({ isActive }) =>
                 cn(
-                  'flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-2xl transition-all',
-                  isActive
-                    ? 'bg-gradient-to-br from-violet-600 to-rose-500 text-white shadow-lg shadow-violet-500/30 scale-105'
-                    : 'text-harmonic-muted hover:text-harmonic-primary hover:bg-violet-50',
+                  'flex flex-col items-center justify-center gap-1 w-14 h-12 transition-all duration-200 ease-out active:scale-90',
+                  isActive ? 'text-harmonic-primary' : 'text-harmonic-muted hover:text-harmonic-text',
                 )
               }
             >
-              <Icon size={20} aria-hidden="true" />
+              <Icon size={22} aria-hidden="true" />
               <span className="text-[10px] font-medium leading-none">{label}</span>
             </NavLink>
           ))}
@@ -121,16 +119,14 @@ export function BottomNav() {
             aria-label={unreadCount > 0 ? `More options, ${unreadCount} unread notifications` : 'More options'}
             aria-expanded={moreOpen}
             className={cn(
-              'relative flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-2xl transition-all',
-              moreOpen
-                ? 'bg-gradient-to-br from-violet-600 to-rose-500 text-white shadow-lg shadow-violet-500/30 scale-105'
-                : 'text-harmonic-muted hover:text-harmonic-primary hover:bg-violet-50',
+              'relative flex flex-col items-center justify-center gap-1 w-14 h-12 transition-all duration-200 ease-out active:scale-90',
+              moreOpen ? 'text-harmonic-primary' : 'text-harmonic-muted hover:text-harmonic-text',
             )}
           >
-            <MoreHorizontal size={20} aria-hidden="true" />
+            <MoreHorizontal size={22} aria-hidden="true" />
             <span className="text-[10px] font-medium leading-none">More</span>
             {unreadCount > 0 && !moreOpen && (
-              <span className="absolute top-1.5 right-2.5 w-2 h-2 rounded-full bg-harmonic-secondary" aria-hidden="true" />
+              <span className="absolute top-1 right-3 w-2 h-2 rounded-full bg-harmonic-danger" aria-hidden="true" />
             )}
           </button>
         </div>

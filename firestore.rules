@@ -112,13 +112,25 @@ service cloud.firestore {
         allow delete: if isDirectorOf(choirId) || isChoirOwner(choirId);
 
         // Messages — choir members can read; posting depends on directorOnly flag.
+        // Any member may update reactions and thread counters on others' messages;
+        // full edits remain author/director only.
         match /messages/{messageId} {
           allow read:   if isMemberOf(choirId) || isChoirOwner(choirId);
           allow create: if isMemberOf(choirId) || isChoirOwner(choirId);
           allow update: if (isMemberOf(choirId) && resource.data.authorId == request.auth.uid)
-                        || isDirectorOf(choirId) || isChoirOwner(choirId);
+                        || isDirectorOf(choirId) || isChoirOwner(choirId)
+                        || (isMemberOf(choirId) &&
+                            request.resource.data.diff(resource.data).affectedKeys()
+                              .hasOnly(['reactions', 'threadCount', 'threadLastReplyAt']));
           allow delete: if (isMemberOf(choirId) && resource.data.authorId == request.auth.uid)
                         || isDirectorOf(choirId) || isChoirOwner(choirId);
+        }
+
+        // Typing indicators — ephemeral presence docs, one per user.
+        match /typing/{userId} {
+          allow read:   if isMemberOf(choirId) || isChoirOwner(choirId);
+          allow write:  if (isMemberOf(choirId) || isChoirOwner(choirId))
+                        && request.auth.uid == userId;
         }
       }
 

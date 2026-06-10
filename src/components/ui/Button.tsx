@@ -11,11 +11,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<Variant, string> = {
-  primary:   'bg-gradient-to-r from-violet-600 to-rose-500 text-white shadow-lg shadow-violet-500/25 hover:brightness-105 hover:shadow-violet-500/40',
-  secondary: 'bg-white/70 backdrop-blur-sm border border-white/70 text-harmonic-text shadow-card hover:bg-white/90 hover:shadow-card-hover',
+  primary:   'bg-harmonic-primary text-white hover:brightness-110',
+  secondary: 'bg-harmonic-surface text-harmonic-text hover:bg-harmonic-border/70',
   inverted:  'bg-harmonic-neutral text-white hover:opacity-90',
-  outlined:  'bg-transparent border border-harmonic-border text-harmonic-text hover:bg-white/60 hover:border-violet-300',
-  danger:    'bg-harmonic-danger text-white shadow-lg shadow-red-500/20 hover:opacity-90',
+  outlined:  'bg-transparent border border-harmonic-border text-harmonic-text hover:bg-harmonic-surface',
+  danger:    'bg-harmonic-danger text-white hover:brightness-110',
 }
 
 const sizeClasses: Record<Size, string> = {
@@ -31,11 +31,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled}
         className={cn(
-          'inline-flex items-center justify-center gap-2 rounded-pill font-semibold transition-all',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-violet-500',
+          'inline-flex items-center justify-center gap-2 rounded-pill font-semibold',
+          'transition-all duration-200 ease-out',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-harmonic-primary',
           'active:scale-[0.97]',
           'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
-          'min-h-[44px]',
+          'min-h-[44px]', // accessibility: minimum touch target
           variantClasses[variant],
           sizeClasses[size],
           fullWidth && 'w-full',

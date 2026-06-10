@@ -11,7 +11,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          'bg-white/70 backdrop-blur-xl border border-white/60 shadow-glass',
+          'bg-white border border-black/[0.04] shadow-card transition-shadow duration-300',
           size === 'lg' ? 'rounded-card-lg' : 'rounded-card',
           className,
         )}
