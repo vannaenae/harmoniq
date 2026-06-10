@@ -190,17 +190,17 @@ export function SongLibrary() {
               )}
               {page.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {page.map(song => (
-                    <Link key={song.id} to={`/library/${song.id}`}>
-                      <Card className="p-3 flex items-center gap-3 hover:shadow-card transition-shadow">
+                  {page.map((song, i) => (
+                    <Link key={song.id} to={`/library/${song.id}`} className="animate-slide-up" style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}>
+                      <Card className="p-3 flex items-center gap-3 hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 ease-out active:scale-[0.99]">
                         <AlbumArt src={song.albumArtUrl} alt={`${song.title} artwork`} className="w-14 h-14 rounded-xl flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm text-harmonic-text truncate">{song.title}</p>
                           <p className="text-xs text-harmonic-muted truncate">{song.artist}</p>
                           <div className="flex items-center gap-1.5 mt-1">
                             {song.defaultKey && <Badge tone="muted">{song.defaultKey}</Badge>}
-                            {song.genre && <Badge tone="tertiary">{song.genre}</Badge>}
-                            {song.isCustom && <Badge tone="primary">Custom</Badge>}
+                            {song.genre && <Badge tone="primary">{song.genre}</Badge>}
+                            {song.isCustom && <Badge tone="accent">Custom</Badge>}
                           </div>
                         </div>
                         <ChevronRight size={16} className="text-harmonic-muted flex-shrink-0" aria-hidden="true" />

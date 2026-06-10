@@ -149,7 +149,7 @@ service cloud.firestore {
       allow write: if false; // seeded via admin SDK only
     }
 
-    // ── Integration caches (Spotify / Genius) ─────────────────────────────────
+    // ── Integration caches (Spotify / Genius / lyrics / chords / AI) ──────────
     // Cloud Functions own these; clients may read and mirror cache entries to
     // avoid repeat lookups. No secrets are ever stored here.
     match /spotifyCache/{key} {
@@ -157,6 +157,22 @@ service cloud.firestore {
       allow create, update: if isSignedIn();
     }
     match /geniusCache/{key} {
+      allow read:   if isSignedIn();
+      allow create, update: if isSignedIn();
+    }
+    match /geniusInfoCache/{key} {
+      allow read:   if isSignedIn();
+      allow create, update: if isSignedIn();
+    }
+    match /lyricsCache/{key} {
+      allow read:   if isSignedIn();
+      allow create, update: if isSignedIn();
+    }
+    match /chordsCache/{key} {
+      allow read:   if isSignedIn();
+      allow create, update: if isSignedIn();
+    }
+    match /songContextCache/{key} {
       allow read:   if isSignedIn();
       allow create, update: if isSignedIn();
     }

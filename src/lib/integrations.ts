@@ -24,6 +24,26 @@ export interface GeniusData {
 
 export interface LyricsData {
   lyrics: string | null
+  source?: string | null
+}
+
+export interface GeniusSongInfo {
+  about: string | null
+  album: string | null
+  releaseDate: string | null
+  artistName: string | null
+  songArtUrl: string | null
+  url: string | null
+}
+
+export interface ChordsData {
+  /** Chord sheet text with chords wrapped in [ch]…[/ch] markers */
+  chordsText: string | null
+  key: string | null
+  capo: number | null
+  progression: string[]
+  sourceUrl: string | null
+  sourceName: string | null
 }
 
 export interface SongContextData {
@@ -118,21 +138,82 @@ export async function fetchGenius(title: string, artist?: string): Promise<Geniu
   }
 }
 
-/** Fetch actual lyrics text via lyrics.ovh (cached server-side). Returns null if not found. */
+/** Fetch lyrics text (lrclib → Genius scrape → lyrics.ovh, server-side). */
 export async function fetchLyricsData(title: string, artist?: string): Promise<LyricsData> {
   const key = cacheKeyFor(title, artist)
   try {
     const cacheRef = doc(db, 'lyricsCache', key)
     const cached = await getDoc(cacheRef)
-    if (cached.exists()) return { lyrics: cached.data().lyrics ?? null }
+    if (cached.exists()) {
+      return { lyrics: cached.data().lyrics ?? null, source: cached.data().source ?? null }
+    }
 
-    const call = httpsCallable<{ title: string; artist?: string }, { lyrics: string | null }>(functions, 'fetchLyrics')
+    const call = httpsCallable<{ title: string; artist?: string }, LyricsData>(functions, 'fetchLyrics')
     const { data } = await call({ title, artist })
     await setDoc(cacheRef, { ...data, cachedAt: serverTimestamp() }, { merge: true }).catch(() => {})
     return data
   } catch (err) {
     console.warn('[lyrics] fetch failed:', err)
     return { lyrics: null }
+  }
+}
+
+/** Genius song metadata: description ("about"), album, release date, artwork. */
+export async function fetchGeniusInfo(title: string, artist?: string): Promise<GeniusSongInfo | null> {
+  const key = cacheKeyFor(title, artist)
+  try {
+    const cacheRef = doc(db, 'geniusInfoCache', key)
+    const cached = await getDoc(cacheRef)
+    if (cached.exists()) {
+      const d = cached.data()
+      return {
+        about: d.about ?? null,
+        album: d.album ?? null,
+        releaseDate: d.releaseDate ?? null,
+        artistName: d.artistName ?? null,
+        songArtUrl: d.songArtUrl ?? null,
+        url: d.url ?? null,
+      }
+    }
+
+    const call = httpsCallable<{ title: string; artist?: string }, GeniusSongInfo>(functions, 'geniusSongInfo')
+    const { data } = await call({ title, artist })
+    await setDoc(cacheRef, { ...data, cachedAt: serverTimestamp() }, { merge: true }).catch(() => {})
+    return data
+  } catch (err) {
+    console.warn('[geniusInfo] lookup failed:', err)
+    return null
+  }
+}
+
+/** Chord sheet + progression pulled from the web (cached server-side). */
+export async function fetchChordsData(title: string, artist?: string): Promise<ChordsData> {
+  const emptyChords: ChordsData = {
+    chordsText: null, key: null, capo: null, progression: [], sourceUrl: null, sourceName: null,
+  }
+  const key = cacheKeyFor(title, artist)
+  try {
+    const cacheRef = doc(db, 'chordsCache', key)
+    const cached = await getDoc(cacheRef)
+    if (cached.exists()) {
+      const d = cached.data()
+      return {
+        chordsText: d.chordsText ?? null,
+        key: d.key ?? null,
+        capo: d.capo ?? null,
+        progression: d.progression ?? [],
+        sourceUrl: d.sourceUrl ?? null,
+        sourceName: d.sourceName ?? null,
+      }
+    }
+
+    const call = httpsCallable<{ title: string; artist?: string }, ChordsData>(functions, 'fetchChords')
+    const { data } = await call({ title, artist })
+    await setDoc(cacheRef, { ...data, cachedAt: serverTimestamp() }, { merge: true }).catch(() => {})
+    return data
+  } catch (err) {
+    console.warn('[chords] fetch failed:', err)
+    return emptyChords
   }
 }
 

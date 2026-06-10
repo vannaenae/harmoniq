@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Save,
   Music2, Youtube, ExternalLink, ChevronDown as ChevronExpand,
-  Sparkles,
+  BookOpen, Guitar, Minus,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card } from '@/components/ui/Card'
@@ -17,11 +17,12 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useChoir } from '@/contexts/ChoirContext'
 import { getSong, getPracticeNotes, savePracticeNotes } from '@/lib/songs'
 import {
-  fetchSpotify, fetchGenius, fetchLyricsData, fetchSongContext,
+  fetchSpotify, fetchGeniusInfo, fetchLyricsData, fetchSongContext, fetchChordsData,
   spotifyEmbedUrl,
-  type SpotifyData, type GeniusData, type LyricsData, type SongContextData,
+  type SpotifyData, type GeniusSongInfo, type LyricsData, type SongContextData, type ChordsData,
 } from '@/lib/integrations'
 import { listServices, getSetList, saveSetList } from '@/lib/firestore'
+import { ChordSheet, transposeChordName } from './ChordSheet'
 import type { Song, Service } from '@/types'
 
 // ── Key / chord utilities ─────────────────────────────────────────────────────
@@ -56,17 +57,23 @@ export function SongLibraryDetail() {
   const [song,    setSong]    = useState<Song | null>(null)
   const [loading, setLoading] = useState(true)
   const [spotify, setSpotify] = useState<SpotifyData | null>(null)
-  const [genius,  setGenius]  = useState<GeniusData | null>(null)
+  const [geniusInfo, setGeniusInfo] = useState<GeniusSongInfo | null>(null)
   const [lyricsData,  setLyricsData]  = useState<LyricsData | null>(null)
   const [context, setContext] = useState<SongContextData | null>(null)
+  const [chordsData, setChordsData] = useState<ChordsData | null>(null)
   const [mediaLoading,   setMediaLoading]   = useState(true)
   const [lyricsLoading,  setLyricsLoading]  = useState(true)
-  const [contextLoading, setContextLoading] = useState(true)
+  const [aboutLoading,   setAboutLoading]   = useState(true)
+  const [chordsLoading,  setChordsLoading]  = useState(true)
   const [lyricsExpanded, setLyricsExpanded] = useState(false)
+  const [aboutExpanded,  setAboutExpanded]  = useState(false)
+  const [chordsExpanded, setChordsExpanded] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
 
-  // Key transposer
+  // Key transposer (vocal reference)
   const [selectedKey, setSelectedKey] = useState('')
+  // Chord sheet transpose offset (semitones)
+  const [sheetOffset, setSheetOffset] = useState(0)
 
   // Practice notes
   const [notes,       setNotes]       = useState('')
@@ -82,7 +89,9 @@ export function SongLibraryDetail() {
     setLoading(true)
     setMediaLoading(true)
     setLyricsLoading(true)
-    setContextLoading(true)
+    setAboutLoading(true)
+    setChordsLoading(true)
+    setSheetOffset(0)
 
     getSong(choir.id, songId).then(async s => {
       if (!active) return
@@ -93,30 +102,35 @@ export function SongLibraryDetail() {
       setLoading(false)
 
       // Fire all enrichment in parallel — each settles independently
-      const [sp, ge, ly, ctx] = await Promise.allSettled([
+      const [sp, gi, ly, ctx, ch] = await Promise.allSettled([
         fetchSpotify(s.title, s.artist),
-        fetchGenius(s.title, s.artist),
+        fetchGeniusInfo(s.title, s.artist),
         fetchLyricsData(s.title, s.artist),
         fetchSongContext(s.title, s.artist),
+        fetchChordsData(s.title, s.artist),
       ])
 
       if (!active) return
       if (sp.status === 'fulfilled') setSpotify(sp.value)
       setMediaLoading(false)
 
-      if (ge.status === 'fulfilled') setGenius(ge.value)
+      if (gi.status === 'fulfilled') setGeniusInfo(gi.value)
 
       if (ly.status === 'fulfilled') setLyricsData(ly.value)
       setLyricsLoading(false)
 
       if (ctx.status === 'fulfilled') setContext(ctx.value)
-      setContextLoading(false)
+      setAboutLoading(false)
+
+      if (ch.status === 'fulfilled') setChordsData(ch.value)
+      setChordsLoading(false)
     }).catch(err => {
       console.error('Load song error:', err)
       setLoading(false)
       setMediaLoading(false)
       setLyricsLoading(false)
-      setContextLoading(false)
+      setAboutLoading(false)
+      setChordsLoading(false)
     })
 
     return () => { active = false }
@@ -153,10 +167,13 @@ export function SongLibraryDetail() {
   }
 
   const trackId   = spotify?.trackId  ?? song?.spotifyTrackId ?? null
-  const artUrl    = spotify?.albumArtUrl ?? song?.albumArtUrl ?? null
-  const lyricsUrl = genius?.url ?? song?.geniusUrl ?? song?.lyricsUrl ?? null
+  const artUrl    = spotify?.albumArtUrl ?? geniusInfo?.songArtUrl ?? song?.albumArtUrl ?? null
+  const lyricsUrl = geniusInfo?.url ?? song?.geniusUrl ?? song?.lyricsUrl ?? null
   const lyrics    = lyricsData?.lyrics ?? null
+  const about     = geniusInfo?.about ?? context?.about ?? null
   const chords    = KEY_CHORDS[selectedKey] ?? null
+  const sheet     = chordsData?.chordsText ?? null
+  const sheetKey  = chordsData?.key ? transposeChordName(chordsData.key, sheetOffset) : null
   const songQuery = encodeURIComponent(`${song?.title ?? ''} ${song?.artist ?? ''}`.trim())
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -195,17 +212,17 @@ export function SongLibraryDetail() {
       <div className="max-w-2xl mx-auto pb-12">
 
         {/* ── Hero ───────────────────────────────────────────────────────── */}
-        <div className="relative h-72 sm:h-80 overflow-hidden select-none">
+        <div className="relative h-72 sm:h-80 overflow-hidden select-none animate-fade-in">
           {artUrl ? (
             <img
               src={artUrl}
               alt=""
               aria-hidden="true"
               className="absolute inset-0 w-full h-full object-cover scale-110"
-              style={{ filter: 'blur(32px) brightness(0.38) saturate(1.5)' }}
+              style={{ filter: 'blur(32px) brightness(0.38) saturate(1.4)' }}
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-harmonic-primary via-harmonic-secondary to-purple-900" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#5E5CE6] via-[#4644B8] to-[#1E1B4B]" />
           )}
           {/* Gradient fade to page bg */}
           <div className="absolute inset-0 bg-gradient-to-t from-harmonic-background/95 via-black/10 to-black/30" />
@@ -213,14 +230,14 @@ export function SongLibraryDetail() {
           {/* Back */}
           <Link
             to="/library"
-            className="absolute top-safe-top top-5 left-5 z-10 w-9 h-9 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/50 transition-colors"
+            className="absolute top-safe-top top-5 left-5 z-10 w-9 h-9 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/50 transition-colors duration-150"
             aria-label="Back to library"
           >
             <ArrowLeft size={17} />
           </Link>
 
           {/* Content anchored to bottom */}
-          <div className="absolute inset-x-0 bottom-0 px-5 pb-6 z-10 flex items-end gap-4">
+          <div className="absolute inset-x-0 bottom-0 px-5 pb-6 z-10 flex items-end gap-4 animate-slide-up">
             {artUrl && (
               <img
                 src={artUrl}
@@ -229,9 +246,9 @@ export function SongLibraryDetail() {
               />
             )}
             <div className="flex-1 min-w-0 pb-0.5">
-              <h1 className="text-xl sm:text-2xl font-bold text-white leading-tight">{song.title}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-white leading-tight tracking-tight">{song.title}</h1>
               <p className="text-sm text-white/65 mt-0.5 truncate">
-                {spotify?.artistName ?? song.artist}
+                {spotify?.artistName ?? geniusInfo?.artistName ?? song.artist}
               </p>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {song.genre && (
@@ -260,7 +277,7 @@ export function SongLibraryDetail() {
           {mediaLoading ? (
             <Skeleton className="h-[152px] w-full rounded-2xl" />
           ) : trackId ? (
-            <div className="space-y-1">
+            <div className="space-y-1 animate-slide-up">
               <iframe
                 title={`Play ${song.title} on Spotify`}
                 src={spotifyEmbedUrl(trackId)}
@@ -275,7 +292,7 @@ export function SongLibraryDetail() {
                 <a
                   href={`https://open.spotify.com/track/${trackId}`}
                   target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors duration-150"
                 >
                   <Music2 size={12} className="text-[#1DB954]" /> Open in Spotify
                 </a>
@@ -283,14 +300,14 @@ export function SongLibraryDetail() {
                 <a
                   href={`https://www.youtube.com/results?search_query=${songQuery}`}
                   target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors duration-150"
                 >
                   <Youtube size={12} className="text-[#FF0000]" /> Search YouTube
                 </a>
               </div>
             </div>
           ) : (
-            <div className="flex gap-2">
+            <div className="flex gap-2 animate-slide-up">
               <a href={`https://open.spotify.com/search/${songQuery}`} target="_blank" rel="noopener noreferrer" className="flex-1">
                 <Button variant="outlined" fullWidth>
                   <Music2 size={15} className="text-[#1DB954]" /> Search Spotify
@@ -311,14 +328,14 @@ export function SongLibraryDetail() {
             </Button>
           )}
 
-          {/* ── AI Knowledge card ───────────────────────────────────────── */}
-          <Card className="p-5 space-y-3">
+          {/* ── About this song (Genius, AI fallback) ───────────────────── */}
+          <Card className="p-5 space-y-3 animate-slide-up" style={{ animationDelay: '60ms' }}>
             <div className="flex items-center gap-2">
-              <Sparkles size={14} className="text-harmonic-primary" />
+              <BookOpen size={14} className="text-harmonic-primary" />
               <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">About this song</p>
             </div>
 
-            {contextLoading ? (
+            {aboutLoading ? (
               <div className="space-y-2">
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-5/6" />
@@ -329,20 +346,46 @@ export function SongLibraryDetail() {
                   <Skeleton className="h-6 w-24 rounded-full" />
                 </div>
               </div>
-            ) : context?.about ? (
+            ) : about ? (
               <div className="space-y-3">
-                <p className="text-sm text-harmonic-text leading-relaxed">{context.about}</p>
-                {context.themes.length > 0 && (
+                <div className="relative">
+                  <div className={`overflow-hidden transition-all duration-500 ${aboutExpanded ? 'max-h-[9999px]' : 'max-h-36'}`}>
+                    <p className="text-sm text-harmonic-text leading-relaxed whitespace-pre-line">{about}</p>
+                  </div>
+                  {!aboutExpanded && about.length > 360 && (
+                    <div className="absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+                  )}
+                  {about.length > 360 && (
+                    <button
+                      onClick={() => setAboutExpanded(e => !e)}
+                      className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-harmonic-primary hover:underline"
+                    >
+                      <ChevronExpand size={14} className={`transition-transform duration-200 ${aboutExpanded ? 'rotate-180' : ''}`} />
+                      {aboutExpanded ? 'Show less' : 'Read more'}
+                    </button>
+                  )}
+                </div>
+
+                {(context?.themes.length ?? 0) > 0 && (
                   <div className="flex flex-wrap gap-1.5">
-                    {context.themes.map(theme => (
-                      <Badge key={theme} tone="tertiary">{theme}</Badge>
+                    {context!.themes.map(theme => (
+                      <Badge key={theme} tone="primary">{theme}</Badge>
                     ))}
                   </div>
                 )}
-                {context.resonance && (
+                {context?.resonance && (
                   <p className="text-xs text-harmonic-muted italic border-l-2 border-harmonic-primary/30 pl-3">
                     {context.resonance}
                   </p>
+                )}
+                {geniusInfo?.about && geniusInfo.url && (
+                  <a
+                    href={geniusInfo.url}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-[11px] text-harmonic-muted hover:text-harmonic-text transition-colors duration-150"
+                  >
+                    <ExternalLink size={10} /> From Genius
+                  </a>
                 )}
               </div>
             ) : (
@@ -351,7 +394,7 @@ export function SongLibraryDetail() {
           </Card>
 
           {/* ── Lyrics ──────────────────────────────────────────────────── */}
-          <Card className="p-5">
+          <Card className="p-5 animate-slide-up" style={{ animationDelay: '100ms' }}>
             <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-4">Lyrics</p>
 
             {lyricsLoading ? (
@@ -376,7 +419,7 @@ export function SongLibraryDetail() {
                   onClick={() => setLyricsExpanded(e => !e)}
                   className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-harmonic-primary hover:underline"
                 >
-                  <ChevronExpand size={14} className={`transition-transform ${lyricsExpanded ? 'rotate-180' : ''}`} />
+                  <ChevronExpand size={14} className={`transition-transform duration-200 ${lyricsExpanded ? 'rotate-180' : ''}`} />
                   {lyricsExpanded ? 'Show less' : 'Show full lyrics'}
                 </button>
                 {lyricsUrl && (
@@ -384,7 +427,7 @@ export function SongLibraryDetail() {
                     href={lyricsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-2 flex items-center gap-1 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
+                    className="mt-2 flex items-center gap-1 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors duration-150"
                   >
                     <ExternalLink size={11} /> Full lyrics on Genius
                   </a>
@@ -404,44 +447,128 @@ export function SongLibraryDetail() {
             )}
           </Card>
 
+          {/* ── Chord chart (pulled from the web) ───────────────────────── */}
+          <Card className="p-5 space-y-4 animate-slide-up" style={{ animationDelay: '140ms' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Guitar size={14} className="text-harmonic-primary" />
+                <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Chord chart</p>
+              </div>
+              {sheet && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setSheetOffset(o => o - 1)}
+                    className="w-8 h-8 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors duration-150 active:scale-90"
+                    aria-label="Transpose chart down a semitone"
+                  >
+                    <Minus size={14} />
+                  </button>
+                  <span className="min-w-[44px] text-center text-xs font-semibold text-harmonic-text tabular-nums">
+                    {sheetOffset === 0 ? 'Original' : `${sheetOffset > 0 ? '+' : ''}${sheetOffset}`}
+                  </span>
+                  <button
+                    onClick={() => setSheetOffset(o => o + 1)}
+                    className="w-8 h-8 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors duration-150 active:scale-90"
+                    aria-label="Transpose chart up a semitone"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {chordsLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className={`h-4 ${i % 3 === 0 ? 'w-1/2' : 'w-full'}`} />
+                ))}
+              </div>
+            ) : sheet ? (
+              <>
+                {/* Key / capo / progression summary */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {sheetKey && <Badge tone="primary">Key: {sheetKey}</Badge>}
+                  {chordsData?.capo != null && <Badge tone="accent">Capo {chordsData.capo}</Badge>}
+                  {(chordsData?.progression ?? []).slice(0, 6).map(c => (
+                    <Badge key={c} tone="neutral" className="font-mono">
+                      {transposeChordName(c, sheetOffset)}
+                    </Badge>
+                  ))}
+                </div>
+
+                <div className="relative">
+                  <div className={`overflow-hidden transition-all duration-500 ${chordsExpanded ? 'max-h-[9999px]' : 'max-h-80'}`}>
+                    <div className="bg-harmonic-surface rounded-xl p-4 overflow-x-auto">
+                      <ChordSheet text={sheet} semitones={sheetOffset} />
+                    </div>
+                  </div>
+                  {!chordsExpanded && (
+                    <div className="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-white to-transparent pointer-events-none rounded-b-xl" />
+                  )}
+                  <button
+                    onClick={() => setChordsExpanded(e => !e)}
+                    className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-harmonic-primary hover:underline"
+                  >
+                    <ChevronExpand size={14} className={`transition-transform duration-200 ${chordsExpanded ? 'rotate-180' : ''}`} />
+                    {chordsExpanded ? 'Show less' : 'Show full chart'}
+                  </button>
+                </div>
+
+                {chordsData?.sourceUrl && (
+                  <a
+                    href={chordsData.sourceUrl}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-[11px] text-harmonic-muted hover:text-harmonic-text transition-colors duration-150"
+                  >
+                    <ExternalLink size={10} /> Source: {chordsData.sourceName ?? 'web'}
+                  </a>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-harmonic-muted">
+                No chord chart found online for this song — use the key reference below.
+              </p>
+            )}
+          </Card>
+
           {/* ── Song info grid ───────────────────────────────────────────── */}
-          {(spotify?.albumName || spotify?.releaseYear || spotify?.tempo || spotify?.keyNote) && (
-            <Card className="p-5">
+          {(spotify?.albumName || geniusInfo?.album || spotify?.releaseYear || geniusInfo?.releaseDate || spotify?.tempo || spotify?.keyNote) && (
+            <Card className="p-5 animate-slide-up" style={{ animationDelay: '180ms' }}>
               <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest mb-4">Song info</p>
               <div className="grid grid-cols-2 gap-3">
-                {spotify.albumName && (
-                  <InfoCell label="Album" value={spotify.albumName} />
+                {(spotify?.albumName || geniusInfo?.album) && (
+                  <InfoCell label="Album" value={spotify?.albumName ?? geniusInfo!.album!} />
                 )}
-                {spotify.releaseYear && (
-                  <InfoCell label="Year" value={String(spotify.releaseYear)} />
+                {(spotify?.releaseYear || geniusInfo?.releaseDate) && (
+                  <InfoCell label="Released" value={spotify?.releaseYear ? String(spotify.releaseYear) : geniusInfo!.releaseDate!} />
                 )}
-                {spotify.tempo && (
+                {spotify?.tempo && (
                   <InfoCell label="Tempo" value={`${spotify.tempo} BPM`} />
                 )}
-                {spotify.keyNote && (
+                {spotify?.keyNote && (
                   <InfoCell label="Key (Spotify)" value={spotify.keyNote} />
                 )}
-                {spotify.durationSec && (
+                {spotify?.durationSec && (
                   <InfoCell label="Duration" value={fmtDuration(spotify.durationSec)} />
                 )}
               </div>
             </Card>
           )}
 
-          {/* ── Key & chords ────────────────────────────────────────────── */}
-          <Card className="p-5 space-y-4">
+          {/* ── Key & chords (vocal reference) ──────────────────────────── */}
+          <Card className="p-5 space-y-4 animate-slide-up" style={{ animationDelay: '220ms' }}>
             <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Key & chords</p>
 
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setSelectedKey(k => transposeKey(k, -1))}
-                className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors"
+                className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors duration-150 active:scale-90"
                 aria-label="Transpose down"
               >
                 <ChevronDown size={18} />
               </button>
               <div className="flex-1 text-center">
-                <p className="text-4xl font-bold text-harmonic-primary">{selectedKey}</p>
+                <p className="text-4xl font-bold text-harmonic-primary tracking-tight">{selectedKey}</p>
                 {song.defaultKey && toChromaticKey(song.defaultKey) !== selectedKey && (
                   <p className="text-xs text-harmonic-muted mt-1">
                     Original: {song.defaultKey}{' · '}
@@ -453,7 +580,7 @@ export function SongLibraryDetail() {
               </div>
               <button
                 onClick={() => setSelectedKey(k => transposeKey(k, 1))}
-                className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors"
+                className="w-10 h-10 rounded-full bg-harmonic-surface flex items-center justify-center hover:bg-harmonic-border transition-colors duration-150 active:scale-90"
                 aria-label="Transpose up"
               >
                 <ChevronUp size={18} />
@@ -478,8 +605,8 @@ export function SongLibraryDetail() {
                   onClick={() => setSelectedKey(k)}
                   className={
                     selectedKey === k
-                      ? 'px-2.5 py-1 rounded-full text-xs font-semibold bg-harmonic-primary text-white'
-                      : 'px-2.5 py-1 rounded-full text-xs font-medium bg-harmonic-surface text-harmonic-muted hover:bg-harmonic-border transition-colors'
+                      ? 'px-2.5 py-1 rounded-full text-xs font-semibold bg-harmonic-primary text-white transition-all duration-150'
+                      : 'px-2.5 py-1 rounded-full text-xs font-medium bg-harmonic-surface text-harmonic-muted hover:bg-harmonic-border transition-all duration-150'
                   }
                 >
                   {k}
@@ -489,12 +616,12 @@ export function SongLibraryDetail() {
           </Card>
 
           {/* ── Usage history ────────────────────────────────────────────── */}
-          <Card className="px-5 py-4">
+          <Card className="px-5 py-4 animate-slide-up" style={{ animationDelay: '260ms' }}>
             <UsageHistory choirId={choir!.id} songId={song.id} />
           </Card>
 
           {/* ── Practice notes ───────────────────────────────────────────── */}
-          <Card className="p-5">
+          <Card className="p-5 animate-slide-up" style={{ animationDelay: '300ms' }}>
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">My practice notes</p>
               <span className="text-xs text-harmonic-muted flex items-center gap-1">
@@ -513,7 +640,7 @@ export function SongLibraryDetail() {
                 onChange={e => handleNotesChange(e.target.value)}
                 placeholder="Add your own notes — key tips, chord changes, cues, anything that helps you prepare…"
                 rows={4}
-                className="w-full resize-none rounded-xl bg-harmonic-surface border border-harmonic-border px-4 py-3 text-sm text-harmonic-text placeholder-harmonic-muted focus:outline-none focus:ring-2 focus:ring-harmonic-primary/30 transition"
+                className="w-full resize-none rounded-xl bg-harmonic-surface border border-transparent px-4 py-3 text-sm text-harmonic-text placeholder-harmonic-muted focus:outline-none focus:bg-white focus:border-harmonic-primary/40 focus:ring-4 focus:ring-harmonic-primary/10 transition-all duration-200"
               />
             )}
           </Card>
@@ -620,7 +747,7 @@ function AddToSetListModal({
   return (
     <Modal open={open} onOpenChange={onOpenChange} title="Add to set list" description={`Pick a service for "${song.title}".`}>
       {done ? (
-        <div className="flex flex-col items-center text-center gap-2 py-6">
+        <div className="flex flex-col items-center text-center gap-2 py-6 animate-scale-in">
           <Check size={40} className="text-harmonic-success" />
           <p className="text-sm font-medium text-harmonic-text">Added to the set list</p>
         </div>
