@@ -142,10 +142,27 @@ service cloud.firestore {
                         && request.resource.data.authorId == request.auth.uid
                         && (isChoirOwner(choirId) || canPostToChannel(
                               get(/databases/$(database)/documents/choirs/$(choirId)/channels/$(channelId)).data));
+          // Any member who can see the channel may update reactions and thread
+          // counters on others' messages; full edits remain author/director only.
           allow update: if (isMemberOf(choirId) && resource.data.authorId == request.auth.uid)
-                        || isDirectorOf(choirId) || isChoirOwner(choirId);
+                        || isDirectorOf(choirId) || isChoirOwner(choirId)
+                        || (isMemberOf(choirId)
+                            && canSeeChannel(
+                                 get(/databases/$(database)/documents/choirs/$(choirId)/channels/$(channelId)).data)
+                            && request.resource.data.diff(resource.data).affectedKeys()
+                              .hasOnly(['reactions', 'threadCount', 'threadLastReplyAt']));
           allow delete: if (isMemberOf(choirId) && resource.data.authorId == request.auth.uid)
                         || isDirectorOf(choirId) || isChoirOwner(choirId);
+        }
+
+        // Typing indicators — ephemeral presence docs, one per user. Writable
+        // only by users who could post to the channel.
+        match /typing/{userId} {
+          allow read:   if isMemberOf(choirId) || isChoirOwner(choirId);
+          allow write:  if (isMemberOf(choirId) || isChoirOwner(choirId))
+                        && request.auth.uid == userId
+                        && (isChoirOwner(choirId) || canPostToChannel(
+                              get(/databases/$(database)/documents/choirs/$(choirId)/channels/$(channelId)).data));
         }
       }
 
@@ -201,6 +218,22 @@ service cloud.firestore {
       allow create, update: if isSignedIn();
     }
     match /geniusCache/{key} {
+      allow read:   if isSignedIn();
+      allow create, update: if isSignedIn();
+    }
+    match /geniusInfoCache/{key} {
+      allow read:   if isSignedIn();
+      allow create, update: if isSignedIn();
+    }
+    match /lyricsCache/{key} {
+      allow read:   if isSignedIn();
+      allow create, update: if isSignedIn();
+    }
+    match /chordsCache/{key} {
+      allow read:   if isSignedIn();
+      allow create, update: if isSignedIn();
+    }
+    match /songContextCache/{key} {
       allow read:   if isSignedIn();
       allow create, update: if isSignedIn();
     }

@@ -11,15 +11,16 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<Variant, string> = {
-  primary:  'bg-gradient-brand text-white hover:brightness-110 hover:shadow-btn-glow',
-  secondary: 'bg-harmonic-surface text-harmonic-text hover:bg-harmonic-surfaceMid border border-harmonic-border/60',
+  primary:   'bg-harmonic-primary text-white hover:brightness-110',
+  secondary: 'bg-harmonic-surface text-harmonic-text hover:bg-harmonic-border/70',
   inverted:  'bg-harmonic-neutral text-white hover:opacity-90',
-  outlined:  'bg-transparent border-2 border-harmonic-electric text-harmonic-electric hover:bg-harmonic-electric hover:text-white',
+  outlined:  'bg-transparent border border-harmonic-border text-harmonic-text hover:bg-harmonic-surface',
   danger:    'bg-harmonic-danger text-white hover:brightness-110',
-  gradient:  'bg-gradient-brand-vivid text-white hover:brightness-110 hover:shadow-btn-glow',
-  electric:  'bg-gradient-electric text-white hover:brightness-110 hover:shadow-btn-electric',
-  neon:      'bg-gradient-neon text-white hover:brightness-110 hover:shadow-btn-neon',
-  ghost:     'bg-transparent text-harmonic-electric hover:bg-harmonic-electric/10 border border-harmonic-electric/30',
+  // Legacy variant names — all resolve to the single indigo accent
+  gradient:  'bg-harmonic-primary text-white hover:brightness-110',
+  electric:  'bg-harmonic-primary text-white hover:brightness-110',
+  neon:      'bg-harmonic-primary text-white hover:brightness-110',
+  ghost:     'bg-transparent text-harmonic-primary hover:bg-harmonic-primary/10',
 }
 
 const sizeClasses: Record<Size, string> = {
@@ -35,9 +36,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled}
         className={cn(
-          'inline-flex items-center justify-center gap-2 rounded-pill font-semibold tracking-tight transition-all duration-200',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-harmonic-electric',
-          'active:scale-95',
+          'inline-flex items-center justify-center gap-2 rounded-pill font-semibold',
+          'transition-all duration-200 ease-out',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-harmonic-primary',
+          'active:scale-[0.97]',
           'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
           'min-h-[44px]',
           variantClasses[variant],

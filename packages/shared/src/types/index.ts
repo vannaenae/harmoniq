@@ -307,6 +307,24 @@ export interface Channel {
   lastMessagePreview?: string
 }
 
+export interface MessageAttachment {
+  url: string
+  name: string
+  contentType: string
+  size: number
+  /** Pixel dimensions, set for images so the UI can reserve layout space */
+  width?: number
+  height?: number
+}
+
+/** Snapshot of the message being replied to (WhatsApp-style quote) */
+export interface ReplyPreview {
+  messageId: string
+  authorName: string
+  text: string
+  hasAttachment?: boolean
+}
+
 export interface Message {
   id: string
   channelId: string
@@ -318,6 +336,19 @@ export interface Message {
   editedAt?: Date
   pinned: boolean
   reactions: Record<string, string[]>
+  attachments: MessageAttachment[]
+  replyTo?: ReplyPreview
+  /** Set on messages that live inside a thread; points at the root message */
+  parentId?: string
+  /** Number of thread replies (maintained on root messages) */
+  threadCount: number
+  threadLastReplyAt?: Date
+}
+
+export interface TypingUser {
+  uid: string
+  name: string
+  at: number
 }
 
 // ── Announcement ─────────────────────────────────────────────────────────────

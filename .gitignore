@@ -44,3 +44,6 @@ android/
 # claude specific files
 .claude/
 .vercel
+
+# firebase CLI debug output
+firebase-debug.log

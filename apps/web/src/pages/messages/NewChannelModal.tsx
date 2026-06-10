@@ -45,8 +45,8 @@ export function NewChannelModal({ onClose, onCreate }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-card-hover w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
+      <div className="bg-white rounded-card-lg border border-black/[0.06] shadow-pop w-full max-w-md p-6 animate-scale-in" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-bold text-harmonic-text">Create a channel</h2>
           <button onClick={onClose} aria-label="Close" className="text-harmonic-muted hover:text-harmonic-text">
@@ -78,7 +78,7 @@ export function NewChannelModal({ onClose, onCreate }: Props) {
                 <button
                   key={opt.value}
                   onClick={() => setCategory(opt.value)}
-                  className={`px-3 py-2 rounded-xl border-2 text-sm font-medium transition-colors text-left ${
+                  className={`px-3 py-2 rounded-xl border text-sm font-medium transition-all duration-150 text-left active:scale-[0.98] ${
                     category === opt.value
                       ? 'border-harmonic-primary bg-harmonic-primary/5 text-harmonic-primary'
                       : 'border-harmonic-border text-harmonic-text hover:border-harmonic-primary/40'
@@ -99,7 +99,7 @@ export function NewChannelModal({ onClose, onCreate }: Props) {
                 <button
                   key={opt.value}
                   onClick={() => setVisibleTo(opt.value)}
-                  className={`px-3 py-2 rounded-xl border-2 text-sm font-medium transition-colors text-left ${
+                  className={`px-3 py-2 rounded-xl border text-sm font-medium transition-all duration-150 text-left active:scale-[0.98] ${
                     visibleTo === opt.value
                       ? 'border-harmonic-primary bg-harmonic-primary/5 text-harmonic-primary'
                       : 'border-harmonic-border text-harmonic-text hover:border-harmonic-primary/40'

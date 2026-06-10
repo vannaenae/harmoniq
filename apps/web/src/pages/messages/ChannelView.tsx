@@ -1,262 +1,164 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom'
-import { ArrowLeft, Hash, Pin, Send, MoreVertical, Smile, Trash2 } from 'lucide-react'
-import { Avatar } from '@/components/ui/Avatar'
+import { ArrowLeft, Hash, Pin, Lock, UploadCloud, X } from 'lucide-react'
 import { cn } from '@harmoniq/shared'
 import { useAuth } from '@harmoniq/shared'
 import { useChoir } from '@harmoniq/shared'
 import {
   subscribeToMessages,
+  subscribeToTyping,
   sendMessage,
-  deleteMessage,
+  uploadAttachments,
   pinMessage,
-  toggleReaction,
-  editMessage,
+  setTyping,
+  clearTyping,
+  TYPING_TTL_MS,
 } from '@harmoniq/shared'
-import type { Channel, Message } from '@harmoniq/shared'
+import { MessageBubble } from './MessageBubble'
+import { Composer } from './Composer'
+import { ThreadPanel } from './ThreadPanel'
+import { groupByDay, isSameGroup } from './chatUtils'
+import type { Channel, Message, ReplyPreview, TypingUser } from '@harmoniq/shared'
 
-const QUICK_REACTIONS = ['👍', '❤️', '😂', '🙏', '🔥', '🎵']
+const NEAR_BOTTOM_PX = 150
+const TYPING_THROTTLE_MS = 2500
 
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-}
-
-function formatDay(date: Date): string {
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
-  if (date.toDateString() === today.toDateString()) return 'Today'
-  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
-  return date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
-}
-
-interface MessageBubbleProps {
-  msg: Message
-  isMine: boolean
-  isDirector: boolean
-  choirId: string
-  channelId: string
-  currentUserId: string
-}
-
-function MessageBubble({ msg, isMine, isDirector, choirId, channelId, currentUserId }: MessageBubbleProps) {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [emojiOpen, setEmojiOpen] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const [editText, setEditText] = useState(msg.text)
-
-  const handleEdit = async () => {
-    if (!editText.trim() || editText === msg.text) { setEditing(false); return }
-    await editMessage(choirId, channelId, msg.id, editText.trim())
-    setEditing(false)
-  }
-
-  const handleDelete = async () => {
-    if (!confirm('Delete this message?')) return
-    await deleteMessage(choirId, channelId, msg.id)
-    setMenuOpen(false)
-  }
-
-  const handlePin = async () => {
-    await pinMessage(choirId, channelId, msg.id, !msg.pinned)
-    setMenuOpen(false)
-  }
-
-  const handleReact = async (emoji: string) => {
-    await toggleReaction(choirId, channelId, msg.id, emoji, currentUserId)
-    setEmojiOpen(false)
-  }
-
-  const canDelete = isMine || isDirector
-  const canPin = isDirector
-
+function TypingIndicator({ users }: { users: TypingUser[] }) {
+  if (users.length === 0) return null
+  const label =
+    users.length === 1
+      ? `${users[0].name} is typing`
+      : users.length === 2
+        ? `${users[0].name} and ${users[1].name} are typing`
+        : 'Several people are typing'
   return (
-    <div
-      className={cn(
-        'group flex gap-3 px-4 py-1 hover:bg-black/5 rounded-lg transition-colors',
-        isMine ? 'flex-row-reverse' : '',
-      )}
-    >
-      {!isMine && (
-        <Avatar src={msg.authorPhotoUrl} name={msg.authorName} size="sm" className="flex-shrink-0 mt-1" />
-      )}
-
-      <div className={cn('flex flex-col max-w-[70%]', isMine ? 'items-end' : 'items-start')}>
-        {!isMine && (
-          <span className="text-xs font-semibold text-harmonic-text mb-1">{msg.authorName}</span>
-        )}
-
-        {editing ? (
-          <div className="flex gap-2 items-center">
-            <input
-              autoFocus
-              value={editText}
-              onChange={e => setEditText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleEdit(); if (e.key === 'Escape') setEditing(false) }}
-              className="px-3 py-2 rounded-xl border-2 border-harmonic-primary text-sm outline-none bg-white min-w-[180px]"
-            />
-            <button onClick={handleEdit} className="text-harmonic-primary text-xs font-semibold">Save</button>
-            <button onClick={() => setEditing(false)} className="text-harmonic-muted text-xs">Cancel</button>
-          </div>
-        ) : (
-          <div
-            className={cn(
-              'px-3 py-2 rounded-2xl text-sm break-words',
-              isMine
-                ? 'bg-harmonic-primary text-white rounded-tr-sm'
-                : 'bg-white border border-harmonic-border text-harmonic-text rounded-tl-sm',
-            )}
-          >
-            {msg.pinned && (
-              <span className="flex items-center gap-1 text-[10px] font-semibold opacity-60 mb-1">
-                <Pin size={10} aria-hidden="true" /> Pinned
-              </span>
-            )}
-            {msg.text}
-            {msg.editedAt && (
-              <span className="text-[10px] opacity-50 ml-1">(edited)</span>
-            )}
-          </div>
-        )}
-
-        {/* Reactions */}
-        {Object.entries(msg.reactions).some(([, users]) => users.length > 0) && (
-          <div className="flex flex-wrap gap-1 mt-1">
-            {Object.entries(msg.reactions).map(([emoji, users]) =>
-              users.length > 0 ? (
-                <button
-                  key={emoji}
-                  onClick={() => handleReact(emoji)}
-                  className={cn(
-                    'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors',
-                    users.includes(currentUserId)
-                      ? 'bg-harmonic-primary/10 border-harmonic-primary/30 text-harmonic-primary'
-                      : 'bg-white border-harmonic-border text-harmonic-text hover:border-harmonic-primary/40',
-                  )}
-                >
-                  {emoji} {users.length}
-                </button>
-              ) : null,
-            )}
-          </div>
-        )}
-
-        <span className="text-[10px] text-harmonic-muted mt-0.5">{formatTime(msg.createdAt)}</span>
-      </div>
-
-      {/* Action buttons — show on hover */}
-      {!editing && (
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 self-start mt-1">
-          <div className="relative">
-            <button
-              onClick={() => setEmojiOpen(p => !p)}
-              className="p-1 rounded-full hover:bg-harmonic-surface text-harmonic-muted hover:text-harmonic-text"
-              aria-label="Add reaction"
-            >
-              <Smile size={14} aria-hidden="true" />
-            </button>
-            {emojiOpen && (
-              <div className="absolute z-20 bg-white rounded-xl shadow-card-hover border border-harmonic-border p-1.5 flex gap-1 bottom-full mb-1 left-0">
-                {QUICK_REACTIONS.map(e => (
-                  <button
-                    key={e}
-                    onClick={() => handleReact(e)}
-                    className="p-1 rounded-lg hover:bg-harmonic-surface text-base"
-                  >
-                    {e}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {(canDelete || canPin) && (
-            <div className="relative">
-              <button
-                onClick={() => setMenuOpen(p => !p)}
-                className="p-1 rounded-full hover:bg-harmonic-surface text-harmonic-muted hover:text-harmonic-text"
-                aria-label="Message options"
-              >
-                <MoreVertical size={14} aria-hidden="true" />
-              </button>
-              {menuOpen && (
-                <div className="absolute z-20 bg-white rounded-xl shadow-card-hover border border-harmonic-border py-1 w-36 right-0 bottom-full mb-1">
-                  {isMine && (
-                    <button
-                      onClick={() => { setEditing(true); setMenuOpen(false) }}
-                      className="w-full px-3 py-2 text-sm text-harmonic-text hover:bg-harmonic-surface text-left"
-                    >
-                      Edit
-                    </button>
-                  )}
-                  {canPin && (
-                    <button
-                      onClick={handlePin}
-                      className="w-full px-3 py-2 text-sm text-harmonic-text hover:bg-harmonic-surface text-left flex items-center gap-2"
-                    >
-                      <Pin size={14} aria-hidden="true" />
-                      {msg.pinned ? 'Unpin' : 'Pin'}
-                    </button>
-                  )}
-                  {canDelete && (
-                    <button
-                      onClick={handleDelete}
-                      className="w-full px-3 py-2 text-sm text-harmonic-danger hover:bg-red-50 text-left flex items-center gap-2"
-                    >
-                      <Trash2 size={14} aria-hidden="true" />
-                      Delete
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+    <div className="flex items-center gap-2 px-6 pb-1 text-xs text-harmonic-muted animate-fade-in" role="status">
+      <span className="flex gap-0.5">
+        {[0, 1, 2].map(i => (
+          <span
+            key={i}
+            className="w-1.5 h-1.5 rounded-full bg-harmonic-muted animate-typing-dot"
+            style={{ animationDelay: `${i * 0.15}s` }}
+          />
+        ))}
+      </span>
+      {label}…
     </div>
   )
 }
-
-interface OutletCtx { channels: Channel[]; visibleChannels: Channel[] }
 
 export function ChannelView() {
   const { channelId } = useParams<{ channelId: string }>()
   const navigate = useNavigate()
   const { harmonicUser } = useAuth()
   const { choir, isDirector } = useChoir()
-  const { channels } = useOutletContext<OutletCtx>()
+  const { channels } = useOutletContext<{ channels: Channel[] }>()
 
   const channel = channels.find(c => c.id === channelId)
-  const channelName = channel?.name ?? channelId ?? ''
+  const channelName = channel?.name ?? ''
+  const readOnly = Boolean(channel?.directorOnly) && !isDirector
 
   const [messages, setMessages] = useState<Message[]>([])
-  const [text, setText] = useState('')
+  const [files, setFiles] = useState<File[]>([])
+  const [replyTo, setReplyTo] = useState<ReplyPreview | null>(null)
+  const [threadRootId, setThreadRootId] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
+  const [pinnedOpen, setPinnedOpen] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const [highlightId, setHighlightId] = useState<string | null>(null)
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
+  const [typingTick, setTypingTick] = useState(0)
+
+  const scrollRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const nearBottom = useRef(true)
+  const prevCount = useRef(0)
+  const lastTypingWrite = useRef(0)
+  const dragDepth = useRef(0)
+
+  const threadRoot = useMemo(
+    () => messages.find(m => m.id === threadRootId) ?? null,
+    [messages, threadRootId],
+  )
+  const pinned = useMemo(() => messages.filter(m => m.pinned), [messages])
+
+  // Reset per-channel state when switching channels
+  useEffect(() => {
+    setReplyTo(null)
+    setThreadRootId(null)
+    setFiles([])
+    setPinnedOpen(false)
+    prevCount.current = 0
+    nearBottom.current = true
+  }, [channelId])
 
   useEffect(() => {
     if (!choir || !channelId) return
-    const unsub = subscribeToMessages(choir.id, channelId, setMessages)
-    return unsub
+    return subscribeToMessages(choir.id, channelId, setMessages)
   }, [choir, channelId])
 
+  // Typing presence: subscribe + tick every 2s so stale entries expire
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (!choir || !channelId) return
+    const unsub = subscribeToTyping(choir.id, channelId, setTypingUsers)
+    const tick = setInterval(() => setTypingTick(t => t + 1), 2000)
+    return () => { unsub(); clearInterval(tick) }
+  }, [choir, channelId])
+
+  const activeTypers = useMemo(() => {
+    void typingTick // re-evaluate on tick
+    const cutoff = Date.now() - TYPING_TTL_MS
+    return typingUsers.filter(u => u.at > cutoff && u.uid !== harmonicUser?.uid)
+  }, [typingUsers, typingTick, harmonicUser?.uid])
+
+  // Smart autoscroll: jump only when already near the bottom (or own send)
+  useEffect(() => {
+    if (messages.length > prevCount.current && nearBottom.current) {
+      bottomRef.current?.scrollIntoView({ behavior: prevCount.current === 0 ? 'auto' : 'smooth' })
+    }
+    prevCount.current = messages.length
   }, [messages])
 
-  const handleSend = async () => {
-    if (!text.trim() || !choir || !channelId || !harmonicUser) return
+  const handleScroll = () => {
+    const el = scrollRef.current
+    if (!el) return
+    nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX
+  }
+
+  const jumpToMessage = useCallback((id: string) => {
+    document.getElementById(`msg-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setHighlightId(id)
+    setTimeout(() => setHighlightId(null), 1600)
+  }, [])
+
+  const handleTyping = useCallback(() => {
+    if (!choir || !channelId || !harmonicUser) return
+    const now = Date.now()
+    if (now - lastTypingWrite.current < TYPING_THROTTLE_MS) return
+    lastTypingWrite.current = now
+    setTyping(choir.id, channelId, harmonicUser.uid, harmonicUser.preferredName || harmonicUser.displayName)
+  }, [choir, channelId, harmonicUser])
+
+  const handleSend = async (text: string) => {
+    if (!choir || !channelId || !harmonicUser || sending) return
     setSending(true)
+    nearBottom.current = true
     try {
+      const attachments = files.length > 0
+        ? await uploadAttachments(choir.id, channelId, files)
+        : []
       await sendMessage(choir.id, channelId, {
-        text: text.trim(),
+        text,
         authorId: harmonicUser.uid,
         authorName: harmonicUser.preferredName || harmonicUser.displayName,
         authorPhotoUrl: harmonicUser.photoURL,
+        attachments,
+        replyTo,
       })
-      setText('')
-      inputRef.current?.focus()
+      setFiles([])
+      setReplyTo(null)
+      lastTypingWrite.current = 0
+      clearTyping(choir.id, channelId, harmonicUser.uid)
     } catch (err) {
       console.error('Send message error:', err)
     } finally {
@@ -264,99 +166,195 @@ export function ChannelView() {
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
+  // Drag & drop attachments
+  const onDragEnter = (e: React.DragEvent) => {
+    if (readOnly || !e.dataTransfer.types.includes('Files')) return
+    e.preventDefault()
+    dragDepth.current += 1
+    setDragging(true)
+  }
+  const onDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragging(false)
+  }
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    dragDepth.current = 0
+    setDragging(false)
+    if (readOnly) return
+    const dropped = Array.from(e.dataTransfer.files)
+    if (dropped.length > 0) setFiles(prev => [...prev, ...dropped].slice(0, 10))
   }
 
-  // Group messages by day
-  const grouped: { day: string; messages: Message[] }[] = []
-  let currentDay = ''
-  for (const msg of messages) {
-    const day = msg.createdAt.toDateString()
-    if (day !== currentDay) {
-      grouped.push({ day: formatDay(msg.createdAt), messages: [msg] })
-      currentDay = day
-    } else {
-      grouped[grouped.length - 1].messages.push(msg)
-    }
-  }
+  const grouped = groupByDay(messages)
 
   return (
-    <>
-      {/* Channel header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-harmonic-border bg-white flex-shrink-0">
-        <button
-          className="md:hidden text-harmonic-muted hover:text-harmonic-text"
-          onClick={() => navigate('/messages')}
-          aria-label="Back to channels"
-        >
-          <ArrowLeft size={18} aria-hidden="true" />
-        </button>
-        <Hash size={16} className="text-harmonic-muted flex-shrink-0" aria-hidden="true" />
-        <h1 className="font-semibold text-harmonic-text text-sm">{channelName}</h1>
-      </div>
+    <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div
+        className="flex flex-col flex-1 min-w-0 relative"
+        onDragEnter={onDragEnter}
+        onDragOver={e => e.preventDefault()}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+      >
+        {/* Channel header — frosted */}
+        <div className="flex items-center gap-3 px-4 py-3 bg-white/80 backdrop-blur-2xl border-b border-black/[0.07] flex-shrink-0 z-10">
+          <button
+            className="md:hidden p-1 -ml-1 text-harmonic-muted hover:text-harmonic-text transition-colors duration-150"
+            onClick={() => navigate('/messages')}
+            aria-label="Back to channels"
+          >
+            <ArrowLeft size={19} aria-hidden="true" />
+          </button>
+          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-harmonic-primary/10 flex-shrink-0">
+            <Hash size={15} className="text-harmonic-primary" aria-hidden="true" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-semibold text-harmonic-text text-sm leading-tight truncate">{channelName}</h1>
+            {channel?.description && (
+              <p className="text-[11px] text-harmonic-muted truncate">{channel.description}</p>
+            )}
+          </div>
+          {pinned.length > 0 && (
+            <button
+              onClick={() => setPinnedOpen(v => !v)}
+              aria-expanded={pinnedOpen}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all duration-150 active:scale-95',
+                pinnedOpen
+                  ? 'bg-harmonic-warning/15 text-[#C93400]'
+                  : 'text-harmonic-muted hover:bg-harmonic-surface hover:text-harmonic-text',
+              )}
+            >
+              <Pin size={13} aria-hidden="true" />
+              {pinned.length}
+            </button>
+          )}
+        </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto py-4 space-y-1 bg-harmonic-surface/30">
-        {grouped.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full gap-3 text-harmonic-muted">
-            <Hash size={32} aria-hidden="true" />
-            <p className="text-sm">Start the conversation in #{channelName}</p>
+        {/* Pinned messages dropdown */}
+        {pinnedOpen && (
+          <div className="absolute top-14 right-3 left-3 md:left-auto md:w-96 z-20 bg-white/95 backdrop-blur-2xl border border-black/[0.06] rounded-card shadow-pop p-2 animate-scale-in origin-top-right max-h-72 overflow-y-auto">
+            <div className="flex items-center justify-between px-2 py-1.5">
+              <span className="text-xs font-semibold text-harmonic-text">Pinned messages</span>
+              <button
+                onClick={() => setPinnedOpen(false)}
+                aria-label="Close pinned messages"
+                className="p-1 rounded-full text-harmonic-muted hover:bg-harmonic-surface transition-colors duration-150"
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
+            </div>
+            {pinned.map(p => (
+              <div key={p.id} className="flex items-start gap-2 px-2 py-2 rounded-lg hover:bg-harmonic-surface transition-colors duration-150 group/pin">
+                <button
+                  className="flex-1 min-w-0 text-left"
+                  onClick={() => { jumpToMessage(p.id); setPinnedOpen(false) }}
+                >
+                  <span className="block text-xs font-semibold text-harmonic-text">{p.authorName}</span>
+                  <span className="block text-xs text-harmonic-muted truncate">
+                    {p.text || (p.attachments.length > 0 ? '📎 Attachment' : '')}
+                  </span>
+                </button>
+                {isDirector && choir && channelId && (
+                  <button
+                    onClick={() => pinMessage(choir.id, channelId, p.id, false)}
+                    aria-label="Unpin"
+                    className="opacity-0 group-hover/pin:opacity-100 p-1 rounded-full text-harmonic-muted hover:text-harmonic-danger transition-all duration-150"
+                  >
+                    <X size={13} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
-        {grouped.map(({ day, messages: dayMsgs }) => (
-          <div key={day}>
-            <div className="flex items-center gap-3 px-4 py-2">
-              <div className="flex-1 h-px bg-harmonic-border" />
-              <span className="text-xs text-harmonic-muted font-medium">{day}</span>
-              <div className="flex-1 h-px bg-harmonic-border" />
+        {/* Messages */}
+        <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto py-3">
+          {grouped.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-harmonic-muted animate-fade-in">
+              <span className="flex items-center justify-center w-14 h-14 rounded-2xl bg-harmonic-primary/10">
+                <Hash size={26} className="text-harmonic-primary" aria-hidden="true" />
+              </span>
+              <p className="text-sm font-medium text-harmonic-text">Welcome to #{channelName}</p>
+              <p className="text-xs">Start the conversation — say hello 👋</p>
             </div>
-            {dayMsgs.map(msg => (
-              <MessageBubble
-                key={msg.id}
-                msg={msg}
-                isMine={msg.authorId === harmonicUser?.uid}
-                isDirector={isDirector}
-                choirId={choir?.id ?? ''}
-                channelId={channelId ?? ''}
-                currentUserId={harmonicUser?.uid ?? ''}
-              />
-            ))}
+          )}
+
+          {grouped.map(({ day, messages: dayMsgs }) => (
+            <div key={day}>
+              <div className="flex justify-center py-3">
+                <span className="px-3 py-1 rounded-full bg-black/[0.05] text-[11px] text-harmonic-muted font-medium">
+                  {day}
+                </span>
+              </div>
+              {dayMsgs.map((msg, i) => {
+                const sameGroup = isSameGroup(dayMsgs[i - 1], msg)
+                const next = dayMsgs[i + 1]
+                const nextSame = next ? isSameGroup(msg, next) : false
+                return (
+                  <MessageBubble
+                    key={msg.id}
+                    msg={msg}
+                    isMine={msg.authorId === harmonicUser?.uid}
+                    isDirector={isDirector}
+                    choirId={choir?.id ?? ''}
+                    channelId={channelId ?? ''}
+                    currentUserId={harmonicUser?.uid ?? ''}
+                    groupStart={!sameGroup}
+                    groupEnd={!nextSame}
+                    highlight={highlightId === msg.id}
+                    onReply={readOnly ? undefined : setReplyTo}
+                    onOpenThread={m => setThreadRootId(m.id)}
+                    onJump={jumpToMessage}
+                  />
+                )
+              })}
+            </div>
+          ))}
+          <div ref={bottomRef} />
+        </div>
+
+        <TypingIndicator users={activeTypers} />
+
+        {/* Composer or read-only notice */}
+        {readOnly ? (
+          <div className="flex items-center justify-center gap-2 px-4 py-4 mx-4 mb-4 rounded-2xl bg-harmonic-surface text-harmonic-muted text-sm flex-shrink-0">
+            <Lock size={14} aria-hidden="true" />
+            Only directors can post in #{channelName}
           </div>
-        ))}
-        <div ref={bottomRef} />
+        ) : (
+          <Composer
+            placeholder={`Message #${channelName}`}
+            sending={sending}
+            files={files}
+            onFilesChange={setFiles}
+            replyTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
+            onSend={handleSend}
+            onTyping={handleTyping}
+          />
+        )}
+
+        {/* Drag overlay */}
+        {dragging && (
+          <div className="absolute inset-2 z-30 rounded-card-lg border-2 border-dashed border-harmonic-primary bg-harmonic-primary/5 backdrop-blur-sm flex flex-col items-center justify-center gap-2 pointer-events-none animate-fade-in">
+            <UploadCloud size={32} className="text-harmonic-primary" aria-hidden="true" />
+            <p className="text-sm font-semibold text-harmonic-primary">Drop files to attach</p>
+          </div>
+        )}
       </div>
 
-      {/* Input */}
-      <div className="px-4 py-3 bg-white border-t border-harmonic-border flex-shrink-0">
-        <div className="flex items-end gap-2">
-          <textarea
-            ref={inputRef}
-            value={text}
-            onChange={e => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={`Message #${channelName}`}
-            rows={1}
-            className="flex-1 resize-none rounded-2xl border-2 border-harmonic-border bg-harmonic-surface/50 px-4 py-2.5 text-sm text-harmonic-text placeholder:text-harmonic-muted focus:outline-none focus:border-harmonic-primary transition-colors max-h-32 overflow-y-auto leading-normal"
-            aria-label={`Message input for #${channelName}`}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!text.trim() || sending}
-            className="flex-shrink-0 w-10 h-10 rounded-full bg-harmonic-primary flex items-center justify-center text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-harmonic-primary/90 transition-colors"
-            aria-label="Send message"
-          >
-            <Send size={16} aria-hidden="true" />
-          </button>
-        </div>
-        <p className="text-[10px] text-harmonic-muted mt-1.5">
-          Press Enter to send · Shift+Enter for new line
-        </p>
-      </div>
-    </>
+      {/* Thread side panel */}
+      {threadRoot && channelId && (
+        <ThreadPanel
+          root={threadRoot}
+          channelId={channelId}
+          onClose={() => setThreadRootId(null)}
+        />
+      )}
+    </div>
   )
 }

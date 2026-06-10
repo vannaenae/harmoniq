@@ -35,7 +35,7 @@ export function AppLayout({ children, hidePadding }: AppLayoutProps) {
         {!online && (
           <div
             role="status"
-            className="flex items-center gap-2 bg-harmonic-warningBg text-harmonic-warning px-4 py-2.5 text-sm font-semibold justify-center border-b border-harmonic-warning/20"
+            className="flex items-center gap-2 bg-harmonic-warning/10 text-[#C93400] px-4 py-2.5 text-sm font-medium justify-center animate-slide-up"
           >
             <WifiOff size={16} aria-hidden="true" />
             You're offline. Your set list is still available but some features are paused.

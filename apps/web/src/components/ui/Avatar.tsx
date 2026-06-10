@@ -19,7 +19,7 @@ export function Avatar({ src, name, size = 'md', className }: AvatarProps) {
     <div
       className={cn(
         'rounded-full overflow-hidden flex items-center justify-center flex-shrink-0',
-        'bg-gradient-electric text-white font-bold select-none shadow-card-neon',
+        'bg-harmonic-primary text-white font-semibold select-none',
         sizeClasses[size],
         className,
       )}

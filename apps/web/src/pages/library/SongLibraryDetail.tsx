@@ -26,9 +26,12 @@ import { getSong, getPracticeNotes, savePracticeNotes, updateCustomSong, deleteC
 import type { SongOverride } from '@harmoniq/shared'
 import {
   fetchSpotify, fetchGenius, fetchAutoLyrics, fetchSongContext, fetchItunesResults,
+  fetchGeniusInfo, fetchChordsData,
   spotifyEmbedUrl, youtubeEmbedUrl,
   type SpotifyData, type GeniusData, type AutoLyricsResult, type SongContextData,
+  type GeniusSongInfo, type ChordsData,
 } from '@harmoniq/shared'
+import { ChordSheet } from './ChordSheet'
 import { LyricsAutoFetch } from '@/components/LyricsAutoFetch'
 import { useAudioPlayerStore } from '@harmoniq/shared'
 import { listServices, getSetList, saveSetList } from '@harmoniq/shared'
@@ -68,10 +71,16 @@ export function SongLibraryDetail() {
   const [lyricsSaving, setLyricsSaving] = useState(false)
   const [lyricsSaved,  setLyricsSaved]  = useState(false)
   const [context, setContext] = useState<SongContextData | null>(null)
+  const [geniusInfo, setGeniusInfo] = useState<GeniusSongInfo | null>(null)
+  const [chordsData, setChordsData] = useState<ChordsData | null>(null)
   const [mediaLoading,   setMediaLoading]   = useState(true)
   const [lyricsLoading,  setLyricsLoading]  = useState(true)
   const [contextLoading, setContextLoading] = useState(true)
   const [lyricsExpanded, setLyricsExpanded] = useState(false)
+  const [aboutExpanded, setAboutExpanded] = useState(false)
+  const [sheetExpanded, setSheetExpanded] = useState(false)
+  // Chord sheet transpose offset (semitones), separate from the key transposer
+  const [sheetOffset, setSheetOffset] = useState(0)
   const [addOpen, setAddOpen] = useState(false)
 
   // Edit / delete (custom songs, director only)
@@ -119,12 +128,14 @@ export function SongLibraryDetail() {
       setLoading(false)
 
       // Fire all enrichment in parallel — each settles independently
-      const [sp, ge, ly, ctx, it] = await Promise.allSettled([
+      const [sp, ge, ly, ctx, it, gi, ch] = await Promise.allSettled([
         fetchSpotify(s.title, s.artist),
         fetchGenius(s.title, s.artist),
         fetchAutoLyrics(s.title, s.artist),
         fetchSongContext(s.title, s.artist),
         fetchItunesResults(`${s.title} ${s.artist ?? ''}`.trim()),
+        fetchGeniusInfo(s.title, s.artist),
+        fetchChordsData(s.title, s.artist),
       ])
 
       if (!active) return
@@ -149,6 +160,8 @@ export function SongLibraryDetail() {
       setLyricsLoading(false)
 
       if (ctx.status === 'fulfilled') setContext(ctx.value)
+      if (gi.status === 'fulfilled') setGeniusInfo(gi.value)
+      if (ch.status === 'fulfilled') setChordsData(ch.value)
       setContextLoading(false)
     }).catch(err => {
       console.error('Load song error:', err)
@@ -697,26 +710,117 @@ export function SongLibraryDetail() {
                   <Skeleton className="h-6 w-24 rounded-full" />
                 </div>
               </div>
-            ) : context?.about ? (
+            ) : (geniusInfo?.about || context?.about) ? (
               <div className="space-y-3">
-                <p className="text-sm text-harmonic-text leading-relaxed">{context.about}</p>
-                {context.themes.length > 0 && (
+                {/* Real song description from Genius when available; AI context as fallback */}
+                <p className={`text-sm text-harmonic-text leading-relaxed whitespace-pre-line ${!aboutExpanded ? 'line-clamp-6' : ''}`}>
+                  {geniusInfo?.about ?? context?.about}
+                </p>
+                {(geniusInfo?.about ?? context?.about ?? '').length > 420 && (
+                  <button
+                    onClick={() => setAboutExpanded(v => !v)}
+                    className="text-xs font-semibold text-harmonic-primary hover:underline"
+                  >
+                    {aboutExpanded ? 'Show less' : 'Read more'}
+                  </button>
+                )}
+                {context && context.themes.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {context.themes.map(theme => (
                       <Badge key={theme} tone="tertiary">{theme}</Badge>
                     ))}
                   </div>
                 )}
-                {context.resonance && (
+                {context?.resonance && (
                   <p className="text-xs text-harmonic-muted italic border-l-2 border-harmonic-primary/30 pl-3">
                     {context.resonance}
                   </p>
+                )}
+                {geniusInfo?.about && geniusInfo.url && (
+                  <a
+                    href={geniusInfo.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-harmonic-muted hover:text-harmonic-primary transition-colors"
+                  >
+                    <ExternalLink size={12} aria-hidden="true" />
+                    From Genius
+                  </a>
                 )}
               </div>
             ) : (
               <p className="text-sm text-harmonic-muted">No context available for this song.</p>
             )}
           </Card>
+
+          {/* ── Chord chart (web-sourced, transposable) ─────────────────── */}
+          {chordsData?.chordsText && (
+            <Card className="p-5 space-y-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Music2 size={14} className="text-harmonic-primary" />
+                  <p className="text-xs font-semibold text-harmonic-muted uppercase tracking-widest">Chord chart</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSheetOffset(v => v - 1)}
+                    className="w-8 h-8 rounded-full bg-harmonic-surface hover:bg-harmonic-border/70 flex items-center justify-center text-harmonic-text transition-colors"
+                    aria-label="Transpose down one semitone"
+                  >
+                    <ChevronDown size={16} />
+                  </button>
+                  <span className="text-xs font-semibold text-harmonic-text w-8 text-center tabular-nums">
+                    {sheetOffset > 0 ? `+${sheetOffset}` : sheetOffset}
+                  </span>
+                  <button
+                    onClick={() => setSheetOffset(v => v + 1)}
+                    className="w-8 h-8 rounded-full bg-harmonic-surface hover:bg-harmonic-border/70 flex items-center justify-center text-harmonic-text transition-colors"
+                    aria-label="Transpose up one semitone"
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {chordsData.key && (
+                  <Badge tone="primary">Key {transposeChord(chordsData.key, sheetOffset)}</Badge>
+                )}
+                {chordsData.capo != null && <Badge tone="accent">Capo {chordsData.capo}</Badge>}
+                {chordsData.progression.length > 0 && (
+                  <Badge tone="muted">
+                    {chordsData.progression.map(c => transposeChord(c, sheetOffset)).join(' · ')}
+                  </Badge>
+                )}
+              </div>
+
+              <div className={!sheetExpanded ? 'max-h-96 overflow-hidden relative' : ''}>
+                <ChordSheet text={chordsData.chordsText} semitones={sheetOffset} />
+                {!sheetExpanded && (
+                  <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white to-transparent" />
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setSheetExpanded(v => !v)}
+                  className="text-xs font-semibold text-harmonic-primary hover:underline"
+                >
+                  {sheetExpanded ? 'Collapse' : 'Show full chart'}
+                </button>
+                {chordsData.sourceUrl && (
+                  <a
+                    href={chordsData.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-harmonic-muted hover:text-harmonic-primary transition-colors"
+                  >
+                    <ExternalLink size={12} aria-hidden="true" />
+                    {chordsData.sourceName ?? 'Source'}
+                  </a>
+                )}
+              </div>
+            </Card>
+          )}
 
           {/* ── Lyrics ──────────────────────────────────────────────────── */}
           <Card className="p-5">
