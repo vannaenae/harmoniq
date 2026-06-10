@@ -22,6 +22,27 @@ service cloud.firestore {
       return isMemberOf(choirId) && getUserData().role == 'director';
     }
 
+    // Returns true when the signed-in user may see a channel based on its
+    // visibleTo field. Directors always see everything.
+    function canSeeChannel(channelData) {
+      let vis = channelData.visibleTo;
+      let role = getUserData().role;
+      let part = getUserData().voicePart;
+      let vocalistParts = ['soprano', 'alto', 'tenor', 'bass', 'unclassified'];
+      let instrumentParts = ['keys', 'guitar', 'bass_guitar', 'drums', 'other_instrument'];
+      return vis == 'all'
+        || role == 'director'
+        || (vis == 'vocalists' && vocalistParts.hasAny([part]))
+        || (vis == 'instrumentalists' && instrumentParts.hasAny([part]));
+    }
+
+    // Returns true when the signed-in user may post to a channel (directors
+    // can always post; non-directors are blocked if directorOnly is true).
+    function canPostToChannel(channelData) {
+      return canSeeChannel(channelData)
+        && (!channelData.directorOnly || getUserData().role == 'director');
+    }
+
     function isChoirOwner(choirId) {
       return isSignedIn() &&
         get(/databases/$(database)/documents/choirs/$(choirId)).data.ownerId == request.auth.uid;
@@ -104,33 +125,44 @@ service cloud.firestore {
         allow update: if isDirectorOf(choirId);
       }
 
-      // Channels — all choir members read; Directors create/delete.
+      // Channels — visibility and posting respect visibleTo + directorOnly flags.
       match /channels/{channelId} {
-        allow read:  if isMemberOf(choirId) || isChoirOwner(choirId);
+        allow read:   if (isMemberOf(choirId) || isChoirOwner(choirId))
+                      && (isChoirOwner(choirId) || canSeeChannel(resource.data));
         allow create: if isDirectorOf(choirId) || isChoirOwner(choirId);
         allow update: if isDirectorOf(choirId) || isChoirOwner(choirId);
         allow delete: if isDirectorOf(choirId) || isChoirOwner(choirId);
 
-        // Messages — choir members can read; posting depends on directorOnly flag.
-        // Any member may update reactions and thread counters on others' messages;
-        // full edits remain author/director only.
+        // Messages — visibility mirrors channel; authorId must match caller; directorOnly enforced.
         match /messages/{messageId} {
-          allow read:   if isMemberOf(choirId) || isChoirOwner(choirId);
-          allow create: if isMemberOf(choirId) || isChoirOwner(choirId);
+          allow read:   if (isMemberOf(choirId) || isChoirOwner(choirId))
+                        && (isChoirOwner(choirId) || canSeeChannel(
+                              get(/databases/$(database)/documents/choirs/$(choirId)/channels/$(channelId)).data));
+          allow create: if (isMemberOf(choirId) || isChoirOwner(choirId))
+                        && request.resource.data.authorId == request.auth.uid
+                        && (isChoirOwner(choirId) || canPostToChannel(
+                              get(/databases/$(database)/documents/choirs/$(choirId)/channels/$(channelId)).data));
+          // Any member who can see the channel may update reactions and thread
+          // counters on others' messages; full edits remain author/director only.
           allow update: if (isMemberOf(choirId) && resource.data.authorId == request.auth.uid)
                         || isDirectorOf(choirId) || isChoirOwner(choirId)
-                        || (isMemberOf(choirId) &&
-                            request.resource.data.diff(resource.data).affectedKeys()
+                        || (isMemberOf(choirId)
+                            && canSeeChannel(
+                                 get(/databases/$(database)/documents/choirs/$(choirId)/channels/$(channelId)).data)
+                            && request.resource.data.diff(resource.data).affectedKeys()
                               .hasOnly(['reactions', 'threadCount', 'threadLastReplyAt']));
           allow delete: if (isMemberOf(choirId) && resource.data.authorId == request.auth.uid)
                         || isDirectorOf(choirId) || isChoirOwner(choirId);
         }
 
-        // Typing indicators — ephemeral presence docs, one per user.
+        // Typing indicators — ephemeral presence docs, one per user. Writable
+        // only by users who could post to the channel.
         match /typing/{userId} {
           allow read:   if isMemberOf(choirId) || isChoirOwner(choirId);
           allow write:  if (isMemberOf(choirId) || isChoirOwner(choirId))
-                        && request.auth.uid == userId;
+                        && request.auth.uid == userId
+                        && (isChoirOwner(choirId) || canPostToChannel(
+                              get(/databases/$(database)/documents/choirs/$(choirId)/channels/$(channelId)).data));
         }
       }
 
@@ -141,6 +173,24 @@ service cloud.firestore {
         allow write:  if isMemberOf(choirId) &&
                          noteId.matches(request.auth.uid + '_.*');
       }
+
+      // Per-choir song overrides — directors set keys, lock, archive.
+      match /songOverrides/{songId} {
+        allow read:  if isMemberOf(choirId) || isChoirOwner(choirId);
+        allow write: if isDirectorOf(choirId) || isChoirOwner(choirId);
+      }
+
+      // Suggestion feedback — members record accept/reject/replace events.
+      match /suggestionFeedback/{feedbackId} {
+        allow read:  if isDirectorOf(choirId) || isChoirOwner(choirId);
+        allow create: if isMemberOf(choirId);
+      }
+    }
+
+    // ── Users — offline song markers ───────────────────────────────────────────
+    match /users/{uid}/offlineSongs/{songId} {
+      allow read:  if isSignedIn() && isOwner(uid);
+      allow write: if isSignedIn() && isOwner(uid);
     }
 
     // ── Global song library (read-only for authenticated users) ───────────────
@@ -149,7 +199,18 @@ service cloud.firestore {
       allow write: if false; // seeded via admin SDK only
     }
 
-    // ── Integration caches (Spotify / Genius / lyrics / chords / AI) ──────────
+    // ── Translation cache (server-written, clients read) ─────────────────────
+    match /songTranslationCache/{cacheKey} {
+      allow read:  if isSignedIn();
+      allow write: if false; // written by Cloud Functions only
+    }
+
+    // ── Translation usage counters (server-only) ────────────────────────────
+    match /translationUsage/{key} {
+      allow read, write: if false; // Cloud Functions only
+    }
+
+    // ── Integration caches (Spotify / Genius) ─────────────────────────────────
     // Cloud Functions own these; clients may read and mirror cache entries to
     // avoid repeat lookups. No secrets are ever stored here.
     match /spotifyCache/{key} {

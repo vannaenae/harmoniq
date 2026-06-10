@@ -16,6 +16,11 @@ build/
 # TypeScript build cache
 *.tsbuildinfo
 
+# Playwright
+test-results/
+playwright-report/
+.playwright/
+
 # macOS
 .DS_Store
 
@@ -28,6 +33,17 @@ yarn-error.*
 .vscode/
 .idea/
 
-# test output
-test-results/
+# stale Expo cruft (old stack)
+.expo/
+expo-env.d.ts
+
+# Capacitor native platform directories (generated — run `npx cap add ios/android` to restore)
+ios/
+android/
+
+# claude specific files
+.claude/
+.vercel
+
+# firebase CLI debug output
 firebase-debug.log

@@ -1,0 +1,199 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --harmonic-primary:    #5E5CE6;
+    --harmonic-secondary:  #FF375F;
+    --harmonic-accent:     #0A84FF;
+    --harmonic-neutral:    #1C1C1E;
+    --harmonic-surface:    #F2F2F7;
+    --harmonic-background: #F5F5F7;
+    --harmonic-text:       #1C1C1E;
+    --harmonic-muted:      #8E8E93;
+    --harmonic-border:     #E5E5EA;
+    --harmonic-success:    #34C759;
+    --harmonic-warning:    #FF9500;
+    --harmonic-danger:     #FF3B30;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+    background-color: var(--harmonic-background);
+    color: var(--harmonic-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    letter-spacing: -0.022em;
+  }
+
+  /* Respect users who prefer reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Button variants */
+  .btn-primary {
+    @apply bg-harmonic-primary text-white rounded-pill px-6 py-2.5 font-semibold text-sm
+           transition-all duration-200 ease-out
+           hover:brightness-110 active:scale-[0.97]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-primary focus-visible:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply bg-harmonic-surface text-harmonic-text rounded-pill px-6 py-2.5 font-medium text-sm
+           transition-all duration-200 ease-out
+           hover:bg-harmonic-border/70 active:scale-[0.97]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-border focus-visible:ring-offset-2;
+  }
+
+  .btn-inverted {
+    @apply bg-harmonic-neutral text-white rounded-pill px-6 py-2.5 font-medium text-sm
+           transition-all duration-200 ease-out
+           hover:opacity-90 active:scale-[0.97]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-neutral focus-visible:ring-offset-2;
+  }
+
+  .btn-outlined {
+    @apply bg-transparent border border-harmonic-border text-harmonic-text rounded-pill px-6 py-2.5 font-medium text-sm
+           transition-all duration-200 ease-out
+           hover:bg-harmonic-surface active:scale-[0.97]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-border focus-visible:ring-offset-2;
+  }
+
+  .btn-danger {
+    @apply bg-harmonic-danger text-white rounded-pill px-6 py-2.5 font-medium text-sm
+           transition-all duration-200 ease-out
+           hover:brightness-110 active:scale-[0.97]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-danger focus-visible:ring-offset-2;
+  }
+
+  /* Legacy gradient button — now solid accent with soft shadow */
+  .btn-gradient {
+    @apply bg-harmonic-primary text-white rounded-pill px-6 py-2.5 font-semibold text-sm
+           transition-all duration-200 ease-out shadow-btn-glow
+           hover:brightness-110 active:scale-[0.97]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-harmonic-primary focus-visible:ring-offset-2;
+  }
+
+  /* Card — opaque white, hairline border, whisper of shadow */
+  .card {
+    @apply bg-white border border-black/[0.04] rounded-card shadow-card;
+  }
+
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5;
+  }
+
+  .card-lg {
+    @apply bg-white border border-black/[0.04] rounded-card-lg shadow-card;
+  }
+
+  /* Dark feature card (legacy gradient card) — restrained indigo */
+  .card-gradient {
+    @apply bg-gradient-hero rounded-card-lg text-white;
+  }
+
+  /* Glass card */
+  .card-glass {
+    @apply bg-white/70 backdrop-blur-xl rounded-card-lg border border-white/40 shadow-card;
+  }
+
+  /* Input */
+  .input-pill {
+    @apply bg-harmonic-surface rounded-pill px-4 py-2.5 text-sm
+           outline-none border border-transparent transition-all duration-200
+           focus:bg-white focus:border-harmonic-primary/40 focus:ring-4 focus:ring-harmonic-primary/10
+           placeholder:text-harmonic-muted;
+  }
+
+  /* Label */
+  .label {
+    @apply text-sm font-medium tracking-tight text-harmonic-text;
+  }
+
+  /* Muted text */
+  .text-muted {
+    @apply text-harmonic-muted;
+  }
+
+  /* Accent underline */
+  .accent-underline {
+    @apply border-b-2 border-harmonic-primary;
+  }
+
+  /* Nav active — iOS-style tint */
+  .nav-active {
+    @apply bg-harmonic-primary/10 text-harmonic-primary rounded-full;
+  }
+
+  /* Frosted bar — iOS-style chrome for nav bars and headers */
+  .frosted {
+    @apply bg-white/80 backdrop-blur-2xl;
+  }
+
+  /* Hairline separators */
+  .hairline-t { @apply border-t border-black/[0.07]; }
+  .hairline-b { @apply border-b border-black/[0.07]; }
+  .hairline-r { @apply border-r border-black/[0.07]; }
+  .hairline-l { @apply border-l border-black/[0.07]; }
+
+  /* Gradient text helpers — all resolve to the single indigo accent now */
+  .text-gradient,
+  .text-gradient-vivid,
+  .text-gradient-electric,
+  .text-gradient-aurora {
+    @apply text-harmonic-primary;
+  }
+
+  /* Shimmer loading */
+  .shimmer-bg {
+    background: linear-gradient(90deg, #F2F2F7 25%, #FAFAFC 50%, #F2F2F7 75%);
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+
+  /* Staggered animation delay utilities */
+  .delay-50  { animation-delay: 50ms; }
+  .delay-100 { animation-delay: 100ms; }
+  .delay-150 { animation-delay: 150ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+
+  /* Legacy glow utilities — softened to subtle tinted shadows */
+  .neon-glow-purple,
+  .neon-glow-pink,
+  .neon-glow-electric {
+    box-shadow: 0 2px 12px rgba(94, 92, 230, 0.18);
+  }
+
+  /* Pill badge for key/genre */
+  .key-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-pill text-xs font-semibold
+           bg-harmonic-primary/10 text-harmonic-primary;
+  }
+
+  /* Section eyebrow label */
+  .eyebrow {
+    @apply text-[10px] font-bold uppercase tracking-[0.12em] text-harmonic-muted;
+  }
+}

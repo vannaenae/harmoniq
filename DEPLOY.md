@@ -136,49 +136,6 @@ Re-run step 6.
 
 ---
 
----
-
-## CCLI SongSelect setup (optional)
-
-SongSelect shows official worship song lyrics inside the app when you search, and
-stores the CCLI number on saved songs so lyrics are always pulled from the
-licensed source.
-
-### Prerequisites
-
-- An active **CCLI Church License** (your church already has this if you print
-  song lyrics in services).
-- API credentials from the **CCLI Developer Portal**:
-  <https://developer.ccli.com> → Register → Create an application.
-  You will receive a `client_id` and `client_secret`.
-
-### Set the secrets
-
-```bash
-firebase functions:secrets:set CCLI_CLIENT_ID
-firebase functions:secrets:set CCLI_CLIENT_SECRET
-```
-
-Enter the values at the interactive prompt exactly as shown in the developer
-portal — never paste them into a command argument.
-
-Then re-deploy functions:
-
-```bash
-npm --prefix functions run deploy
-```
-
-Once deployed, the Song Library search will show a **CCLI SongSelect** section
-alongside Spotify and YouTube results. Saving a CCLI song stores its song number
-in Firestore, and the song detail page will display the official licensed lyrics
-with a copyright notice.
-
-If CCLI credentials are not set the SongSelect section shows
-"CCLI credentials may not be configured yet" — the rest of the app continues to
-work normally.
-
----
-
 ## Common mistakes
 
 | Symptom | Cause | Fix |
