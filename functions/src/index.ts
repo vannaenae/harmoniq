@@ -300,6 +300,7 @@ export const geniusSongInfo = onCall({ secrets: [GENIUS_TOKEN] }, async (request
   if (cached.exists) return cached.data()
 
   const empty = {
+    songId: null as number | null,
     about: null as string | null,
     album: null as string | null,
     releaseDate: null as string | null,
@@ -334,6 +335,7 @@ export const geniusSongInfo = onCall({ secrets: [GENIUS_TOKEN] }, async (request
     const description = song.description?.plain?.trim() ?? ''
 
     const result = {
+      songId: hit.id,
       // Genius uses "?" as an empty-description placeholder
       about: description && description !== '?' ? description : null,
       album: song.album?.name ?? null,

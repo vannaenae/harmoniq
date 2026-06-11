@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Check, ChevronUp, ChevronDown, Save,
-  Music2, Youtube, ExternalLink, ChevronDown as ChevronExpand,
+  Music2, Youtube, ExternalLink,
   Sparkles, Pencil, Trash2, RotateCcw, Lock, Unlock, Archive, ArchiveRestore,
   BookOpen, Play, Pause, RefreshCw,
 } from 'lucide-react'
@@ -25,18 +25,19 @@ import { useChoir } from '@harmoniq/shared'
 import { getSong, getPracticeNotes, savePracticeNotes, updateCustomSong, deleteCustomSong, subscribeSongOverride, saveSongOverride, cacheSongMedia, ALL_KEYS, GENRES } from '@harmoniq/shared'
 import type { SongOverride } from '@harmoniq/shared'
 import {
-  fetchSpotify, fetchGenius, fetchAutoLyrics, fetchSongContext, fetchItunesResults,
+  fetchSpotify, fetchGenius, fetchSongContext, fetchItunesResults,
   fetchGeniusInfo, fetchChordsData,
   spotifyEmbedUrl, youtubeEmbedUrl,
-  type SpotifyData, type GeniusData, type AutoLyricsResult, type SongContextData,
+  type SpotifyData, type GeniusData, type SongContextData,
   type GeniusSongInfo, type ChordsData,
 } from '@harmoniq/shared'
 import { ChordSheet } from './ChordSheet'
+import { GeniusEmbedPlayer } from '@/components/GeniusEmbedPlayer'
 import { LyricsAutoFetch } from '@/components/LyricsAutoFetch'
 import { useAudioPlayerStore } from '@harmoniq/shared'
 import { listServices, getSetList, saveSetList } from '@harmoniq/shared'
 import { semitoneDelta, inferPreference, transposeChord } from '@harmoniq/shared'
-import type { Song, Service, Language, LyricSection } from '@harmoniq/shared'
+import type { Song, Service } from '@harmoniq/shared'
 
 // ── Key / chord utilities ─────────────────────────────────────────────────────
 const CHROMATIC = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
@@ -67,16 +68,12 @@ export function SongLibraryDetail() {
   const [genius,    setGenius]    = useState<GeniusData | null>(null)
   const [itunesUrl, setItunesUrl] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  const [lyricsData,  setLyricsData]  = useState<AutoLyricsResult | null>(null)
-  const [lyricsSaving, setLyricsSaving] = useState(false)
-  const [lyricsSaved,  setLyricsSaved]  = useState(false)
   const [context, setContext] = useState<SongContextData | null>(null)
   const [geniusInfo, setGeniusInfo] = useState<GeniusSongInfo | null>(null)
   const [chordsData, setChordsData] = useState<ChordsData | null>(null)
   const [mediaLoading,   setMediaLoading]   = useState(true)
   const [lyricsLoading,  setLyricsLoading]  = useState(true)
   const [contextLoading, setContextLoading] = useState(true)
-  const [lyricsExpanded, setLyricsExpanded] = useState(false)
   const [aboutExpanded, setAboutExpanded] = useState(false)
   const [sheetExpanded, setSheetExpanded] = useState(false)
   // Chord sheet transpose offset (semitones), separate from the key transposer
@@ -128,10 +125,9 @@ export function SongLibraryDetail() {
       setLoading(false)
 
       // Fire all enrichment in parallel — each settles independently
-      const [sp, ge, ly, ctx, it, gi, ch] = await Promise.allSettled([
+      const [sp, ge, ctx, it, gi, ch] = await Promise.allSettled([
         fetchSpotify(s.title, s.artist),
         fetchGenius(s.title, s.artist),
-        fetchAutoLyrics(s.title, s.artist),
         fetchSongContext(s.title, s.artist),
         fetchItunesResults(`${s.title} ${s.artist ?? ''}`.trim()),
         fetchGeniusInfo(s.title, s.artist),
@@ -155,8 +151,6 @@ export function SongLibraryDetail() {
       setMediaLoading(false)
 
       if (ge.status === 'fulfilled') setGenius(ge.value)
-
-      if (ly.status === 'fulfilled') setLyricsData(ly.value)
       setLyricsLoading(false)
 
       if (ctx.status === 'fulfilled') setContext(ctx.value)
@@ -251,7 +245,6 @@ export function SongLibraryDetail() {
   const artUrl        = spotify?.albumArtUrl ?? song?.albumArtUrl ?? null
   const lyricsUrl     = genius?.url ?? song?.geniusUrl ?? song?.lyricsUrl ?? null
   const appleMusicUrl = itunesUrl ?? song?.media?.appleMusicUrl ?? null
-  const lyrics   = lyricsData?.lyrics ?? null
   // Extract unique chords from the song's actual lyric sections
   const songChords: string[] | null = (() => {
     const sections = song?.lyrics ?? []
@@ -326,35 +319,6 @@ export function SongLibraryDetail() {
       navigate('/library', { replace: true })
     } catch {
       setDeleting(false)
-    }
-  }
-
-  /** Parse a plain-text lyrics blob into basic LyricSection[] (verse-per-paragraph). */
-  const parseLyricsText = (text: string): LyricSection[] => {
-    const paragraphs = text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
-    return paragraphs.map((para, i) => ({
-      kind: 'verse' as const,
-      number: i + 1,
-      lines: para.split('\n').map(l => l.trim()).filter(Boolean),
-      language: (song?.primaryLanguage ?? 'en') as Language,
-    }))
-  }
-
-  /** Save auto-fetched lyrics to the song's `lyrics` field in Firestore (custom songs only). */
-  const handleSaveLyricsToSong = async () => {
-    if (!choir || !songId || !song?.isCustom) return
-    const raw = lyricsData?.lyrics
-    if (!raw) return
-    setLyricsSaving(true)
-    try {
-      const sections = parseLyricsText(raw)
-      await updateCustomSong(choir.id, songId, { lyrics: sections } as Parameters<typeof updateCustomSong>[2])
-      setSong(prev => prev ? { ...prev, lyrics: sections } : prev)
-      setLyricsSaved(true)
-    } catch (err) {
-      console.error('Save lyrics error:', err)
-    } finally {
-      setLyricsSaving(false)
     }
   }
 
@@ -840,62 +804,13 @@ export function SongLibraryDetail() {
                   <Skeleton key={i} className={`h-4 ${i % 4 === 3 ? 'w-1/3' : i % 2 === 0 ? 'w-full' : 'w-5/6'}`} />
                 ))}
               </div>
-            ) : lyrics ? (
-              <div className="relative">
-                <div
-                  className={`overflow-hidden transition-all duration-500 ${lyricsExpanded ? 'max-h-[9999px]' : 'max-h-72'}`}
-                >
-                  <pre className="text-sm text-harmonic-text whitespace-pre-wrap font-sans leading-7">
-                    {lyrics}
-                  </pre>
-                </div>
-                {!lyricsExpanded && (
-                  <div className="absolute bottom-0 inset-x-0 h-20 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-                )}
-                <button
-                  onClick={() => setLyricsExpanded(e => !e)}
-                  className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-harmonic-primary hover:underline"
-                >
-                  <ChevronExpand size={14} className={`transition-transform ${lyricsExpanded ? 'rotate-180' : ''}`} />
-                  {lyricsExpanded ? 'Show less' : 'Show full lyrics'}
-                </button>
-                <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
-                  {lyricsUrl && (
-                    <a
-                      href={lyricsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs text-harmonic-muted hover:text-harmonic-text transition-colors"
-                    >
-                      <ExternalLink size={11} /> Full lyrics on Genius
-                    </a>
-                  )}
-                  {lyricsData?.source && lyricsData.source !== 'none' && (
-                    <span className="text-xs text-harmonic-muted">
-                      via {lyricsData.source === 'lyrics.ovh' ? 'lyrics.ovh' : 'cache'}
-                    </span>
-                  )}
-                </div>
-                {/* Director: save raw lyrics to song document */}
-                {isDirector && song.isCustom && (
-                  <div className="mt-3">
-                    {lyricsSaved ? (
-                      <span className="flex items-center gap-1.5 text-xs text-harmonic-success font-medium">
-                        <Check size={13} /> Lyrics saved to song
-                      </span>
-                    ) : (
-                      <Button
-                        variant="outlined"
-                        onClick={handleSaveLyricsToSong}
-                        disabled={lyricsSaving}
-                      >
-                        <Save size={15} />
-                        {lyricsSaving ? 'Saving…' : 'Save lyrics to song'}
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
+            ) : geniusInfo?.songId && lyricsUrl ? (
+              // Genius embed widget — official embedded lyrics player
+              <GeniusEmbedPlayer
+                songId={geniusInfo.songId}
+                geniusUrl={lyricsUrl}
+                title={song.title}
+              />
             ) : song.rights?.status === 'unknown' ? (
               <div className="space-y-3">
                 <div className="flex items-start gap-3 p-4 rounded-card bg-harmonic-surface border border-harmonic-border">
@@ -937,10 +852,7 @@ export function SongLibraryDetail() {
                   title={song.title}
                   artist={song.artist}
                   enabled={isDirector}
-                  onFetched={(rawLyrics) => {
-                    setLyricsData({ lyrics: rawLyrics, source: 'none' })
-                    setLyricsLoading(false)
-                  }}
+                  onFetched={() => setLyricsLoading(false)}
                 />
                 {lyricsUrl && (
                   <a href={lyricsUrl} target="_blank" rel="noopener noreferrer">

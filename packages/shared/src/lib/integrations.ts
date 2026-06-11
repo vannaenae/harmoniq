@@ -28,6 +28,7 @@ export interface LyricsData {
 }
 
 export interface GeniusSongInfo {
+  songId: number | null
   about: string | null
   album: string | null
   releaseDate: string | null
@@ -167,6 +168,7 @@ export async function fetchGeniusInfo(title: string, artist?: string): Promise<G
     if (cached.exists()) {
       const d = cached.data()
       return {
+        songId: d.songId ?? null,
         about: d.about ?? null,
         album: d.album ?? null,
         releaseDate: d.releaseDate ?? null,
