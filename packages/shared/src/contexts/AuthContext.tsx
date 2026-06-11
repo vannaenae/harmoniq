@@ -69,7 +69,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    // Safety valve: if Firebase never calls back (e.g. missing env vars in production),
+    // force loading=false after 8 s so the user reaches the sign-in page instead of hanging.
+    const timeout = setTimeout(() => setLoading(false), 8000)
+
     const unsub = onAuthStateChanged(auth, async (user) => {
+      clearTimeout(timeout)
       setFirebaseUser(user)
       if (user) {
         const u = await fetchHarmonicUser(user.uid)
@@ -79,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setLoading(false)
     })
-    return unsub
+    return () => { clearTimeout(timeout); unsub() }
   }, [])
 
   const signInWithGoogle = async () => {
