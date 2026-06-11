@@ -41,6 +41,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Select Xcode 26 (Apple requires the iOS 26 SDK for App Store uploads)
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then
+            echo "::error::No Xcode 26.x found on this runner. Available:"
+            ls /Applications | grep -i xcode
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
       - name: Check required secrets
         env:
           ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
