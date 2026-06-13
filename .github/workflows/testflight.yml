@@ -156,8 +156,90 @@ jobs:
           -authenticationKeyID "$ASC_API_KEY_ID"
           -authenticationKeyIssuerID "$ASC_API_ISSUER_ID"
 
+      - name: Add build to internal testing group
+        env:
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          node - <<'NODEJS'
+          const crypto = require('crypto');
+          const https = require('https');
+
+          const keyId    = process.env.ASC_API_KEY_ID;
+          const issuerId = process.env.ASC_API_ISSUER_ID;
+          const keyP8    = process.env.ASC_API_KEY_P8;
+          const bundleId = 'com.soulspce.harmoniqapp';
+          const runNum   = process.env.BUILD_NUMBER;
+
+          function jwt() {
+            const hdr = Buffer.from(JSON.stringify({ alg: 'ES256', kid: keyId, typ: 'JWT' })).toString('base64url');
+            const now = Math.floor(Date.now() / 1000);
+            const pay = Buffer.from(JSON.stringify({ iss: issuerId, iat: now, exp: now + 1200, aud: 'appstoreconnect-v1' })).toString('base64url');
+            const sig = crypto.createSign('SHA256').update(`${hdr}.${pay}`);
+            return `${hdr}.${pay}.${sig.sign(keyP8, 'base64url')}`;
+          }
+
+          function api(method, path, body) {
+            return new Promise((resolve, reject) => {
+              const payload = body ? JSON.stringify(body) : null;
+              const opts = {
+                hostname: 'api.appstoreconnect.apple.com', path, method,
+                headers: { Authorization: `Bearer ${jwt()}`, ...(payload ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } : {}) }
+              };
+              const req = https.request(opts, res => {
+                let d = '';
+                res.on('data', c => d += c);
+                res.on('end', () => resolve({ status: res.statusCode, body: d ? JSON.parse(d) : {} }));
+              });
+              req.on('error', reject);
+              if (payload) req.write(payload);
+              req.end();
+            });
+          }
+
+          async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+          async function main() {
+            const apps = await api('GET', `/v1/apps?filter[bundleId]=${bundleId}`);
+            const appId = apps.body.data[0].id;
+            console.log('App ID:', appId);
+
+            const groups = await api('GET', `/v1/betaGroups?filter[app]=${appId}&filter[isInternalGroup]=true`);
+            const groupId = groups.body.data[0].id;
+            const groupName = groups.body.data[0].attributes.name;
+            console.log(`Internal group: ${groupName} (${groupId})`);
+
+            // Poll up to 20 min for the build to finish processing.
+            let buildId;
+            for (let i = 0; i < 40; i++) {
+              const builds = await api('GET', `/v1/builds?filter[app]=${appId}&filter[processingState]=VALID&sort=-uploadedDate&limit=5`);
+              const match = builds.body.data.find(b => b.attributes.version === runNum);
+              if (match) { buildId = match.id; break; }
+              console.log(`Waiting for build ${runNum} to process... (${i + 1}/40)`);
+              await sleep(30000);
+            }
+
+            if (!buildId) { console.error('Build not found after 20 min'); process.exit(1); }
+            console.log('Build ID:', buildId);
+
+            const result = await api('POST', `/v1/betaGroups/${groupId}/relationships/builds`, {
+              data: [{ type: 'builds', id: buildId }]
+            });
+
+            if (result.status === 204 || result.status === 200) {
+              console.log(`Build added to "${groupName}" — testers will be notified automatically.`);
+            } else {
+              console.error('Unexpected response:', result.status, JSON.stringify(result.body));
+              process.exit(1);
+            }
+          }
+
+          main().catch(err => { console.error(err); process.exit(1); });
+          NODEJS
+
       - name: Summary
         run: |
-          echo "## TestFlight upload complete 🎵" >> "$GITHUB_STEP_SUMMARY"
-          echo "Build **0.1.0 (${{ github.run_number }})** uploaded for bundle \`com.soulspce.harmoniqapp\`." >> "$GITHUB_STEP_SUMMARY"
-          echo "It appears in App Store Connect → TestFlight after Apple finishes processing (usually 5–15 min)." >> "$GITHUB_STEP_SUMMARY"
+          echo "## TestFlight upload complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "Build **0.1.0 (${{ github.run_number }})** uploaded and added to the internal testing group." >> "$GITHUB_STEP_SUMMARY"
