@@ -167,14 +167,20 @@ export async function fetchGeniusInfo(title: string, artist?: string): Promise<G
     const cached = await getDoc(cacheRef)
     if (cached.exists()) {
       const d = cached.data()
-      return {
-        songId: d.songId ?? null,
-        about: d.about ?? null,
-        album: d.album ?? null,
-        releaseDate: d.releaseDate ?? null,
-        artistName: d.artistName ?? null,
-        songArtUrl: d.songArtUrl ?? null,
-        url: d.url ?? null,
+      // Entries cached before songId was added lack the field. When a song was
+      // found on Genius (url present) but songId is missing, the cache is stale
+      // for the embed — fall through to re-fetch so we pick up the songId.
+      const staleForEmbed = d.songId == null && d.url != null
+      if (!staleForEmbed) {
+        return {
+          songId: d.songId ?? null,
+          about: d.about ?? null,
+          album: d.album ?? null,
+          releaseDate: d.releaseDate ?? null,
+          artistName: d.artistName ?? null,
+          songArtUrl: d.songArtUrl ?? null,
+          url: d.url ?? null,
+        }
       }
     }
 
