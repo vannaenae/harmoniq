@@ -60,11 +60,11 @@ const PrivacyPolicy     = lazy(() => import('@/pages/settings/LegalPage').then(m
 const TermsOfService    = lazy(() => import('@/pages/settings/LegalPage').then(m => ({ default: m.TermsOfService })))
 const WaitlistPage      = lazy(() => import('@/pages/waitlist/WaitlistPage').then(m => ({ default: m.WaitlistPage })))
 
-/** Route guard — redirects unauthenticated users to waitlist */
+/** Route guard — redirects unauthenticated users to sign-in */
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { firebaseUser, loading } = useAuth()
   if (loading) return <FullScreenLoader />
-  if (!firebaseUser) return <Navigate to="/waitlist" replace />
+  if (!firebaseUser) return <Navigate to="/sign-in" replace />
   return <>{children}</>
 }
 
@@ -198,7 +198,7 @@ export function App() {
         path="/"
         element={
           !firebaseUser
-            ? <Navigate to="/waitlist" replace />
+            ? <Navigate to="/sign-in" replace />
             : !harmonicUser?.onboardingComplete
             ? <Navigate to="/onboarding/role" replace />
             : <Navigate to="/dashboard" replace />
